@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Scorched Earth</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #000; overflow: hidden; font-family: 'Courier New', monospace; }
+canvas { display: block; }
+#ui {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0,0,0,0.65);
+  color: #fff;
+  padding: 8px 24px;
+  border-radius: 6px;
+  font-size: 18px;
+  pointer-events: none;
+  white-space: nowrap;
+  border: 2px solid rgba(255,255,255,0.15);
+  transition: border-color 0.2s;
+}
+#win {
+  display: none;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(0,0,0,0.88);
+  color: #fff;
+  padding: 48px 72px;
+  border-radius: 14px;
+  font-size: 40px;
+  text-align: center;
+  border: 2px solid rgba(255,255,255,0.25);
+  cursor: pointer;
+}
+#win small {
+  display: block;
+  font-size: 16px;
+  margin-top: 14px;
+  color: #999;
+}
+#keys {
+  position: fixed;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: rgba(255,255,255,0.4);
+  font-size: 13px;
+  pointer-events: none;
+  white-space: nowrap;
+}
+#vol {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(0,0,0,0.65);
+  padding: 7px 14px;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.12);
+}
+#vol span { color: rgba(255,255,255,0.65); font-size: 15px; user-select: none; }
+#vol input[type=range] { width: 76px; cursor: pointer; accent-color: #5599ff; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="ui"></div>
+<div id="win"></div>
+<div id="vol">
+  <span>🔊</span>
+  <input type="range" id="volSlider" min="0" max="1" step="0.05" value="0.6">
+</div>
+<div id="keys">← → angle &nbsp;|&nbsp; ↑ ↓ power &nbsp;|&nbsp; SPACE fire &nbsp;|&nbsp; hold SHIFT for ×5</div>
+<script>
+const canvas = document.getElementById('c');
+const ctx    = canvas.getContext('2d');
+const ui     = document.getElementById('ui');
+const winEl  = document.getElementById('win');
+
+// ── constants ──────────────────────────────────────────────────────────────
+const GRAVITY    = 260;   // px/s²
+const BLAST_R    = 48;    // crater radius px
+const TANK_HIT_R = 18;    // tank collision radius px
+const HIT_DAMAGE   = 75;    // max hp loss per direct hit
+const POWER_SCALE  = 7.77;  // px/s per power unit (5.98 * 1.30)
+const CANNON_LEN   = 22;    // px
+const MAX_POWER    = 100;
+const TRAIL_LEN  = 32;
+const WIND_SCALE = 6;     // wind display unit → px/s² acceleration
+
+// ── audio ──────────────────────────────────────────────────────────────────
+let audioCtx    = null;
+let masterGain  = null;
+let whistleOsc  = null;
+let whistleGain = null;
+let masterVolume = 0.6;
+
+// Lazy-init on first user gesture; safe to call repeatedly.
+function ensureAudio() {
+  if (!audioCtx) {
+    try {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    } catch (e) { return false; }
+    masterGain = audioCtx.createGain();
+    masterGain.gain.value = masterVolume;
+    masterGain.connect(audioCtx.destination);
+  }
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx.state !== 'closed';
+}
+
+// Create a white-noise buffer of the given duration.
+function makeNoise(seconds) {
+  const len = Math.ceil(audioCtx.sampleRate * seconds);
+  const buf = audioCtx.createBuffer(1, len, audioCtx.sampleRate);
+  const d   = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+  return buf;
+}
+
+// Short low-frequency thump + mechanical click transient.
+function soundFire() {
+  if (!ensureAudio()) return;
+  const now = audioCtx.currentTime;
+
+  const osc = audioCtx.createOscillator();
+  const ogn = audioCtx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(95, now);
+  osc.frequency.exponentialRampToValueAtTime(22, now + 0.14);
+  ogn.gain.setValueAtTime(1.0, now);
+  ogn.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+  osc.connect(ogn); ogn.connect(masterGain);
+  osc.start(now); osc.stop(now + 0.14);
+
+  // brief noise click layered on top
+  const ns  = audioCtx.createBufferSource();
+  ns.buffer = makeNoise(0.05);
+  const ngn = audioCtx.createGain();
+  ngn.gain.setValueAtTime(0.28, now);
+  ngn.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+  ns.connect(ngn); ngn.connect(masterGain);
+  ns.start(now);
+}
+
+// Continuous whistle whose pitch tracks projectile speed.
+function startWhistle() {
+  if (!ensureAudio() || whistleOsc) return;
+  whistleOsc  = audioCtx.createOscillator();
+  whistleGain = audioCtx.createGain();
+  whistleOsc.type = 'sine';
+  whistleOsc.frequency.value = 500;
+  whistleGain.gain.setValueAtTime(0, audioCtx.currentTime);
+  whistleGain.gain.linearRampToValueAtTime(0.07, audioCtx.currentTime + 0.09);
+  whistleOsc.connect(whistleGain);
+  whistleGain.connect(masterGain);
+  whistleOsc.start();
+}
+
+function updateWhistle(vx, vy) {
+  if (!whistleOsc) return;
+  const speed = Math.hypot(vx, vy);
+  // map speed (px/s) to audible pitch: faster = higher pitch
+  const freq = Math.min(2400, 180 + speed * 1.15);
+  whistleOsc.frequency.setTargetAtTime(freq, audioCtx.currentTime, 0.07);
+}
+
+function stopWhistle() {
+  if (!whistleOsc) return;
+  const now = audioCtx.currentTime;
+  whistleGain.gain.setTargetAtTime(0, now, 0.04);
+  const o = whistleOsc, g = whistleGain;
+  whistleOsc = null; whistleGain = null;
+  setTimeout(() => { try { o.stop(); o.disconnect(); g.disconnect(); } catch (_) {} }, 300);
+}
+
+// White noise → low-pass filter with sweeping cutoff = deep rolling boom.
+function soundExplosion() {
+  if (!ensureAudio()) return;
+  const now = audioCtx.currentTime;
+  const dur = 1.5;
+
+  const ns  = audioCtx.createBufferSource();
+  ns.buffer = makeNoise(dur);
+
+  const lpf = audioCtx.createBiquadFilter();
+  lpf.type = 'lowpass';
+  lpf.frequency.setValueAtTime(900, now);
+  lpf.frequency.exponentialRampToValueAtTime(38, now + dur * 0.8);
+
+  const gn = audioCtx.createGain();
+  gn.gain.setValueAtTime(1.0, now);
+  gn.gain.exponentialRampToValueAtTime(0.001, now + dur);
+
+  ns.connect(lpf); lpf.connect(gn); gn.connect(masterGain);
+  ns.start(now); ns.stop(now + dur);
+}
+
+// Bandpass noise burst + metallic ring = sharper "tank hit" crack.
+function soundTankHit() {
+  if (!ensureAudio()) return;
+  const now = audioCtx.currentTime;
+  const dur = 0.55;
+
+  const ns  = audioCtx.createBufferSource();
+  ns.buffer = makeNoise(dur);
+  const bpf = audioCtx.createBiquadFilter();
+  bpf.type = 'bandpass';
+  bpf.frequency.setValueAtTime(1600, now);
+  bpf.frequency.exponentialRampToValueAtTime(280, now + dur * 0.7);
+  bpf.Q.value = 1.4;
+  const gn = audioCtx.createGain();
+  gn.gain.setValueAtTime(0.85, now);
+  gn.gain.exponentialRampToValueAtTime(0.001, now + dur);
+  ns.connect(bpf); bpf.connect(gn); gn.connect(masterGain);
+  ns.start(now); ns.stop(now + dur);
+
+  // metallic ring oscillator
+  const ring = audioCtx.createOscillator();
+  const rgn  = audioCtx.createGain();
+  ring.type = 'triangle';
+  ring.frequency.setValueAtTime(660, now);
+  ring.frequency.exponentialRampToValueAtTime(160, now + 0.38);
+  rgn.gain.setValueAtTime(0.38, now);
+  rgn.gain.exponentialRampToValueAtTime(0.001, now + 0.38);
+  ring.connect(rgn); rgn.connect(masterGain);
+  ring.start(now); ring.stop(now + 0.38);
+}
+
+document.getElementById('volSlider').addEventListener('input', e => {
+  masterVolume = parseFloat(e.target.value);
+  ensureAudio(); // counts as user gesture → satisfies autoplay policy
+  if (masterGain) masterGain.gain.setTargetAtTime(masterVolume, audioCtx.currentTime, 0.01);
+});
+
+// ── game state ─────────────────────────────────────────────────────────────
+let terrain, tanks, currentPlayer, projectile, gameOver, animId, lastTime, stars;
+let wind       = 0;    // –10…+10; positive = rightward
+let explosions = [];   // { x, y, r, maxR, alpha, age, duration }
+
+// ── resize ─────────────────────────────────────────────────────────────────
+function resize() {
+  canvas.width  = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+
+// ── midpoint displacement terrain ──────────────────────────────────────────
+function generateTerrain() {
+  const w = canvas.width, h = canvas.height;
+  terrain = new Array(w);
+  const lo = h * 0.42, hi = h * 0.74;
+  terrain[0]     = lo + Math.random() * (hi - lo);
+  terrain[w - 1] = lo + Math.random() * (hi - lo);
+
+  function subdivide(l, r, scale) {
+    if (r - l <= 1) return;
+    const mid  = (l + r) >> 1;
+    const disp = (Math.random() - 0.5) * scale * (r - l);
+    terrain[mid] = Math.max(lo * 0.55, Math.min(hi * 1.08,
+      (terrain[l] + terrain[r]) / 2 + disp));
+    subdivide(l, mid, scale);
+    subdivide(mid, r, scale);
+  }
+  subdivide(0, w - 1, 0.42);
+
+  for (let x = 1; x < w - 1; x++) {
+    if (terrain[x] == null) terrain[x] = (terrain[x - 1] + terrain[x + 1]) / 2;
+  }
+}
+
+// ── stars ──────────────────────────────────────────────────────────────────
+function generateStars() {
+  stars = [];
+  for (let i = 0; i < 120; i++) {
+    stars.push({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height * 0.55,
+      r: Math.random() < 0.15 ? 1.5 : 1,
+      a: 0.4 + Math.random() * 0.6,
+    });
+  }
+}
+
+// ── tanks ──────────────────────────────────────────────────────────────────
+function placeTanks() {
+  const w = canvas.width;
+  const tx1 = Math.floor(w * 0.10 + Math.random() * w * 0.10);
+  const tx2 = Math.floor(w * 0.80 + Math.random() * w * 0.10);
+  tanks = [
+    { x: tx1, y: terrain[tx1], vy: 0, falling: false, fallStartY: 0, color: '#5599ff', name: 'P1', angle: 45,  power: 50, health: 100 },
+    { x: tx2, y: terrain[tx2], vy: 0, falling: false, fallStartY: 0, color: '#ff5555', name: 'P2', angle: 135, power: 50, health: 100 },
+  ];
+}
+
+// ── wind ───────────────────────────────────────────────────────────────────
+function newWind() {
+  wind = Math.round((Math.random() * 2 - 1) * 10);
+}
+
+// ── draw: background + terrain ─────────────────────────────────────────────
+function drawScene() {
+  const w = canvas.width, h = canvas.height;
+
+  const sky = ctx.createLinearGradient(0, 0, 0, h * 0.75);
+  sky.addColorStop(0, '#04040f');
+  sky.addColorStop(1, '#0b2238');
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, w, h);
+
+  for (const s of stars) {
+    ctx.fillStyle = `rgba(255,255,255,${s.a})`;
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  let minY = terrain[0];
+  for (let x = 1; x < w; x++) if (terrain[x] < minY) minY = terrain[x];
+
+  const tg = ctx.createLinearGradient(0, minY, 0, h);
+  tg.addColorStop(0.00, '#4a9c2a');
+  tg.addColorStop(0.04, '#3d7020');
+  tg.addColorStop(0.14, '#7a5230');
+  tg.addColorStop(0.50, '#5c3d1e');
+  tg.addColorStop(1.00, '#1e0e04');
+
+  ctx.beginPath();
+  ctx.moveTo(0, h);
+  ctx.lineTo(0, terrain[0]);
+  for (let x = 1; x < w; x++) ctx.lineTo(x, terrain[x]);
+  ctx.lineTo(w - 1, h);
+  ctx.closePath();
+  ctx.fillStyle = tg;
+  ctx.fill();
+}
+
+// ── draw: tank ─────────────────────────────────────────────────────────────
+function drawTank(tank, active) {
+  const { x, y, color, angle, health, name } = tank;
+  const bodyY = y - 11;
+
+  if (active) {
+    ctx.beginPath();
+    ctx.arc(x, y - 9, 28, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(255,255,255,0.22)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+
+  // treads
+  ctx.fillStyle = '#383838';
+  ctx.fillRect(x - 19, y - 7, 38, 8);
+  ctx.fillStyle = '#555';
+  ctx.fillRect(x - 17, y - 6, 6, 6);
+  ctx.fillRect(x -  5, y - 6, 6, 6);
+  ctx.fillRect(x +  7, y - 6, 6, 6);
+
+  // hull + turret
+  ctx.fillStyle = color;
+  ctx.fillRect(x - 14, bodyY, 28, 12);
+  ctx.beginPath();
+  ctx.arc(x, bodyY, 9, Math.PI, 0);
+  ctx.fill();
+
+  // cannon
+  const rad = angle * Math.PI / 180;
+  ctx.beginPath();
+  ctx.moveTo(x, bodyY);
+  ctx.lineTo(x + Math.cos(rad) * CANNON_LEN, bodyY - Math.sin(rad) * CANNON_LEN);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 5;
+  ctx.lineCap = 'round';
+  ctx.stroke();
+
+  // health bar
+  const bw = 46, bh = 7, bx = x - 23, by = y - 54;
+  ctx.fillStyle = 'rgba(0,0,0,0.55)';
+  ctx.fillRect(bx - 1, by - 1, bw + 2, bh + 2);
+  ctx.fillStyle = health > 60 ? '#44dd44' : health > 30 ? '#ddcc22' : '#dd2222';
+  ctx.fillRect(bx, by, bw * (health / 100), bh);
+  ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(bx, by, bw, bh);
+
+  ctx.fillStyle = color;
+  ctx.font = 'bold 13px Courier New';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillText(name, x, by - 5);
+}
+
+// ── draw: dotted aiming guide ──────────────────────────────────────────────
+function drawAimGuide() {
+  if (projectile) return;
+  const tank  = tanks[currentPlayer];
+  const rad   = tank.angle * Math.PI / 180;
+  const spd   = tank.power * POWER_SCALE;
+  const wAcc  = wind * WIND_SCALE;
+  const bodyY = tank.y - 11;
+
+  let x  = tank.x + Math.cos(rad) * (CANNON_LEN + 5);
+  let y  = bodyY  - Math.sin(rad) * (CANNON_LEN + 5);
+  let vx = Math.cos(rad) * spd;
+  let vy = -Math.sin(rad) * spd;
+
+  ctx.save();
+  ctx.setLineDash([3, 5]);
+  ctx.strokeStyle = 'rgba(255,255,255,0.32)';
+  ctx.lineWidth   = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+
+  const simDt = 0.003;
+  let pathLen = 0, px0 = x, py0 = y;
+
+  for (let i = 0; i < 600 && pathLen < 50; i++) {
+    vy += GRAVITY * simDt;
+    vx += wAcc   * simDt;
+    x  += vx     * simDt;
+    y  += vy     * simDt;
+    pathLen += Math.hypot(x - px0, y - py0);
+    px0 = x; py0 = y;
+    ctx.lineTo(x, y);
+    const ix = Math.round(x);
+    if (ix >= 0 && ix < canvas.width && y >= 0 && y >= terrain[ix]) break;
+  }
+
+  ctx.stroke();
+  ctx.restore(); // resets setLineDash
+}
+
+// ── draw: projectile with fading trail ─────────────────────────────────────
+function drawProjectile() {
+  if (!projectile) return;
+  const { x, y, trail } = projectile;
+
+  // each segment gets its own alpha so the tail fades to transparent
+  for (let i = 1; i < trail.length; i++) {
+    const alpha = (i / trail.length) * 0.7;
+    ctx.beginPath();
+    ctx.moveTo(trail[i - 1].x, trail[i - 1].y);
+    ctx.lineTo(trail[i].x,     trail[i].y);
+    ctx.strokeStyle = `rgba(255,170,30,${alpha.toFixed(2)})`;
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+  }
+
+  // glowing head
+  const grd = ctx.createRadialGradient(x, y, 0, x, y, 9);
+  grd.addColorStop(0, 'rgba(255,220,60,1)');
+  grd.addColorStop(1, 'rgba(255,80,0,0)');
+  ctx.beginPath();
+  ctx.arc(x, y, 9, 0, Math.PI * 2);
+  ctx.fillStyle = grd;
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.arc(x, y, 3, 0, Math.PI * 2);
+  ctx.fillStyle = '#fff';
+  ctx.fill();
+}
+
+// ── draw: explosions ───────────────────────────────────────────────────────
+function drawExplosions() {
+  for (const e of explosions) {
+    if (e.r <= 0 || e.alpha <= 0) continue;
+    const a = e.alpha;
+
+    // central flash
+    const flash = ctx.createRadialGradient(e.x, e.y, 0, e.x, e.y, e.r * 0.38);
+    flash.addColorStop(0, `rgba(255,255,200,${a.toFixed(2)})`);
+    flash.addColorStop(1, `rgba(255,200,50,0)`);
+    ctx.beginPath();
+    ctx.arc(e.x, e.y, e.r * 0.38, 0, Math.PI * 2);
+    ctx.fillStyle = flash;
+    ctx.fill();
+
+    // outer fireball
+    const fire = ctx.createRadialGradient(e.x, e.y, e.r * 0.15, e.x, e.y, e.r);
+    fire.addColorStop(0,   `rgba(255,110,0,${(a * 0.88).toFixed(2)})`);
+    fire.addColorStop(0.55,`rgba(180,35,0,${(a * 0.55).toFixed(2)})`);
+    fire.addColorStop(1,   `rgba(60,5,0,0)`);
+    ctx.beginPath();
+    ctx.arc(e.x, e.y, e.r, 0, Math.PI * 2);
+    ctx.fillStyle = fire;
+    ctx.fill();
+
+    // shockwave ring
+    ctx.beginPath();
+    ctx.arc(e.x, e.y, e.r * 0.92, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(255,90,0,${(a * 0.45).toFixed(2)})`;
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+  }
+}
+
+// ── draw: wind indicator ───────────────────────────────────────────────────
+function drawWindIndicator() {
+  const PAD = 12;
+  const bw  = 185, bh = 38;
+  const bx  = canvas.width - bw - PAD;
+  const by  = PAD;
+  const cy  = by + bh / 2;
+  const mph = Math.round(Math.abs(wind) * 5); // 0–50 mph range
+
+  // background
+  ctx.fillStyle = 'rgba(0,0,0,0.58)';
+  ctx.beginPath();
+  ctx.rect(bx, by, bw, bh);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(bx, by, bw, bh);
+
+  // "WIND" label
+  ctx.fillStyle = 'rgba(255,255,255,0.55)';
+  ctx.font = '12px Courier New';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('WIND', bx + 9, cy);
+
+  // mph value — right-aligned
+  const mphStr = `${mph} mph`;
+  ctx.fillStyle = 'rgba(255,255,255,0.70)';
+  ctx.font = 'bold 12px Courier New';
+  ctx.textAlign = 'right';
+  ctx.fillText(mphStr, bx + bw - 8, cy);
+
+  const arrowOrigin = bx + 52;
+  const maxLen      = 68;  // arrow stays clear of mph text
+
+  if (wind === 0) {
+    ctx.fillStyle = 'rgba(255,255,255,0.38)';
+    ctx.font = '13px Courier New';
+    ctx.textAlign = 'left';
+    ctx.fillText('calm', arrowOrigin, cy);
+    return;
+  }
+
+  const len  = (Math.abs(wind) / 10) * maxLen;
+  const dir  = wind > 0 ? 1 : -1;
+  const gg   = Math.round(Math.max(50, 230 - Math.abs(wind) * 18));
+  const arrowColor = `rgba(255,${gg},40,0.92)`;
+
+  const startX = dir > 0 ? arrowOrigin       : arrowOrigin + len;
+  const endX   = dir > 0 ? arrowOrigin + len : arrowOrigin;
+
+  ctx.beginPath();
+  ctx.moveTo(startX, cy);
+  ctx.lineTo(endX, cy);
+  ctx.strokeStyle = arrowColor;
+  ctx.lineWidth = 2.5;
+  ctx.lineCap = 'round';
+  ctx.stroke();
+
+  const tip = endX;
+  ctx.beginPath();
+  ctx.moveTo(tip,            cy);
+  ctx.lineTo(tip - dir * 9, cy - 5);
+  ctx.lineTo(tip - dir * 9, cy + 5);
+  ctx.closePath();
+  ctx.fillStyle = arrowColor;
+  ctx.fill();
+}
+
+// ── terrain destruction ─────────────────────────────────────────────────────
+function blastTerrain(cx, cy) {
+  const w = canvas.width, h = canvas.height;
+  const x0 = Math.max(0,     Math.floor(cx - BLAST_R));
+  const x1 = Math.min(w - 1, Math.ceil (cx + BLAST_R));
+  for (let x = x0; x <= x1; x++) {
+    const dx  = x - cx;
+    const dy  = Math.sqrt(BLAST_R * BLAST_R - dx * dx);
+    const newY = cy + dy;
+    if (terrain[x] < newY) terrain[x] = Math.min(h, newY);
+  }
+}
+
+// ── explosion lifecycle ─────────────────────────────────────────────────────
+function addExplosion(x, y) {
+  explosions.push({ x, y, r: 2, maxR: BLAST_R * 1.65, alpha: 1, age: 0, duration: 0.55 });
+}
+
+function updateExplosions(dt) {
+  for (let i = explosions.length - 1; i >= 0; i--) {
+    const e = explosions[i];
+    e.age += dt;
+    const p = Math.min(1, e.age / e.duration);
+    e.r     = 2 + (e.maxR - 2) * Math.pow(p, 0.4);  // fast expand, eases off
+    e.alpha = Math.max(0, 1 - Math.pow(p, 0.55));
+    if (e.age >= e.duration) explosions.splice(i, 1);
+  }
+}
+
+// ── tank physics: settling after terrain is blown away ─────────────────────
+function updateTankPhysics(dt) {
+  const w = canvas.width;
+  for (const t of tanks) {
+    const tx      = Math.max(0, Math.min(w - 1, Math.round(t.x)));
+    const groundY = terrain[tx];
+    if (t.y < groundY - 0.5) {
+      if (!t.falling) { t.falling = true; t.fallStartY = t.y; }
+      t.vy += GRAVITY * dt;
+      t.y  += t.vy * dt;
+      if (t.y >= groundY) {
+        t.y = groundY;
+        t.vy = 0;
+        // damage scales with fall distance; first 20px are free (bumps)
+        const fallDist = t.y - t.fallStartY;
+        const fallDmg  = Math.max(0, Math.round((fallDist - 20) * 0.45));
+        if (fallDmg > 0) {
+          t.health = Math.max(0, t.health - fallDmg);
+          if (!gameOver) checkWin();
+        }
+        t.falling = false;
+      }
+    } else {
+      t.vy      = 0;
+      t.y       = groundY;
+      t.falling = false;
+    }
+  }
+}
+
+// ── impact resolution ──────────────────────────────────────────────────────
+function onImpact(px, py) {
+  stopWhistle();
+  addExplosion(px, py);
+  blastTerrain(px, py);
+  soundExplosion();
+
+  let anyTankDamaged = false;
+  for (const t of tanks) {
+    const dist = Math.hypot(px - t.x, py - t.y);
+    if (dist < BLAST_R + TANK_HIT_R) {
+      const frac = Math.max(0, 1 - dist / (BLAST_R + TANK_HIT_R));
+      // steeper curve: direct hits deal nearly full damage, splash falls off sharply
+      const dmg  = Math.round(HIT_DAMAGE * Math.pow(frac, 1.4));
+      if (dmg > 0) { t.health = Math.max(0, t.health - dmg); anyTankDamaged = true; }
+    }
+  }
+  // play tank-hit crack 80ms after the boom so the two sounds separate clearly
+  if (anyTankDamaged) setTimeout(soundTankHit, 80);
+
+  projectile = null;
+  // tanks settle naturally via updateTankPhysics() each frame
+
+  if (!checkWin()) nextTurn();
+}
+
+function checkWin() {
+  for (let i = 0; i < tanks.length; i++) {
+    if (tanks[i].health <= 0) {
+      const winner = tanks[1 - i];
+      gameOver = true;
+      winEl.innerHTML = `<span style="color:${winner.color}">${winner.name} Wins!</span>`
+                      + `<small>Click to play again</small>`;
+      winEl.style.display = 'block';
+      return true;
+    }
+  }
+  return false;
+}
+
+function nextTurn() {
+  currentPlayer = (currentPlayer + 1) % tanks.length;
+  newWind();
+  updateUI();
+}
+
+function updateUI() {
+  if (gameOver) return;
+  const t = tanks[currentPlayer];
+  ui.textContent   = `${t.name}  |  Angle: ${t.angle}°  |  Power: ${t.power}`;
+  ui.style.borderColor = t.color;
+}
+
+// ── fire ───────────────────────────────────────────────────────────────────
+function fire() {
+  if (projectile || gameOver) return;
+  const t   = tanks[currentPlayer];
+  const rad = t.angle * Math.PI / 180;
+  const spd = t.power * POWER_SCALE;
+  projectile = {
+    x:     t.x + Math.cos(rad) * (CANNON_LEN + 5),
+    y:     t.y - 11 - Math.sin(rad) * (CANNON_LEN + 5),
+    vx:    Math.cos(rad) * spd,
+    vy:   -Math.sin(rad) * spd,
+    trail: [],
+  };
+  soundFire();
+  startWhistle();
+}
+
+// ── main loop ──────────────────────────────────────────────────────────────
+function gameLoop(ts) {
+  if (!lastTime) lastTime = ts;
+  const dt = Math.min((ts - lastTime) / 1000, 0.05);
+  lastTime = ts;
+
+  // physics
+  if (projectile) {
+    projectile.trail.push({ x: projectile.x, y: projectile.y });
+    if (projectile.trail.length > TRAIL_LEN) projectile.trail.shift();
+
+    projectile.vx += wind * WIND_SCALE * dt;  // wind drift
+    projectile.vy += GRAVITY * dt;
+    projectile.x  += projectile.vx * dt;
+    projectile.y  += projectile.vy * dt;
+    updateWhistle(projectile.vx, projectile.vy);
+
+    const px = Math.round(projectile.x);
+    const py = projectile.y;
+    const w  = canvas.width, h = canvas.height;
+
+    if (px < 0 || px >= w || py > h + 60) {
+      stopWhistle();
+      projectile = null;
+      nextTurn();
+    } else if (py >= 0 && terrain[px] != null && py >= terrain[px]) {
+      onImpact(px, Math.round(py));
+    }
+  }
+
+  updateTankPhysics(dt);
+  updateExplosions(dt);
+
+  // draw (order matters for layering)
+  drawScene();
+  drawAimGuide();
+  for (let i = 0; i < tanks.length; i++) {
+    drawTank(tanks[i], i === currentPlayer && !projectile);
+  }
+  drawProjectile();
+  drawExplosions();
+  drawWindIndicator();
+
+  animId = requestAnimationFrame(gameLoop);
+}
+
+// ── keyboard ───────────────────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  ensureAudio(); // initializes AudioContext on first keypress (satisfies autoplay policy)
+  if (gameOver || projectile) return;
+  const t    = tanks[currentPlayer];
+  const step = e.shiftKey ? 5 : 1;
+  switch (e.key) {
+    case 'ArrowLeft':  e.preventDefault(); t.angle = Math.min(180, t.angle + step); break;
+    case 'ArrowRight': e.preventDefault(); t.angle = Math.max(0,   t.angle - step); break;
+    case 'ArrowUp':    e.preventDefault(); t.power = Math.min(MAX_POWER, t.power + step); break;
+    case 'ArrowDown':  e.preventDefault(); t.power = Math.max(1,         t.power - step); break;
+    case ' ':          e.preventDefault(); fire(); break;
+  }
+  updateUI();
+});
+
+document.addEventListener('click', () => { if (gameOver) initGame(); });
+window.addEventListener('resize', initGame);
+
+// ── init ───────────────────────────────────────────────────────────────────
+function initGame() {
+  if (animId) cancelAnimationFrame(animId);
+  gameOver      = false;
+  projectile    = null;
+  explosions    = [];
+  currentPlayer = 0;
+  lastTime      = null;
+  winEl.style.display = 'none';
+  resize();
+  generateTerrain();
+  generateStars();
+  placeTanks();
+  newWind();
+  updateUI();
+  animId = requestAnimationFrame(gameLoop);
+}
+
+initGame();
+</script>
+</body>
+</html>

@@ -148,7 +148,7 @@ canvas { display: block; }
 /* ── weapon indicator (top-right) ─────────────────────────────────────────── */
 #weapon-indicator {
   position: fixed;
-  top: 12px;
+  top: 62px;
   right: 12px;
   background: rgba(0,0,0,0.65);
   color: #fff;
@@ -285,6 +285,106 @@ canvas { display: block; }
   cursor: pointer;
 }
 #setup-start:hover { background: #226633; }
+/* ── round count selector (setup) ────────────────────────────────────────── */
+#setup-rounds-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 20px;
+  font-size: 14px;
+  letter-spacing: 2px;
+  color: rgba(255,255,255,0.7);
+}
+#setup-rounds-controls { display: flex; gap: 8px; }
+.rounds-btn {
+  padding: 5px 16px;
+  background: #1a2a44;
+  color: #aac4ff;
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 6px;
+  font-family: 'Courier New', monospace;
+  font-size: 15px;
+  cursor: pointer;
+  letter-spacing: 1px;
+}
+.rounds-btn:hover { background: #223366; }
+.rounds-btn.active {
+  background: #225599;
+  color: #fff;
+  border-color: rgba(255,255,255,0.45);
+}
+/* ── scoreboard overlay ───────────────────────────────────────────────────── */
+#scoreboard {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.88);
+  z-index: 150;
+  overflow-y: auto;
+}
+#scoreboard-inner {
+  max-width: 620px;
+  margin: 48px auto;
+  background: rgba(8,16,32,0.98);
+  border: 2px solid rgba(255,255,255,0.18);
+  border-radius: 14px;
+  padding: 36px 44px;
+  color: #fff;
+  font-family: 'Courier New', monospace;
+}
+#scoreboard-title {
+  font-size: 26px;
+  letter-spacing: 5px;
+  text-align: center;
+  margin-bottom: 6px;
+}
+#scoreboard-subtitle {
+  text-align: center;
+  font-size: 13px;
+  color: rgba(255,255,255,0.5);
+  letter-spacing: 3px;
+  margin-bottom: 26px;
+  min-height: 18px;
+}
+#scoreboard-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 28px;
+  font-size: 13px;
+}
+#scoreboard-table th {
+  text-align: left;
+  padding: 6px 10px;
+  letter-spacing: 2px;
+  font-size: 11px;
+  color: rgba(255,255,255,0.45);
+  border-bottom: 1px solid rgba(255,255,255,0.12);
+}
+#scoreboard-table td {
+  padding: 9px 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+}
+.sb-player-cell { display: flex; align-items: center; gap: 8px; }
+.sb-swatch { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+.rank-1 td { color: #ffd700; }
+.rank-2 td { color: #c0c0c0; }
+.rank-3 td { color: #cd7f32; }
+.rank-dead td { color: rgba(255,255,255,0.35); }
+#scoreboard-next {
+  display: block;
+  width: 100%;
+  padding: 14px;
+  background: #1a5522;
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.25);
+  border-radius: 8px;
+  font-size: 17px;
+  font-family: 'Courier New', monospace;
+  letter-spacing: 3px;
+  cursor: pointer;
+}
+#scoreboard-next:hover { background: #226633; }
 </style>
 </head>
 <body>
@@ -317,8 +417,31 @@ canvas { display: block; }
         <button id="setup-plus">+</button>
       </div>
     </div>
+    <div id="setup-rounds-row">
+      <span>ROUNDS</span>
+      <div id="setup-rounds-controls">
+        <button class="rounds-btn" data-rounds="1">1</button>
+        <button class="rounds-btn active" data-rounds="5">5</button>
+        <button class="rounds-btn" data-rounds="10">10</button>
+        <button class="rounds-btn" data-rounds="20">20</button>
+      </div>
+    </div>
     <div id="setup-rows"></div>
     <button id="setup-start">▶ START GAME</button>
+  </div>
+</div>
+<div id="scoreboard">
+  <div id="scoreboard-inner">
+    <h2 id="scoreboard-title"></h2>
+    <div id="scoreboard-subtitle"></div>
+    <table id="scoreboard-table">
+      <thead><tr>
+        <th>PLAYER</th><th>KILLS</th><th>DAMAGE</th>
+        <th>CASH EARNED</th><th>SCORE</th>
+      </tr></thead>
+      <tbody id="scoreboard-body"></tbody>
+    </table>
+    <button id="scoreboard-next"></button>
   </div>
 </div>
 <script>
@@ -326,8 +449,9 @@ const canvas  = document.getElementById('c');
 const ctx     = canvas.getContext('2d');
 const ui      = document.getElementById('ui');
 const winEl   = document.getElementById('win');
-const shopEl  = document.getElementById('shop');
-const setupEl = document.getElementById('setup');
+const shopEl       = document.getElementById('shop');
+const setupEl      = document.getElementById('setup');
+const scoreboardEl = document.getElementById('scoreboard');
 
 // ── constants ──────────────────────────────────────────────────────────────
 const GRAVITY    = 260;   // px/s²
@@ -515,6 +639,52 @@ function soundTankHit() {
   ring.start(now); ring.stop(now + 0.38);
 }
 
+function soundAngle() {
+  if (!ensureAudio()) return;
+  const now = audioCtx.currentTime;
+  const dur = 0.055;
+  // noise click
+  const ns  = audioCtx.createBufferSource();
+  ns.buffer = makeNoise(dur);
+  const bpf = audioCtx.createBiquadFilter();
+  bpf.type = 'bandpass';
+  bpf.frequency.value = 1800;
+  bpf.Q.value = 2.0;
+  const gn = audioCtx.createGain();
+  gn.gain.setValueAtTime(0.55, now);
+  gn.gain.exponentialRampToValueAtTime(0.001, now + dur);
+  ns.connect(bpf); bpf.connect(gn); gn.connect(masterGain);
+  ns.start(now); ns.stop(now + dur);
+  // short tone punch
+  const osc = audioCtx.createOscillator();
+  const ogn = audioCtx.createGain();
+  osc.type = 'square';
+  osc.frequency.setValueAtTime(320, now);
+  osc.frequency.exponentialRampToValueAtTime(160, now + dur);
+  ogn.gain.setValueAtTime(0.25, now);
+  ogn.gain.exponentialRampToValueAtTime(0.001, now + dur);
+  osc.connect(ogn); ogn.connect(masterGain);
+  osc.start(now); osc.stop(now + dur);
+}
+
+function soundPower(dir) {
+  // dir: +1 = increasing power (rising tone), -1 = decreasing (falling tone)
+  if (!ensureAudio()) return;
+  const now  = audioCtx.currentTime;
+  const dur  = 0.07;
+  const osc  = audioCtx.createOscillator();
+  const gn   = audioCtx.createGain();
+  osc.type = 'sine';
+  const freqA = dir > 0 ? 260 : 440;
+  const freqB = dir > 0 ? 440 : 260;
+  osc.frequency.setValueAtTime(freqA, now);
+  osc.frequency.exponentialRampToValueAtTime(freqB, now + dur);
+  gn.gain.setValueAtTime(0.28, now);
+  gn.gain.exponentialRampToValueAtTime(0.001, now + dur);
+  osc.connect(gn); gn.connect(masterGain);
+  osc.start(now); osc.stop(now + dur);
+}
+
 document.getElementById('volSlider').addEventListener('input', e => {
   masterVolume = parseFloat(e.target.value);
   ensureAudio();
@@ -531,6 +701,12 @@ let turnCount        = 0;
 let shopOpen         = false;
 let napalmTurnPending = false;
 let worldWidth       = 0;
+
+// ── round / scoring state ──────────────────────────────────────────────────
+let totalRounds      = 5;
+let currentRound     = 1;
+let playerStats      = [];  // [{ name, color, kills, damageDealt, cashEarned, roundWins, score }]
+let cashAtRoundStart = [];  // tank.money snapshot at round start
 
 // camera (world-space x/y offset; only x is used)
 let camera = { x: 0, y: 0, targetX: 0, targetY: 0 };
@@ -615,8 +791,10 @@ function placeTanks() {
       difficulty: cfg.difficulty || 'medium',
       angle:    defaultAngle,
       power:    50,
-      health:   100,
-      money:    5000,
+      health:      100,
+      money:       5000,
+      damageDealt: 0,
+      killedBy:    -1,
       inventory: {
         'Baby Missile': Infinity,
         'Missile':    0,
@@ -1023,8 +1201,11 @@ function onImpact(proj, px, py) {
         const frac = Math.max(0, 1 - dist / (wep.blastR + TANK_HIT_R));
         const dmg  = Math.round(wep.hitDamage * Math.pow(frac, 1.4));
         if (dmg > 0) {
+          const prevHealth = t.health;
           t.health = Math.max(0, t.health - dmg);
           tanks[proj.owner].money += dmg * MONEY_PER_DAMAGE;
+          tanks[proj.owner].damageDealt += dmg;
+          if (prevHealth > 0 && t.health <= 0) t.killedBy = proj.owner;
           anyTankDamaged = true;
         }
       }
@@ -1091,8 +1272,11 @@ function updateNapalm(dt) {
         if (t.health <= 0) continue;
         const dist = Math.hypot(p.x - t.x, groundY - t.y);
         if (dist < 8 + TANK_HIT_R) {
+          const prevHp = t.health;
           t.health = Math.max(0, t.health - 8);
           tanks[p.owner].money += 8 * MONEY_PER_DAMAGE;
+          tanks[p.owner].damageDealt += 8;
+          if (prevHp > 0 && t.health <= 0 && t.killedBy < 0) t.killedBy = p.owner;
           if (!gameOver) checkWin();
         }
       }
@@ -1105,23 +1289,141 @@ function updateNapalm(dt) {
   }
 }
 
-// ── win check (N players) ─────────────────────────────────────────────────
+// ── round end / win check ─────────────────────────────────────────────────
 function checkWin() {
   if (gameOver) return true;
   const living = tanks.filter(t => t.health > 0);
   if (living.length <= 1) {
     gameOver = true;
-    if (living.length === 1) {
-      const w = living[0];
-      winEl.innerHTML = `<span style="color:${w.color}">${w.name} Wins!</span>`
-                      + `<small>Click to play again</small>`;
-    } else {
-      winEl.innerHTML = `<span>DRAW</span><small>Click to play again</small>`;
-    }
-    winEl.style.display = 'block';
+    setTimeout(endRound, 900);
     return true;
   }
   return false;
+}
+
+function endRound() {
+  // Credit kills
+  tanks.forEach(t => {
+    if (t.health <= 0 && t.killedBy >= 0) playerStats[t.killedBy].kills++;
+  });
+
+  // Award round win to survivor
+  const living = tanks.filter(t => t.health > 0);
+  if (living.length === 1) playerStats[tanks.indexOf(living[0])].roundWins++;
+
+  // Accumulate per-round stats
+  tanks.forEach((t, i) => {
+    playerStats[i].damageDealt += t.damageDealt;
+    playerStats[i].cashEarned  += Math.max(0, t.money - cashAtRoundStart[i]);
+  });
+
+  // Recompute scores
+  playerStats.forEach(s => {
+    s.score = s.kills * 1000 + s.damageDealt + s.roundWins * 500;
+  });
+
+  showScoreboard(currentRound >= totalRounds);
+}
+
+function showScoreboard(isFinal) {
+  const living = tanks.filter(t => t.health > 0);
+
+  document.getElementById('scoreboard-title').textContent =
+    isFinal ? 'FINAL RESULTS' : `ROUND ${currentRound} OF ${totalRounds}`;
+
+  let subtitle = '';
+  if (!isFinal) {
+    if (living.length === 1) {
+      const w = living[0];
+      subtitle = `<span style="color:${w.color}">${w.name} wins the round!</span>`;
+    } else {
+      subtitle = 'DRAW';
+    }
+  }
+  document.getElementById('scoreboard-subtitle').innerHTML = subtitle;
+
+  // Build rows — sort by score for final, preserve original order otherwise
+  const indices = playerStats.map((_, i) => i);
+  if (isFinal) indices.sort((a, b) => playerStats[b].score - playerStats[a].score);
+
+  const tbody = document.getElementById('scoreboard-body');
+  tbody.innerHTML = '';
+  indices.forEach((si, rank) => {
+    const s = playerStats[si];
+    const tr = document.createElement('tr');
+    if (isFinal) {
+      tr.className = rank === 0 ? 'rank-1' : rank === 1 ? 'rank-2' : rank === 2 ? 'rank-3' : '';
+    } else if (tanks[si] && tanks[si].health <= 0) {
+      tr.className = 'rank-dead';
+    }
+    const rankPrefix = isFinal ? `${rank + 1}. ` : '';
+    tr.innerHTML = `
+      <td><div class="sb-player-cell">
+        <div class="sb-swatch" style="background:${s.color}"></div>
+        ${rankPrefix}${s.name}
+      </div></td>
+      <td>${s.kills}</td>
+      <td>${s.damageDealt}</td>
+      <td>$${s.cashEarned}</td>
+      <td>${s.score}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  const btn = document.getElementById('scoreboard-next');
+  btn.textContent = isFinal ? '▶ PLAY AGAIN' : 'NEXT ROUND →';
+  btn.onclick = isFinal ? () => { scoreboardEl.style.display = 'none'; showSetup(); }
+                        : startNextRound;
+
+  winEl.style.display = 'none';
+  scoreboardEl.style.display = 'block';
+}
+
+function startNextRound() {
+  scoreboardEl.style.display = 'none';
+  currentRound++;
+
+  const savedMoney = tanks.map(t => t.money);
+
+  gameOver          = false;
+  projectiles       = [];
+  napalmParticles   = [];
+  explosions        = [];
+  currentPlayer     = 0;
+  lastTime          = null;
+  turnCount         = 0;
+  shopOpen          = false;
+  napalmTurnPending = false;
+  cpuThinking       = false;
+  cpuThinkTimer     = 0;
+  camera.x = camera.targetX = 0;
+  camera.y = camera.targetY = 0;
+
+  generateTerrain();
+  generateStars();
+  placeTanks();
+  tanks.forEach((t, i) => { t.money = savedMoney[i]; });
+
+  cashAtRoundStart = tanks.map(t => t.money);
+
+  newWind();
+  updateUI();
+  updateWeaponIndicator();
+  setCameraTarget(tanks[0]);
+  camera.x = camera.targetX;
+
+  runShopPhase(() => {
+    currentPlayer = 0;
+    const n = tanks.length;
+    for (let i = 0; i < n; i++) {
+      if (tanks[currentPlayer].health > 0) break;
+      currentPlayer = (currentPlayer + 1) % n;
+    }
+    updateUI();
+    updateWeaponIndicator();
+    setCameraTarget(tanks[currentPlayer]);
+    if (tanks[currentPlayer].isAI) setTimeout(startCpuTurn, 400);
+  });
 }
 
 // ── turn management ────────────────────────────────────────────────────────
@@ -1146,13 +1448,6 @@ function nextTurn() {
   // Update camera target
   setCameraTarget(tanks[currentPlayer]);
 
-  // Shop triggers once per full round (every N players worth of turns)
-  const livingCount = tanks.filter(t => t.health > 0).length;
-  if (livingCount > 0 && turnCount % livingCount === 0) {
-    setTimeout(() => { if (!gameOver) openShop(currentPlayer); }, 600);
-    return;
-  }
-
   // CPU turn
   if (tanks[currentPlayer].isAI) {
     setTimeout(startCpuTurn, 400);
@@ -1171,7 +1466,7 @@ function updateUI() {
   const inv = t.inventory[t.selectedWeapon];
   const ammo = inv === Infinity ? '∞' : String(inv);
   const tag  = t.isAI ? ' [CPU]' : '';
-  ui.textContent = `${t.name}${tag}  |  ${t.angle}°  |  Pwr ${t.power}  |  ${t.selectedWeapon} (${ammo})  |  $${t.money}`;
+  ui.textContent = `R${currentRound}/${totalRounds}  |  ${t.name}${tag}  |  ${t.angle}°  |  Pwr ${t.power}  |  ${t.selectedWeapon} (${ammo})  |  $${t.money}`;
   ui.style.borderColor = t.color;
 }
 
@@ -1198,26 +1493,6 @@ function cycleWeapon(dir) {
 }
 
 // ── shop ───────────────────────────────────────────────────────────────────
-function openShop(playerIndex) {
-  const t = tanks[playerIndex];
-  if (t.health <= 0) { closeShop(); return; }
-
-  // CPU players: auto-buy the best affordable weapon, then close shop quickly
-  if (t.isAI) {
-    cpuAutoBuy(playerIndex);
-    setTimeout(() => {
-      if (shopOpen) closeShop();
-    }, 350);
-    return;
-  }
-
-  shopOpen = true;
-  document.getElementById('shop-title').innerHTML =
-    `WEAPONS SHOP — <span style="color:${t.color}">${t.name}</span>`;
-  renderShop(playerIndex);
-  shopEl.style.display = 'block';
-}
-
 function renderShop(playerIndex) {
   const t = tanks[playerIndex];
   document.getElementById('shop-balance').textContent = `Cash: $${t.money}`;
@@ -1255,18 +1530,6 @@ function renderShop(playerIndex) {
   }
 }
 
-function closeShop() {
-  shopEl.style.display = 'none';
-  shopOpen = false;
-  updateUI();
-  updateWeaponIndicator();
-  if (!gameOver && tanks[currentPlayer].isAI) {
-    setTimeout(startCpuTurn, 400);
-  }
-}
-
-document.getElementById('shop-done').addEventListener('click', closeShop);
-
 // ── CPU auto-buy ───────────────────────────────────────────────────────────
 function cpuAutoBuy(playerIndex) {
   const t = tanks[playerIndex];
@@ -1279,6 +1542,48 @@ function cpuAutoBuy(playerIndex) {
     t.inventory[best[0]]++;
     if (t.selectedWeapon === 'Baby Missile') t.selectedWeapon = best[0];
   }
+}
+
+// ── shop phase (runs at game/round start, cycles all players) ──────────────
+function runShopPhase(onComplete) {
+  const playerList = tanks.map((_, i) => i);
+  let pos = 0;
+
+  function shopNext() {
+    while (pos < playerList.length && tanks[playerList[pos]].health <= 0) pos++;
+    if (pos >= playerList.length) { onComplete(); return; }
+
+    const idx = playerList[pos++];
+
+    if (tanks[idx].isAI) {
+      cpuAutoBuy(idx);
+      setTimeout(shopNext, 350);
+    } else {
+      openShopForPlayer(idx, shopNext);
+    }
+  }
+
+  shopNext();
+}
+
+function openShopForPlayer(playerIndex, onDone) {
+  const t = tanks[playerIndex];
+  shopOpen = true;
+  document.getElementById('shop-title').innerHTML =
+    `WEAPONS SHOP — <span style="color:${t.color}">${t.name}</span>`;
+  renderShop(playerIndex);
+  shopEl.style.display = 'block';
+
+  const btn = document.getElementById('shop-done');
+  const handler = () => {
+    btn.removeEventListener('click', handler);
+    shopEl.style.display = 'none';
+    shopOpen = false;
+    updateUI();
+    updateWeaponIndicator();
+    onDone();
+  };
+  btn.addEventListener('click', handler);
 }
 
 // ── CPU AI ─────────────────────────────────────────────────────────────────
@@ -1508,10 +1813,10 @@ document.addEventListener('keydown', e => {
   const t    = tanks[currentPlayer];
   const step = e.shiftKey ? 5 : 1;
   switch (e.key) {
-    case 'ArrowLeft':  e.preventDefault(); t.angle = Math.min(180, t.angle + step); break;
-    case 'ArrowRight': e.preventDefault(); t.angle = Math.max(0,   t.angle - step); break;
-    case 'ArrowUp':    e.preventDefault(); t.power = Math.min(MAX_POWER, t.power + step); break;
-    case 'ArrowDown':  e.preventDefault(); t.power = Math.max(1,         t.power - step); break;
+    case 'ArrowLeft':  e.preventDefault(); t.angle = Math.min(180, t.angle + step); soundAngle(); break;
+    case 'ArrowRight': e.preventDefault(); t.angle = Math.max(0,   t.angle - step); soundAngle(); break;
+    case 'ArrowUp':    e.preventDefault(); t.power = Math.min(MAX_POWER, t.power + step); soundPower(+1); break;
+    case 'ArrowDown':  e.preventDefault(); t.power = Math.max(1,         t.power - step); soundPower(-1); break;
     case ' ':          e.preventDefault(); fire(); return;
     case 'q': case 'Q': e.preventDefault(); cycleWeapon(-1); return;
     case 'e': case 'E': e.preventDefault(); cycleWeapon(+1); return;
@@ -1520,9 +1825,9 @@ document.addEventListener('keydown', e => {
 });
 
 document.addEventListener('click', e => {
-  // Don't intercept clicks inside setup/shop
-  if (setupEl.contains(e.target) || shopEl.contains(e.target)) return;
-  if (gameOver) showSetup();
+  // Don't intercept clicks inside setup/shop/scoreboard
+  if (setupEl.contains(e.target) || shopEl.contains(e.target) || scoreboardEl.contains(e.target)) return;
+  if (gameOver && scoreboardEl.style.display === 'none') showSetup();
 });
 
 window.addEventListener('resize', () => {
@@ -1610,7 +1915,20 @@ function initSetupListeners() {
     renderSetupRows(currentSetupCount);
   });
 
+  // Rounds picker
+  document.querySelectorAll('.rounds-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.rounds-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      totalRounds = parseInt(btn.dataset.rounds, 10);
+    });
+  });
+
   document.getElementById('setup-start').addEventListener('click', () => {
+    // Read totalRounds from active button
+    const activeBtn = document.querySelector('.rounds-btn.active');
+    if (activeBtn) totalRounds = parseInt(activeBtn.dataset.rounds, 10);
+
     // Read current row values directly from the DOM to capture any unsaved typing
     const rows = document.querySelectorAll('.setup-row');
     playerConfigs = [];
@@ -1646,8 +1964,16 @@ function initGame() {
   camera.x = camera.targetX = 0;
   camera.y = camera.targetY = 0;
 
-  shopEl.style.display = 'none';
-  winEl.style.display  = 'none';
+  shopEl.style.display       = 'none';
+  winEl.style.display        = 'none';
+  scoreboardEl.style.display = 'none';
+
+  // Initialize round tracking
+  currentRound = 1;
+  playerStats  = playerConfigs.map(cfg => ({
+    name: cfg.name, color: cfg.color,
+    kills: 0, damageDealt: 0, cashEarned: 0, roundWins: 0, score: 0,
+  }));
 
   resize();
 
@@ -1658,6 +1984,7 @@ function initGame() {
   generateTerrain();
   generateStars();
   placeTanks();
+  cashAtRoundStart = tanks.map(t => t.money);
   newWind();
   updateUI();
   updateWeaponIndicator();
@@ -1666,12 +1993,20 @@ function initGame() {
   setCameraTarget(tanks[0]);
   camera.x = camera.targetX;
 
-  // If first player is CPU, trigger their turn after a brief pause
-  if (tanks[0].isAI) {
-    setTimeout(startCpuTurn, 900);
-  }
+  animId = requestAnimationFrame(gameLoop);  // start render loop so terrain is visible during shop
 
-  animId = requestAnimationFrame(gameLoop);
+  runShopPhase(() => {
+    currentPlayer = 0;
+    const n = tanks.length;
+    for (let i = 0; i < n; i++) {
+      if (tanks[currentPlayer].health > 0) break;
+      currentPlayer = (currentPlayer + 1) % n;
+    }
+    updateUI();
+    updateWeaponIndicator();
+    setCameraTarget(tanks[currentPlayer]);
+    if (tanks[currentPlayer].isAI) setTimeout(startCpuTurn, 400);
+  });
 }
 
 // ── entry point ────────────────────────────────────────────────────────────

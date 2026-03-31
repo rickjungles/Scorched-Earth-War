@@ -67,6 +67,224 @@ canvas { display: block; }
 }
 #vol span { color: rgba(255,255,255,0.65); font-size: 15px; user-select: none; }
 #vol input[type=range] { width: 76px; cursor: pointer; accent-color: #5599ff; }
+/* ── shop modal ────────────────────────────────────────────────────────────── */
+#shop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.82);
+  z-index: 100;
+  overflow-y: auto;
+}
+#shop-inner {
+  max-width: 680px;
+  margin: 40px auto;
+  background: rgba(10,20,40,0.97);
+  border: 2px solid rgba(255,255,255,0.18);
+  border-radius: 14px;
+  padding: 36px 40px;
+  color: #fff;
+  font-family: 'Courier New', monospace;
+}
+#shop-title {
+  font-size: 26px;
+  letter-spacing: 3px;
+  text-align: center;
+  margin-bottom: 6px;
+}
+#shop-balance {
+  text-align: center;
+  font-size: 18px;
+  color: #88ff88;
+  margin-bottom: 24px;
+}
+#shop-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 28px;
+}
+.shop-card {
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 8px;
+  padding: 14px 16px;
+  background: rgba(255,255,255,0.04);
+}
+.shop-card h3 { font-size: 15px; margin-bottom: 4px; }
+.shop-card .shop-desc { font-size: 12px; color: #aaa; margin-bottom: 8px; }
+.shop-card .shop-meta { font-size: 13px; margin-bottom: 8px; }
+.shop-card .shop-cost { color: #ffdd66; }
+.shop-card .shop-owned { color: #88ccff; }
+.shop-card button {
+  padding: 6px 14px;
+  background: #225599;
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.25);
+  border-radius: 5px;
+  cursor: pointer;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+}
+.shop-card button:disabled {
+  background: #333;
+  color: #666;
+  cursor: not-allowed;
+}
+.shop-card button:not(:disabled):hover { background: #3366bb; }
+#shop-done {
+  display: block;
+  width: 100%;
+  padding: 14px;
+  background: #226622;
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.25);
+  border-radius: 8px;
+  font-size: 17px;
+  font-family: 'Courier New', monospace;
+  cursor: pointer;
+  letter-spacing: 2px;
+}
+#shop-done:hover { background: #338833; }
+/* ── weapon indicator (top-right) ─────────────────────────────────────────── */
+#weapon-indicator {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  background: rgba(0,0,0,0.65);
+  color: #fff;
+  padding: 7px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-family: 'Courier New', monospace;
+  border: 1px solid rgba(255,255,255,0.15);
+  pointer-events: none;
+  text-align: right;
+  line-height: 1.5;
+}
+/* ── setup screen ─────────────────────────────────────────────────────────── */
+#setup {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.95);
+  z-index: 200;
+  overflow-y: auto;
+}
+#setup-inner {
+  max-width: 640px;
+  margin: 36px auto;
+  background: rgba(10,20,40,0.97);
+  border: 2px solid rgba(255,255,255,0.18);
+  border-radius: 14px;
+  padding: 40px 44px;
+  color: #fff;
+  font-family: 'Courier New', monospace;
+}
+#setup-title {
+  font-size: 32px;
+  letter-spacing: 5px;
+  text-align: center;
+  margin-bottom: 4px;
+}
+#setup-subtitle {
+  text-align: center;
+  font-size: 12px;
+  color: rgba(255,255,255,0.3);
+  letter-spacing: 5px;
+  margin-bottom: 30px;
+}
+#setup-player-count {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 20px;
+  font-size: 14px;
+  letter-spacing: 2px;
+  color: rgba(255,255,255,0.7);
+}
+#setup-count-controls { display: flex; align-items: center; gap: 14px; }
+#setup-count-controls button {
+  width: 30px; height: 30px;
+  background: #225599;
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.25);
+  border-radius: 6px;
+  font-size: 20px;
+  cursor: pointer;
+  font-family: 'Courier New', monospace;
+  line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+}
+#setup-count-controls button:hover { background: #3366bb; }
+#setup-count-display { font-size: 22px; min-width: 28px; text-align: center; }
+.setup-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  padding: 9px 12px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 8px;
+}
+.setup-swatch {
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.3);
+  flex-shrink: 0;
+}
+.setup-name {
+  flex: 1;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 5px;
+  color: #fff;
+  font-family: 'Courier New', monospace;
+  font-size: 14px;
+  padding: 4px 8px;
+  min-width: 0;
+}
+.setup-name:focus { outline: none; border-color: rgba(255,255,255,0.4); }
+.setup-type-btn {
+  padding: 4px 12px;
+  border-radius: 5px;
+  border: 1px solid rgba(255,255,255,0.18);
+  cursor: pointer;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  background: #1a3355;
+  color: #aac4ff;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.setup-type-btn.cpu-mode { background: #553311; color: #ffcc88; }
+.setup-diff {
+  padding: 4px 6px;
+  border-radius: 5px;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(0,0,0,0.5);
+  color: #ccc;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+#setup-start {
+  display: block;
+  width: 100%;
+  margin-top: 24px;
+  padding: 14px;
+  background: #1a5522;
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.25);
+  border-radius: 8px;
+  font-size: 18px;
+  font-family: 'Courier New', monospace;
+  letter-spacing: 3px;
+  cursor: pointer;
+}
+#setup-start:hover { background: #226633; }
 </style>
 </head>
 <body>
@@ -77,23 +295,103 @@ canvas { display: block; }
   <span>🔊</span>
   <input type="range" id="volSlider" min="0" max="1" step="0.05" value="0.6">
 </div>
-<div id="keys">← → angle &nbsp;|&nbsp; ↑ ↓ power &nbsp;|&nbsp; SPACE fire &nbsp;|&nbsp; hold SHIFT for ×5</div>
+<div id="keys">← → angle &nbsp;|&nbsp; ↑ ↓ power &nbsp;|&nbsp; SPACE fire &nbsp;|&nbsp; Q/E weapon &nbsp;|&nbsp; hold SHIFT ×5</div>
+<div id="shop">
+  <div id="shop-inner">
+    <h2 id="shop-title">WEAPONS SHOP</h2>
+    <div id="shop-balance"></div>
+    <div id="shop-grid"></div>
+    <button id="shop-done">DONE — Start Turn</button>
+  </div>
+</div>
+<div id="weapon-indicator"></div>
+<div id="setup">
+  <div id="setup-inner">
+    <h1 id="setup-title">SCORCHED EARTH</h1>
+    <div id="setup-subtitle">ARTILLERY COMBAT</div>
+    <div id="setup-player-count">
+      <span>PLAYERS</span>
+      <div id="setup-count-controls">
+        <button id="setup-minus">−</button>
+        <span id="setup-count-display">2</span>
+        <button id="setup-plus">+</button>
+      </div>
+    </div>
+    <div id="setup-rows"></div>
+    <button id="setup-start">▶ START GAME</button>
+  </div>
+</div>
 <script>
-const canvas = document.getElementById('c');
-const ctx    = canvas.getContext('2d');
-const ui     = document.getElementById('ui');
-const winEl  = document.getElementById('win');
+const canvas  = document.getElementById('c');
+const ctx     = canvas.getContext('2d');
+const ui      = document.getElementById('ui');
+const winEl   = document.getElementById('win');
+const shopEl  = document.getElementById('shop');
+const setupEl = document.getElementById('setup');
 
 // ── constants ──────────────────────────────────────────────────────────────
 const GRAVITY    = 260;   // px/s²
-const BLAST_R    = 48;    // crater radius px
+const BLAST_R    = 48;    // default crater radius px
 const TANK_HIT_R = 18;    // tank collision radius px
-const HIT_DAMAGE   = 75;    // max hp loss per direct hit
-const POWER_SCALE  = 7.77;  // px/s per power unit (5.98 * 1.30)
-const CANNON_LEN   = 22;    // px
+const HIT_DAMAGE   = 75;
+const POWER_SCALE  = 7.77;
+const CANNON_LEN   = 22;
 const MAX_POWER    = 100;
-const TRAIL_LEN  = 32;
-const WIND_SCALE = 6;     // wind display unit → px/s² acceleration
+const TRAIL_LEN    = 32;
+const WIND_SCALE   = 6;
+const MONEY_PER_DAMAGE = 10;
+
+// ── weapon definitions ─────────────────────────────────────────────────────
+const WEAPONS = {
+  'Baby Missile': {
+    cost: 0, blastR: 24, hitDamage: 38, type: 'standard',
+    desc: 'Small blast. Infinite ammo.',
+  },
+  'Missile': {
+    cost: 500, blastR: 48, hitDamage: 75, type: 'standard',
+    desc: 'Standard warhead.',
+  },
+  'MIRV': {
+    cost: 2000, blastR: 32, hitDamage: 55, type: 'mirv',
+    desc: 'Splits into 3 warheads at peak.', subCount: 3, spreadVx: 120,
+  },
+  'Dirt Bomb': {
+    cost: 300, blastR: 40, hitDamage: 0, type: 'dirt',
+    desc: 'Raises terrain on impact.',
+  },
+  'Napalm': {
+    cost: 1500, blastR: 36, hitDamage: 30, type: 'napalm',
+    desc: 'Spreads fire along terrain.',
+    napalmCount: 12, napalmSpeed: 55, napalmLife: 2.8,
+  },
+  'Funky Bomb': {
+    cost: 3000, blastR: 100, hitDamage: 95, type: 'standard',
+    desc: 'Massive blast radius.',
+  },
+};
+
+// ── player / AI constants ──────────────────────────────────────────────────
+const PLAYER_COLORS = [
+  '#5599ff', // P1  — blue
+  '#ff5555', // P2  — red
+  '#55dd55', // P3  — green
+  '#ffdd44', // P4  — yellow
+  '#44dddd', // P5  — cyan
+  '#ff8833', // P6  — orange
+  '#dd44dd', // P7  — magenta
+  '#88ff44', // P8  — lime
+  '#ff88bb', // P9  — pink
+  '#dddddd', // P10 — silver
+];
+
+const AI_DIFFICULTY = {
+  easy:   { angleNoise: 26, powerNoise: 22 },
+  medium: { angleNoise: 12, powerNoise: 10 },
+  hard:   { angleNoise:  5, powerNoise:  4 },
+};
+
+const CPU_THINK_DELAY = 1.4;  // seconds before CPU fires
+const AI_SIM_DT       = 1 / 120; // physics step for trajectory sweeps
 
 // ── audio ──────────────────────────────────────────────────────────────────
 let audioCtx    = null;
@@ -102,7 +400,6 @@ let whistleOsc  = null;
 let whistleGain = null;
 let masterVolume = 0.6;
 
-// Lazy-init on first user gesture; safe to call repeatedly.
 function ensureAudio() {
   if (!audioCtx) {
     try {
@@ -116,7 +413,6 @@ function ensureAudio() {
   return audioCtx.state !== 'closed';
 }
 
-// Create a white-noise buffer of the given duration.
 function makeNoise(seconds) {
   const len = Math.ceil(audioCtx.sampleRate * seconds);
   const buf = audioCtx.createBuffer(1, len, audioCtx.sampleRate);
@@ -125,11 +421,9 @@ function makeNoise(seconds) {
   return buf;
 }
 
-// Short low-frequency thump + mechanical click transient.
 function soundFire() {
   if (!ensureAudio()) return;
   const now = audioCtx.currentTime;
-
   const osc = audioCtx.createOscillator();
   const ogn = audioCtx.createGain();
   osc.type = 'sine';
@@ -139,8 +433,6 @@ function soundFire() {
   ogn.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
   osc.connect(ogn); ogn.connect(masterGain);
   osc.start(now); osc.stop(now + 0.14);
-
-  // brief noise click layered on top
   const ns  = audioCtx.createBufferSource();
   ns.buffer = makeNoise(0.05);
   const ngn = audioCtx.createGain();
@@ -150,7 +442,6 @@ function soundFire() {
   ns.start(now);
 }
 
-// Continuous whistle whose pitch tracks projectile speed.
 function startWhistle() {
   if (!ensureAudio() || whistleOsc) return;
   whistleOsc  = audioCtx.createOscillator();
@@ -167,8 +458,7 @@ function startWhistle() {
 function updateWhistle(vx, vy) {
   if (!whistleOsc) return;
   const speed = Math.hypot(vx, vy);
-  // map speed (px/s) to audible pitch: faster = higher pitch
-  const freq = Math.min(2400, 180 + speed * 1.15);
+  const freq  = Math.min(2400, 180 + speed * 1.15);
   whistleOsc.frequency.setTargetAtTime(freq, audioCtx.currentTime, 0.07);
 }
 
@@ -181,34 +471,27 @@ function stopWhistle() {
   setTimeout(() => { try { o.stop(); o.disconnect(); g.disconnect(); } catch (_) {} }, 300);
 }
 
-// White noise → low-pass filter with sweeping cutoff = deep rolling boom.
 function soundExplosion() {
   if (!ensureAudio()) return;
   const now = audioCtx.currentTime;
   const dur = 1.5;
-
   const ns  = audioCtx.createBufferSource();
   ns.buffer = makeNoise(dur);
-
   const lpf = audioCtx.createBiquadFilter();
   lpf.type = 'lowpass';
   lpf.frequency.setValueAtTime(900, now);
   lpf.frequency.exponentialRampToValueAtTime(38, now + dur * 0.8);
-
   const gn = audioCtx.createGain();
   gn.gain.setValueAtTime(1.0, now);
   gn.gain.exponentialRampToValueAtTime(0.001, now + dur);
-
   ns.connect(lpf); lpf.connect(gn); gn.connect(masterGain);
   ns.start(now); ns.stop(now + dur);
 }
 
-// Bandpass noise burst + metallic ring = sharper "tank hit" crack.
 function soundTankHit() {
   if (!ensureAudio()) return;
   const now = audioCtx.currentTime;
   const dur = 0.55;
-
   const ns  = audioCtx.createBufferSource();
   ns.buffer = makeNoise(dur);
   const bpf = audioCtx.createBiquadFilter();
@@ -221,8 +504,6 @@ function soundTankHit() {
   gn.gain.exponentialRampToValueAtTime(0.001, now + dur);
   ns.connect(bpf); bpf.connect(gn); gn.connect(masterGain);
   ns.start(now); ns.stop(now + dur);
-
-  // metallic ring oscillator
   const ring = audioCtx.createOscillator();
   const rgn  = audioCtx.createGain();
   ring.type = 'triangle';
@@ -236,14 +517,34 @@ function soundTankHit() {
 
 document.getElementById('volSlider').addEventListener('input', e => {
   masterVolume = parseFloat(e.target.value);
-  ensureAudio(); // counts as user gesture → satisfies autoplay policy
+  ensureAudio();
   if (masterGain) masterGain.gain.setTargetAtTime(masterVolume, audioCtx.currentTime, 0.01);
 });
 
 // ── game state ─────────────────────────────────────────────────────────────
-let terrain, tanks, currentPlayer, projectile, gameOver, animId, lastTime, stars;
-let wind       = 0;    // –10…+10; positive = rightward
-let explosions = [];   // { x, y, r, maxR, alpha, age, duration }
+let terrain, tanks, currentPlayer, gameOver, animId, lastTime, stars;
+let wind             = 0;
+let explosions       = [];
+let projectiles      = [];
+let napalmParticles  = [];
+let turnCount        = 0;
+let shopOpen         = false;
+let napalmTurnPending = false;
+let worldWidth       = 0;
+
+// camera (world-space x/y offset; only x is used)
+let camera = { x: 0, y: 0, targetX: 0, targetY: 0 };
+
+// CPU AI state
+let cpuThinking   = false;
+let cpuThinkTimer = 0;
+let cpuAimAngle   = 45;
+let cpuAimPower   = 50;
+
+// ── setup state (persists between games) ───────────────────────────────────
+let playerConfigs    = [];
+let setupRowData     = [];
+let currentSetupCount = 2;
 
 // ── resize ─────────────────────────────────────────────────────────────────
 function resize() {
@@ -253,7 +554,7 @@ function resize() {
 
 // ── midpoint displacement terrain ──────────────────────────────────────────
 function generateTerrain() {
-  const w = canvas.width, h = canvas.height;
+  const w = worldWidth, h = canvas.height;
   terrain = new Array(w);
   const lo = h * 0.42, hi = h * 0.74;
   terrain[0]     = lo + Math.random() * (hi - lo);
@@ -278,9 +579,10 @@ function generateTerrain() {
 // ── stars ──────────────────────────────────────────────────────────────────
 function generateStars() {
   stars = [];
-  for (let i = 0; i < 120; i++) {
+  const count = Math.round(120 * (worldWidth / canvas.width));
+  for (let i = 0; i < count; i++) {
     stars.push({
-      x: Math.random() * canvas.width,
+      x: Math.random() * worldWidth,
       y: Math.random() * canvas.height * 0.55,
       r: Math.random() < 0.15 ? 1.5 : 1,
       a: 0.4 + Math.random() * 0.6,
@@ -290,13 +592,42 @@ function generateStars() {
 
 // ── tanks ──────────────────────────────────────────────────────────────────
 function placeTanks() {
-  const w = canvas.width;
-  const tx1 = Math.floor(w * 0.10 + Math.random() * w * 0.10);
-  const tx2 = Math.floor(w * 0.80 + Math.random() * w * 0.10);
-  tanks = [
-    { x: tx1, y: terrain[tx1], vy: 0, falling: false, fallStartY: 0, color: '#5599ff', name: 'P1', angle: 45,  power: 50, health: 100 },
-    { x: tx2, y: terrain[tx2], vy: 0, falling: false, fallStartY: 0, color: '#ff5555', name: 'P2', angle: 135, power: 50, health: 100 },
-  ];
+  const margin   = worldWidth * 0.08;
+  const usable   = worldWidth * 0.84;
+  const n        = playerConfigs.length;
+  const segWidth = usable / n;
+
+  tanks = [];
+  for (let i = 0; i < n; i++) {
+    const cfg      = playerConfigs[i];
+    const segStart = margin + i * segWidth;
+    const jitter   = segWidth * 0.15;
+    const tx = Math.max(0, Math.min(worldWidth - 1,
+      Math.floor(segStart + jitter + Math.random() * (segWidth - 2 * jitter))));
+    const groundY = terrain[tx];
+    const defaultAngle = tx < worldWidth / 2 ? 45 : 135;
+
+    tanks.push({
+      x: tx, y: groundY, vy: 0, falling: false, fallStartY: 0,
+      color:    cfg.color,
+      name:     cfg.name,
+      isAI:     cfg.type === 'cpu',
+      difficulty: cfg.difficulty || 'medium',
+      angle:    defaultAngle,
+      power:    50,
+      health:   100,
+      money:    5000,
+      inventory: {
+        'Baby Missile': Infinity,
+        'Missile':    0,
+        'MIRV':       0,
+        'Dirt Bomb':  0,
+        'Napalm':     0,
+        'Funky Bomb': 0,
+      },
+      selectedWeapon: 'Baby Missile',
+    });
+  }
 }
 
 // ── wind ───────────────────────────────────────────────────────────────────
@@ -304,10 +635,21 @@ function newWind() {
   wind = Math.round((Math.random() * 2 - 1) * 10);
 }
 
+// ── camera helpers ─────────────────────────────────────────────────────────
+function applyCamera() {
+  ctx.save();
+  ctx.translate(-Math.round(camera.x), -Math.round(camera.y));
+}
+
+function restoreCamera() {
+  ctx.restore();
+}
+
 // ── draw: background + terrain ─────────────────────────────────────────────
 function drawScene() {
-  const w = canvas.width, h = canvas.height;
+  const w = worldWidth, h = canvas.height;
 
+  // sky — spans full world width so stars and background are correct under camera
   const sky = ctx.createLinearGradient(0, 0, 0, h * 0.75);
   sky.addColorStop(0, '#04040f');
   sky.addColorStop(1, '#0b2238');
@@ -345,6 +687,20 @@ function drawScene() {
 function drawTank(tank, active) {
   const { x, y, color, angle, health, name } = tank;
   const bodyY = y - 11;
+
+  // dead tanks: show a dark wreck
+  if (health <= 0) {
+    ctx.fillStyle = 'rgba(40,20,10,0.7)';
+    ctx.fillRect(x - 14, bodyY, 28, 12);
+    ctx.fillStyle = color;
+    ctx.globalAlpha = 0.3;
+    ctx.font = 'bold 13px Courier New';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText(name, x, y - 58);
+    ctx.globalAlpha = 1;
+    return;
+  }
 
   if (active) {
     ctx.beginPath();
@@ -398,8 +754,9 @@ function drawTank(tank, active) {
 
 // ── draw: dotted aiming guide ──────────────────────────────────────────────
 function drawAimGuide() {
-  if (projectile) return;
+  if (projectiles.length > 0) return;
   const tank  = tanks[currentPlayer];
+  if (tank.health <= 0) return;
   const rad   = tank.angle * Math.PI / 180;
   const spd   = tank.power * POWER_SCALE;
   const wAcc  = wind * WIND_SCALE;
@@ -429,43 +786,39 @@ function drawAimGuide() {
     px0 = x; py0 = y;
     ctx.lineTo(x, y);
     const ix = Math.round(x);
-    if (ix >= 0 && ix < canvas.width && y >= 0 && y >= terrain[ix]) break;
+    if (ix >= 0 && ix < worldWidth && y >= 0 && y >= terrain[ix]) break;
   }
 
   ctx.stroke();
-  ctx.restore(); // resets setLineDash
+  ctx.restore();
 }
 
-// ── draw: projectile with fading trail ─────────────────────────────────────
-function drawProjectile() {
-  if (!projectile) return;
-  const { x, y, trail } = projectile;
-
-  // each segment gets its own alpha so the tail fades to transparent
-  for (let i = 1; i < trail.length; i++) {
-    const alpha = (i / trail.length) * 0.7;
+// ── draw: projectiles with fading trail ────────────────────────────────────
+function drawProjectiles() {
+  for (const proj of projectiles) {
+    const { x, y, trail } = proj;
+    for (let i = 1; i < trail.length; i++) {
+      const alpha = (i / trail.length) * 0.7;
+      ctx.beginPath();
+      ctx.moveTo(trail[i - 1].x, trail[i - 1].y);
+      ctx.lineTo(trail[i].x,     trail[i].y);
+      ctx.strokeStyle = `rgba(255,170,30,${alpha.toFixed(2)})`;
+      ctx.lineWidth = 2;
+      ctx.lineCap = 'round';
+      ctx.stroke();
+    }
+    const grd = ctx.createRadialGradient(x, y, 0, x, y, 9);
+    grd.addColorStop(0, 'rgba(255,220,60,1)');
+    grd.addColorStop(1, 'rgba(255,80,0,0)');
     ctx.beginPath();
-    ctx.moveTo(trail[i - 1].x, trail[i - 1].y);
-    ctx.lineTo(trail[i].x,     trail[i].y);
-    ctx.strokeStyle = `rgba(255,170,30,${alpha.toFixed(2)})`;
-    ctx.lineWidth = 2;
-    ctx.lineCap = 'round';
-    ctx.stroke();
+    ctx.arc(x, y, 9, 0, Math.PI * 2);
+    ctx.fillStyle = grd;
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(x, y, 3, 0, Math.PI * 2);
+    ctx.fillStyle = '#fff';
+    ctx.fill();
   }
-
-  // glowing head
-  const grd = ctx.createRadialGradient(x, y, 0, x, y, 9);
-  grd.addColorStop(0, 'rgba(255,220,60,1)');
-  grd.addColorStop(1, 'rgba(255,80,0,0)');
-  ctx.beginPath();
-  ctx.arc(x, y, 9, 0, Math.PI * 2);
-  ctx.fillStyle = grd;
-  ctx.fill();
-
-  ctx.beginPath();
-  ctx.arc(x, y, 3, 0, Math.PI * 2);
-  ctx.fillStyle = '#fff';
-  ctx.fill();
 }
 
 // ── draw: explosions ───────────────────────────────────────────────────────
@@ -473,8 +826,6 @@ function drawExplosions() {
   for (const e of explosions) {
     if (e.r <= 0 || e.alpha <= 0) continue;
     const a = e.alpha;
-
-    // central flash
     const flash = ctx.createRadialGradient(e.x, e.y, 0, e.x, e.y, e.r * 0.38);
     flash.addColorStop(0, `rgba(255,255,200,${a.toFixed(2)})`);
     flash.addColorStop(1, `rgba(255,200,50,0)`);
@@ -482,18 +833,14 @@ function drawExplosions() {
     ctx.arc(e.x, e.y, e.r * 0.38, 0, Math.PI * 2);
     ctx.fillStyle = flash;
     ctx.fill();
-
-    // outer fireball
     const fire = ctx.createRadialGradient(e.x, e.y, e.r * 0.15, e.x, e.y, e.r);
-    fire.addColorStop(0,   `rgba(255,110,0,${(a * 0.88).toFixed(2)})`);
-    fire.addColorStop(0.55,`rgba(180,35,0,${(a * 0.55).toFixed(2)})`);
-    fire.addColorStop(1,   `rgba(60,5,0,0)`);
+    fire.addColorStop(0,    `rgba(255,110,0,${(a * 0.88).toFixed(2)})`);
+    fire.addColorStop(0.55, `rgba(180,35,0,${(a * 0.55).toFixed(2)})`);
+    fire.addColorStop(1,    `rgba(60,5,0,0)`);
     ctx.beginPath();
     ctx.arc(e.x, e.y, e.r, 0, Math.PI * 2);
     ctx.fillStyle = fire;
     ctx.fill();
-
-    // shockwave ring
     ctx.beginPath();
     ctx.arc(e.x, e.y, e.r * 0.92, 0, Math.PI * 2);
     ctx.strokeStyle = `rgba(255,90,0,${(a * 0.45).toFixed(2)})`;
@@ -502,16 +849,32 @@ function drawExplosions() {
   }
 }
 
-// ── draw: wind indicator ───────────────────────────────────────────────────
+// ── draw: napalm fire particles ────────────────────────────────────────────
+function drawNapalm() {
+  for (const p of napalmParticles) {
+    const lifeFrac = 1 - p.age / p.life;
+    const xi = Math.round(Math.max(0, Math.min(worldWidth - 1, p.x)));
+    const groundY = terrain[xi];
+    const alpha = lifeFrac * 0.85;
+    const grd = ctx.createRadialGradient(p.x, groundY, 0, p.x, groundY, 14);
+    grd.addColorStop(0, `rgba(255,180,30,${alpha.toFixed(2)})`);
+    grd.addColorStop(1, 'rgba(255,40,0,0)');
+    ctx.beginPath();
+    ctx.arc(p.x, groundY, 14, 0, Math.PI * 2);
+    ctx.fillStyle = grd;
+    ctx.fill();
+  }
+}
+
+// ── draw: wind indicator (screen-space, outside camera transform) ───────────
 function drawWindIndicator() {
   const PAD = 12;
   const bw  = 185, bh = 38;
   const bx  = canvas.width - bw - PAD;
   const by  = PAD;
   const cy  = by + bh / 2;
-  const mph = Math.round(Math.abs(wind) * 5); // 0–50 mph range
+  const mph = Math.round(Math.abs(wind) * 5);
 
-  // background
   ctx.fillStyle = 'rgba(0,0,0,0.58)';
   ctx.beginPath();
   ctx.rect(bx, by, bw, bh);
@@ -520,14 +883,12 @@ function drawWindIndicator() {
   ctx.lineWidth = 1;
   ctx.strokeRect(bx, by, bw, bh);
 
-  // "WIND" label
   ctx.fillStyle = 'rgba(255,255,255,0.55)';
   ctx.font = '12px Courier New';
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
   ctx.fillText('WIND', bx + 9, cy);
 
-  // mph value — right-aligned
   const mphStr = `${mph} mph`;
   ctx.fillStyle = 'rgba(255,255,255,0.70)';
   ctx.font = 'bold 12px Courier New';
@@ -535,7 +896,7 @@ function drawWindIndicator() {
   ctx.fillText(mphStr, bx + bw - 8, cy);
 
   const arrowOrigin = bx + 52;
-  const maxLen      = 68;  // arrow stays clear of mph text
+  const maxLen      = 68;
 
   if (wind === 0) {
     ctx.fillStyle = 'rgba(255,255,255,0.38)';
@@ -549,7 +910,6 @@ function drawWindIndicator() {
   const dir  = wind > 0 ? 1 : -1;
   const gg   = Math.round(Math.max(50, 230 - Math.abs(wind) * 18));
   const arrowColor = `rgba(255,${gg},40,0.92)`;
-
   const startX = dir > 0 ? arrowOrigin       : arrowOrigin + len;
   const endX   = dir > 0 ? arrowOrigin + len : arrowOrigin;
 
@@ -563,30 +923,43 @@ function drawWindIndicator() {
 
   const tip = endX;
   ctx.beginPath();
-  ctx.moveTo(tip,            cy);
-  ctx.lineTo(tip - dir * 9, cy - 5);
-  ctx.lineTo(tip - dir * 9, cy + 5);
+  ctx.moveTo(tip,             cy);
+  ctx.lineTo(tip - dir * 9,  cy - 5);
+  ctx.lineTo(tip - dir * 9,  cy + 5);
   ctx.closePath();
   ctx.fillStyle = arrowColor;
   ctx.fill();
 }
 
 // ── terrain destruction ─────────────────────────────────────────────────────
-function blastTerrain(cx, cy) {
-  const w = canvas.width, h = canvas.height;
-  const x0 = Math.max(0,     Math.floor(cx - BLAST_R));
-  const x1 = Math.min(w - 1, Math.ceil (cx + BLAST_R));
+function blastTerrain(cx, cy, r = BLAST_R) {
+  const w = worldWidth, h = canvas.height;
+  const x0 = Math.max(0,     Math.floor(cx - r));
+  const x1 = Math.min(w - 1, Math.ceil (cx + r));
   for (let x = x0; x <= x1; x++) {
-    const dx  = x - cx;
-    const dy  = Math.sqrt(BLAST_R * BLAST_R - dx * dx);
+    const dx   = x - cx;
+    const dy   = Math.sqrt(r * r - dx * dx);
     const newY = cy + dy;
     if (terrain[x] < newY) terrain[x] = Math.min(h, newY);
   }
 }
 
+// ── terrain construction (Dirt Bomb) ───────────────────────────────────────
+function raiseTerrain(cx, cy, r) {
+  const w = worldWidth;
+  const x0 = Math.max(0,     Math.floor(cx - r));
+  const x1 = Math.min(w - 1, Math.ceil (cx + r));
+  for (let x = x0; x <= x1; x++) {
+    const dx   = x - cx;
+    const dy   = Math.sqrt(r * r - dx * dx);
+    const newY = cy - dy;
+    if (terrain[x] > newY) terrain[x] = Math.max(0, newY);
+  }
+}
+
 // ── explosion lifecycle ─────────────────────────────────────────────────────
-function addExplosion(x, y) {
-  explosions.push({ x, y, r: 2, maxR: BLAST_R * 1.65, alpha: 1, age: 0, duration: 0.55 });
+function addExplosion(x, y, r = BLAST_R) {
+  explosions.push({ x, y, r: 2, maxR: r * 1.65, alpha: 1, age: 0, duration: 0.55 });
 }
 
 function updateExplosions(dt) {
@@ -594,16 +967,17 @@ function updateExplosions(dt) {
     const e = explosions[i];
     e.age += dt;
     const p = Math.min(1, e.age / e.duration);
-    e.r     = 2 + (e.maxR - 2) * Math.pow(p, 0.4);  // fast expand, eases off
+    e.r     = 2 + (e.maxR - 2) * Math.pow(p, 0.4);
     e.alpha = Math.max(0, 1 - Math.pow(p, 0.55));
     if (e.age >= e.duration) explosions.splice(i, 1);
   }
 }
 
-// ── tank physics: settling after terrain is blown away ─────────────────────
+// ── tank physics ───────────────────────────────────────────────────────────
 function updateTankPhysics(dt) {
-  const w = canvas.width;
+  const w = worldWidth;
   for (const t of tanks) {
+    if (t.health <= 0) continue;
     const tx      = Math.max(0, Math.min(w - 1, Math.round(t.x)));
     const groundY = terrain[tx];
     if (t.y < groundY - 0.5) {
@@ -613,7 +987,6 @@ function updateTankPhysics(dt) {
       if (t.y >= groundY) {
         t.y = groundY;
         t.vy = 0;
-        // damage scales with fall distance; first 20px are free (bumps)
         const fallDist = t.y - t.fallStartY;
         const fallDmg  = Math.max(0, Math.round((fallDist - 20) * 0.45));
         if (fallDmg > 0) {
@@ -623,81 +996,426 @@ function updateTankPhysics(dt) {
         t.falling = false;
       }
     } else {
-      t.vy      = 0;
-      t.y       = groundY;
-      t.falling = false;
+      t.vy = 0; t.y = groundY; t.falling = false;
     }
   }
 }
 
 // ── impact resolution ──────────────────────────────────────────────────────
-function onImpact(px, py) {
-  stopWhistle();
-  addExplosion(px, py);
-  blastTerrain(px, py);
+function onImpact(proj, px, py) {
+  const wep = proj.weapon;
+
   soundExplosion();
+  addExplosion(px, py, wep.blastR);
+
+  if (wep.type === 'dirt') {
+    raiseTerrain(px, py, wep.blastR);
+  } else {
+    blastTerrain(px, py, wep.blastR);
+  }
 
   let anyTankDamaged = false;
-  for (const t of tanks) {
-    const dist = Math.hypot(px - t.x, py - t.y);
-    if (dist < BLAST_R + TANK_HIT_R) {
-      const frac = Math.max(0, 1 - dist / (BLAST_R + TANK_HIT_R));
-      // steeper curve: direct hits deal nearly full damage, splash falls off sharply
-      const dmg  = Math.round(HIT_DAMAGE * Math.pow(frac, 1.4));
-      if (dmg > 0) { t.health = Math.max(0, t.health - dmg); anyTankDamaged = true; }
+  if (wep.hitDamage > 0) {
+    for (const t of tanks) {
+      if (t.health <= 0) continue;
+      const dist = Math.hypot(px - t.x, py - t.y);
+      if (dist < wep.blastR + TANK_HIT_R) {
+        const frac = Math.max(0, 1 - dist / (wep.blastR + TANK_HIT_R));
+        const dmg  = Math.round(wep.hitDamage * Math.pow(frac, 1.4));
+        if (dmg > 0) {
+          t.health = Math.max(0, t.health - dmg);
+          tanks[proj.owner].money += dmg * MONEY_PER_DAMAGE;
+          anyTankDamaged = true;
+        }
+      }
     }
   }
-  // play tank-hit crack 80ms after the boom so the two sounds separate clearly
   if (anyTankDamaged) setTimeout(soundTankHit, 80);
 
-  projectile = null;
-  // tanks settle naturally via updateTankPhysics() each frame
+  if (wep.type === 'napalm') {
+    spawnNapalm(px, py, proj.owner, wep);
+    napalmTurnPending = true;
+  }
 
-  if (!checkWin()) nextTurn();
+  projectiles = projectiles.filter(p => p !== proj);
+
+  if (projectiles.length === 0 && !napalmTurnPending) {
+    stopWhistle();
+    if (!checkWin()) nextTurn();
+  }
 }
 
-function checkWin() {
-  for (let i = 0; i < tanks.length; i++) {
-    if (tanks[i].health <= 0) {
-      const winner = tanks[1 - i];
-      gameOver = true;
-      winEl.innerHTML = `<span style="color:${winner.color}">${winner.name} Wins!</span>`
-                      + `<small>Click to play again</small>`;
-      winEl.style.display = 'block';
-      return true;
+// ── MIRV ───────────────────────────────────────────────────────────────────
+function spawnMirvChildren(parent) {
+  const wep = parent.weapon;
+  const childWeapon = { blastR: wep.blastR, hitDamage: wep.hitDamage, type: 'standard' };
+  for (const dvx of [-wep.spreadVx, 0, wep.spreadVx]) {
+    projectiles.push({
+      x: parent.x, y: parent.y,
+      vx: parent.vx + dvx, vy: parent.vy,
+      trail: [], type: 'standard', weapon: childWeapon,
+      owner: parent.owner, mirvSplit: false,
+    });
+  }
+  addExplosion(parent.x, parent.y, 16);
+}
+
+// ── napalm ─────────────────────────────────────────────────────────────────
+function spawnNapalm(px, py, owner, wep) {
+  const half = Math.floor(wep.napalmCount / 2);
+  for (let i = 0; i < wep.napalmCount; i++) {
+    const dir   = i < half ? -1 : 1;
+    const speed = wep.napalmSpeed * (0.6 + Math.random() * 0.8);
+    napalmParticles.push({
+      x: px + (Math.random() - 0.5) * wep.blastR * 0.5,
+      vx: dir * speed, life: wep.napalmLife * (0.5 + Math.random() * 0.5),
+      age: 0, owner, damageTick: 0,
+    });
+  }
+}
+
+function updateNapalm(dt) {
+  const w = worldWidth;
+  for (let i = napalmParticles.length - 1; i >= 0; i--) {
+    const p = napalmParticles[i];
+    p.age += dt;
+    if (p.age >= p.life) { napalmParticles.splice(i, 1); continue; }
+    p.x += p.vx * dt;
+    const xi = Math.round(Math.max(0, Math.min(w - 1, p.x)));
+    const groundY = terrain[xi];
+    blastTerrain(p.x, groundY, 8);
+    p.damageTick += dt;
+    if (p.damageTick >= 0.3) {
+      p.damageTick = 0;
+      for (const t of tanks) {
+        if (t.health <= 0) continue;
+        const dist = Math.hypot(p.x - t.x, groundY - t.y);
+        if (dist < 8 + TANK_HIT_R) {
+          t.health = Math.max(0, t.health - 8);
+          tanks[p.owner].money += 8 * MONEY_PER_DAMAGE;
+          if (!gameOver) checkWin();
+        }
+      }
     }
+  }
+  if (napalmParticles.length === 0 && napalmTurnPending) {
+    napalmTurnPending = false;
+    stopWhistle();
+    if (!checkWin()) nextTurn();
+  }
+}
+
+// ── win check (N players) ─────────────────────────────────────────────────
+function checkWin() {
+  if (gameOver) return true;
+  const living = tanks.filter(t => t.health > 0);
+  if (living.length <= 1) {
+    gameOver = true;
+    if (living.length === 1) {
+      const w = living[0];
+      winEl.innerHTML = `<span style="color:${w.color}">${w.name} Wins!</span>`
+                      + `<small>Click to play again</small>`;
+    } else {
+      winEl.innerHTML = `<span>DRAW</span><small>Click to play again</small>`;
+    }
+    winEl.style.display = 'block';
+    return true;
   }
   return false;
 }
 
+// ── turn management ────────────────────────────────────────────────────────
 function nextTurn() {
-  currentPlayer = (currentPlayer + 1) % tanks.length;
+  if (gameOver) return;
+
+  cpuThinking   = false;
+  cpuThinkTimer = 0;
+  turnCount++;
+
+  // Advance to next living player
+  const n = tanks.length;
+  for (let attempts = 0; attempts < n; attempts++) {
+    currentPlayer = (currentPlayer + 1) % n;
+    if (tanks[currentPlayer].health > 0) break;
+  }
+
   newWind();
   updateUI();
+  updateWeaponIndicator();
+
+  // Update camera target
+  setCameraTarget(tanks[currentPlayer]);
+
+  // Shop triggers once per full round (every N players worth of turns)
+  const livingCount = tanks.filter(t => t.health > 0).length;
+  if (livingCount > 0 && turnCount % livingCount === 0) {
+    setTimeout(() => { if (!gameOver) openShop(currentPlayer); }, 600);
+    return;
+  }
+
+  // CPU turn
+  if (tanks[currentPlayer].isAI) {
+    setTimeout(startCpuTurn, 400);
+  }
+}
+
+function setCameraTarget(tank) {
+  const maxCamX  = Math.max(0, worldWidth - canvas.width);
+  camera.targetX = Math.max(0, Math.min(maxCamX, tank.x - canvas.width / 2));
+  camera.targetY = 0;
 }
 
 function updateUI() {
   if (gameOver) return;
-  const t = tanks[currentPlayer];
-  ui.textContent   = `${t.name}  |  Angle: ${t.angle}°  |  Power: ${t.power}`;
+  const t   = tanks[currentPlayer];
+  const inv = t.inventory[t.selectedWeapon];
+  const ammo = inv === Infinity ? '∞' : String(inv);
+  const tag  = t.isAI ? ' [CPU]' : '';
+  ui.textContent = `${t.name}${tag}  |  ${t.angle}°  |  Pwr ${t.power}  |  ${t.selectedWeapon} (${ammo})  |  $${t.money}`;
   ui.style.borderColor = t.color;
+}
+
+function updateWeaponIndicator() {
+  if (gameOver) return;
+  const t   = tanks[currentPlayer];
+  const inv = t.inventory[t.selectedWeapon];
+  const ammo = inv === Infinity ? '∞' : String(inv);
+  document.getElementById('weapon-indicator').innerHTML =
+    `<span style="color:${t.color}">${t.selectedWeapon}</span><br><small>${ammo} &nbsp;|&nbsp; $${t.money}</small>`;
+}
+
+// ── weapon cycling ─────────────────────────────────────────────────────────
+function cycleWeapon(dir) {
+  const t = tanks[currentPlayer];
+  const available = Object.keys(WEAPONS).filter(name =>
+    t.inventory[name] === Infinity || t.inventory[name] > 0
+  );
+  if (available.length <= 1) return;
+  const idx = available.indexOf(t.selectedWeapon);
+  t.selectedWeapon = available[((idx + dir) + available.length) % available.length];
+  updateUI();
+  updateWeaponIndicator();
+}
+
+// ── shop ───────────────────────────────────────────────────────────────────
+function openShop(playerIndex) {
+  const t = tanks[playerIndex];
+  if (t.health <= 0) { closeShop(); return; }
+
+  // CPU players: auto-buy the best affordable weapon, then close shop quickly
+  if (t.isAI) {
+    cpuAutoBuy(playerIndex);
+    setTimeout(() => {
+      if (shopOpen) closeShop();
+    }, 350);
+    return;
+  }
+
+  shopOpen = true;
+  document.getElementById('shop-title').innerHTML =
+    `WEAPONS SHOP — <span style="color:${t.color}">${t.name}</span>`;
+  renderShop(playerIndex);
+  shopEl.style.display = 'block';
+}
+
+function renderShop(playerIndex) {
+  const t = tanks[playerIndex];
+  document.getElementById('shop-balance').textContent = `Cash: $${t.money}`;
+
+  const grid = document.getElementById('shop-grid');
+  grid.innerHTML = '';
+
+  for (const [name, wep] of Object.entries(WEAPONS)) {
+    const owned    = t.inventory[name];
+    const ownedStr = owned === Infinity ? '∞' : String(owned);
+    const costStr  = wep.cost === 0 ? 'FREE' : `$${wep.cost}`;
+    const canBuy   = wep.cost > 0 && t.money >= wep.cost;
+
+    const card = document.createElement('div');
+    card.className = 'shop-card';
+    card.innerHTML = `
+      <h3>${name}</h3>
+      <div class="shop-desc">${wep.desc}</div>
+      <div class="shop-meta">
+        <span class="shop-cost">${costStr}</span>
+        &nbsp;&nbsp;
+        <span class="shop-owned">Owned: ${ownedStr}</span>
+      </div>
+      <button ${canBuy ? '' : 'disabled'}>${wep.cost === 0 ? 'Infinite' : 'BUY'}</button>
+    `;
+    if (canBuy) {
+      card.querySelector('button').addEventListener('click', () => {
+        t.money -= wep.cost;
+        t.inventory[name]++;
+        if (t.selectedWeapon === 'Baby Missile') t.selectedWeapon = name;
+        renderShop(playerIndex);
+      });
+    }
+    grid.appendChild(card);
+  }
+}
+
+function closeShop() {
+  shopEl.style.display = 'none';
+  shopOpen = false;
+  updateUI();
+  updateWeaponIndicator();
+  if (!gameOver && tanks[currentPlayer].isAI) {
+    setTimeout(startCpuTurn, 400);
+  }
+}
+
+document.getElementById('shop-done').addEventListener('click', closeShop);
+
+// ── CPU auto-buy ───────────────────────────────────────────────────────────
+function cpuAutoBuy(playerIndex) {
+  const t = tanks[playerIndex];
+  // Buy the highest-damage weapon the CPU can afford (greedy, one purchase)
+  const best = Object.entries(WEAPONS)
+    .filter(([, wep]) => wep.cost > 0 && t.money >= wep.cost)
+    .sort(([, a], [, b]) => b.hitDamage - a.hitDamage)[0];
+  if (best) {
+    t.money -= best[1].cost;
+    t.inventory[best[0]]++;
+    if (t.selectedWeapon === 'Baby Missile') t.selectedWeapon = best[0];
+  }
+}
+
+// ── CPU AI ─────────────────────────────────────────────────────────────────
+function cpuSelectTarget(tankIndex) {
+  const shooter = tanks[tankIndex];
+  let bestIdx = -1, bestDist = Infinity;
+  for (let i = 0; i < tanks.length; i++) {
+    if (i === tankIndex || tanks[i].health <= 0) continue;
+    const dist = Math.abs(tanks[i].x - shooter.x);
+    if (dist < bestDist) { bestDist = dist; bestIdx = i; }
+  }
+  return bestIdx;
+}
+
+function cpuSimulateLanding(shooter, angleDeg, power) {
+  const rad   = angleDeg * Math.PI / 180;
+  const spd   = power * POWER_SCALE;
+  const wAcc  = wind * WIND_SCALE;
+  const bodyY = shooter.y - 11;
+
+  let x  = shooter.x + Math.cos(rad) * (CANNON_LEN + 5);
+  let y  = bodyY    - Math.sin(rad) * (CANNON_LEN + 5);
+  let vx = Math.cos(rad) * spd;
+  let vy = -Math.sin(rad) * spd;
+
+  for (let step = 0; step < 12000; step++) {
+    vx += wAcc    * AI_SIM_DT;
+    vy += GRAVITY * AI_SIM_DT;
+    x  += vx      * AI_SIM_DT;
+    y  += vy      * AI_SIM_DT;
+    if (x < 0 || x >= worldWidth || y > canvas.height + 100) return x;
+    const xi = Math.round(x);
+    if (xi >= 0 && xi < worldWidth && y >= terrain[xi]) return x;
+  }
+  return x;
+}
+
+function cpuSelectWeapon(tankIndex) {
+  const t = tanks[tankIndex];
+  const best = Object.entries(WEAPONS)
+    .filter(([name]) => name !== 'Baby Missile' && (t.inventory[name] || 0) > 0)
+    .sort(([, a], [, b]) => b.hitDamage - a.hitDamage)[0];
+  t.selectedWeapon = best ? best[0] : 'Baby Missile';
+}
+
+function cpuComputeAim(tankIndex, targetIndex) {
+  const shooter = tanks[tankIndex];
+  const targetX = tanks[targetIndex].x;
+
+  let bestAngle = shooter.x < targetX ? 45 : 135;
+  let bestPower = 60;
+  let bestDist  = Infinity;
+
+  // Coarse sweep
+  for (let a = 2; a <= 178; a += 3) {
+    for (let p = 30; p <= MAX_POWER; p += 8) {
+      const landX = cpuSimulateLanding(shooter, a, p);
+      const dist  = Math.abs(landX - targetX);
+      if (dist < bestDist) { bestDist = dist; bestAngle = a; bestPower = p; }
+    }
+  }
+
+  // Fine sweep around best
+  const aMin = Math.max(1,        bestAngle - 6);
+  const aMax = Math.min(179,      bestAngle + 6);
+  const pMin = Math.max(10,       bestPower - 12);
+  const pMax = Math.min(MAX_POWER, bestPower + 12);
+  bestDist = Infinity;
+
+  for (let a = aMin; a <= aMax; a++) {
+    for (let p = pMin; p <= pMax; p++) {
+      const landX = cpuSimulateLanding(shooter, a, p);
+      const dist  = Math.abs(landX - targetX);
+      if (dist < bestDist) { bestDist = dist; bestAngle = a; bestPower = p; }
+    }
+  }
+
+  // Apply difficulty noise
+  const cfg    = AI_DIFFICULTY[shooter.difficulty] || AI_DIFFICULTY.medium;
+  const aNoise = (Math.random() * 2 - 1) * cfg.angleNoise;
+  const pNoise = (Math.random() * 2 - 1) * cfg.powerNoise;
+
+  return {
+    angle: Math.max(1,  Math.min(179,       Math.round(bestAngle + aNoise))),
+    power: Math.max(10, Math.min(MAX_POWER, Math.round(bestPower + pNoise))),
+  };
+}
+
+function startCpuTurn() {
+  if (gameOver || shopOpen) return;
+  const idx = currentPlayer;
+  if (!tanks[idx] || !tanks[idx].isAI || tanks[idx].health <= 0) return;
+
+  cpuSelectWeapon(idx);
+  const targetIdx = cpuSelectTarget(idx);
+  if (targetIdx === -1) return;
+
+  const aim     = cpuComputeAim(idx, targetIdx);
+  cpuAimAngle   = aim.angle;
+  cpuAimPower   = aim.power;
+  cpuThinkTimer = CPU_THINK_DELAY;
+  cpuThinking   = true;
+
+  updateUI();
+  updateWeaponIndicator();
 }
 
 // ── fire ───────────────────────────────────────────────────────────────────
 function fire() {
-  if (projectile || gameOver) return;
+  if (projectiles.length > 0 || gameOver || shopOpen) return;
   const t   = tanks[currentPlayer];
-  const rad = t.angle * Math.PI / 180;
-  const spd = t.power * POWER_SCALE;
-  projectile = {
-    x:     t.x + Math.cos(rad) * (CANNON_LEN + 5),
-    y:     t.y - 11 - Math.sin(rad) * (CANNON_LEN + 5),
-    vx:    Math.cos(rad) * spd,
-    vy:   -Math.sin(rad) * spd,
-    trail: [],
-  };
+  if (t.health <= 0) return;
+  const wep = WEAPONS[t.selectedWeapon];
+
+  if (wep.cost > 0) {
+    if (t.inventory[t.selectedWeapon] <= 0) return;
+    t.inventory[t.selectedWeapon]--;
+    if (t.inventory[t.selectedWeapon] === 0) t.selectedWeapon = 'Baby Missile';
+  }
+
+  const rad   = t.angle * Math.PI / 180;
+  const spd   = t.power * POWER_SCALE;
+  const bodyY = t.y - 11;
+
+  projectiles.push({
+    x: t.x + Math.cos(rad) * (CANNON_LEN + 5),
+    y: bodyY - Math.sin(rad) * (CANNON_LEN + 5),
+    vx:  Math.cos(rad) * spd,
+    vy: -Math.sin(rad) * spd,
+    trail: [], type: wep.type, weapon: wep,
+    owner: currentPlayer, mirvSplit: false,
+  });
+
   soundFire();
   startWhistle();
+  updateUI();
+  updateWeaponIndicator();
 }
 
 // ── main loop ──────────────────────────────────────────────────────────────
@@ -706,41 +1424,77 @@ function gameLoop(ts) {
   const dt = Math.min((ts - lastTime) / 1000, 0.05);
   lastTime = ts;
 
-  // physics
-  if (projectile) {
-    projectile.trail.push({ x: projectile.x, y: projectile.y });
-    if (projectile.trail.length > TRAIL_LEN) projectile.trail.shift();
-
-    projectile.vx += wind * WIND_SCALE * dt;  // wind drift
-    projectile.vy += GRAVITY * dt;
-    projectile.x  += projectile.vx * dt;
-    projectile.y  += projectile.vy * dt;
-    updateWhistle(projectile.vx, projectile.vy);
-
-    const px = Math.round(projectile.x);
-    const py = projectile.y;
-    const w  = canvas.width, h = canvas.height;
-
-    if (px < 0 || px >= w || py > h + 60) {
-      stopWhistle();
-      projectile = null;
-      nextTurn();
-    } else if (py >= 0 && terrain[px] != null && py >= terrain[px]) {
-      onImpact(px, Math.round(py));
+  // CPU think / aim animation
+  if (cpuThinking && !shopOpen && projectiles.length === 0 && !gameOver) {
+    cpuThinkTimer -= dt;
+    const t = tanks[currentPlayer];
+    // smoothly swing cannon toward computed angle
+    t.angle += (cpuAimAngle - t.angle) * Math.min(1, 6 * dt);
+    if (cpuThinkTimer <= 0) {
+      cpuThinking = false;
+      t.angle = cpuAimAngle;
+      t.power = cpuAimPower;
+      fire();
     }
   }
 
+  // Camera smooth pan
+  camera.x += (camera.targetX - camera.x) * Math.min(1, 3.5 * dt);
+  camera.y += (camera.targetY - camera.y) * Math.min(1, 3.5 * dt);
+
+  // Projectile physics (iterate backwards for safe splicing)
+  for (let i = projectiles.length - 1; i >= 0; i--) {
+    const proj = projectiles[i];
+    proj.trail.push({ x: proj.x, y: proj.y });
+    if (proj.trail.length > TRAIL_LEN) proj.trail.shift();
+
+    proj.vx += wind * WIND_SCALE * dt;
+    proj.vy += GRAVITY * dt;
+    proj.x  += proj.vx * dt;
+    proj.y  += proj.vy * dt;
+    updateWhistle(proj.vx, proj.vy);
+
+    if (proj.type === 'mirv' && !proj.mirvSplit && proj.vy >= 0) {
+      proj.mirvSplit = true;
+      spawnMirvChildren(proj);
+      projectiles.splice(i, 1);
+      continue;
+    }
+
+    const px = Math.round(proj.x);
+    const py = proj.y;
+    const w  = worldWidth, h = canvas.height;
+
+    if (px < 0 || px >= w || py > h + 60) {
+      projectiles.splice(i, 1);
+      if (projectiles.length === 0 && !napalmTurnPending) {
+        stopWhistle();
+        if (!checkWin()) nextTurn();
+      }
+    } else if (py >= 0 && terrain[px] != null && py >= terrain[px]) {
+      onImpact(proj, px, Math.round(py));
+    }
+  }
+
+  if (projectiles.length === 0) stopWhistle();
+
   updateTankPhysics(dt);
   updateExplosions(dt);
+  updateNapalm(dt);
 
-  // draw (order matters for layering)
+  // Draw — world-space items under camera transform
+  applyCamera();
   drawScene();
   drawAimGuide();
   for (let i = 0; i < tanks.length; i++) {
-    drawTank(tanks[i], i === currentPlayer && !projectile);
+    drawTank(tanks[i], i === currentPlayer && projectiles.length === 0 && !shopOpen && !cpuThinking);
   }
-  drawProjectile();
+  drawProjectiles();
   drawExplosions();
+  drawNapalm();
+  restoreCamera();
+
+  // Screen-space HUD (drawn after restoreCamera)
   drawWindIndicator();
 
   animId = requestAnimationFrame(gameLoop);
@@ -748,8 +1502,9 @@ function gameLoop(ts) {
 
 // ── keyboard ───────────────────────────────────────────────────────────────
 document.addEventListener('keydown', e => {
-  ensureAudio(); // initializes AudioContext on first keypress (satisfies autoplay policy)
-  if (gameOver || projectile) return;
+  ensureAudio();
+  if (gameOver || projectiles.length > 0 || shopOpen || cpuThinking) return;
+  if (!tanks || !tanks[currentPlayer] || tanks[currentPlayer].isAI) return;
   const t    = tanks[currentPlayer];
   const step = e.shiftKey ? 5 : 1;
   switch (e.key) {
@@ -757,33 +1512,171 @@ document.addEventListener('keydown', e => {
     case 'ArrowRight': e.preventDefault(); t.angle = Math.max(0,   t.angle - step); break;
     case 'ArrowUp':    e.preventDefault(); t.power = Math.min(MAX_POWER, t.power + step); break;
     case 'ArrowDown':  e.preventDefault(); t.power = Math.max(1,         t.power - step); break;
-    case ' ':          e.preventDefault(); fire(); break;
+    case ' ':          e.preventDefault(); fire(); return;
+    case 'q': case 'Q': e.preventDefault(); cycleWeapon(-1); return;
+    case 'e': case 'E': e.preventDefault(); cycleWeapon(+1); return;
   }
   updateUI();
 });
 
-document.addEventListener('click', () => { if (gameOver) initGame(); });
-window.addEventListener('resize', initGame);
+document.addEventListener('click', e => {
+  // Don't intercept clicks inside setup/shop
+  if (setupEl.contains(e.target) || shopEl.contains(e.target)) return;
+  if (gameOver) showSetup();
+});
+
+window.addEventListener('resize', () => {
+  if (playerConfigs.length > 0) initGame();
+});
+
+// ── setup screen ───────────────────────────────────────────────────────────
+function showSetup() {
+  setupEl.style.display = 'block';
+  document.getElementById('ui').style.display            = 'none';
+  document.getElementById('keys').style.display          = 'none';
+  document.getElementById('vol').style.display           = 'none';
+  document.getElementById('weapon-indicator').style.display = 'none';
+  winEl.style.display = 'none';
+  renderSetupRows(currentSetupCount);
+}
+
+function hideSetup() {
+  setupEl.style.display = 'none';
+  document.getElementById('ui').style.display            = '';
+  document.getElementById('keys').style.display          = '';
+  document.getElementById('vol').style.display           = '';
+  document.getElementById('weapon-indicator').style.display = '';
+}
+
+function renderSetupRows(n) {
+  // Grow setupRowData as needed (don't shrink — preserve existing entries)
+  while (setupRowData.length < n) {
+    const i = setupRowData.length;
+    setupRowData.push({ name: `P${i + 1}`, type: 'human', difficulty: 'medium' });
+  }
+
+  const container = document.getElementById('setup-rows');
+  container.innerHTML = '';
+
+  for (let i = 0; i < n; i++) {
+    const data  = setupRowData[i];
+    const color = PLAYER_COLORS[i];
+    const isCPU = data.type === 'cpu';
+    const row   = document.createElement('div');
+    row.className = 'setup-row';
+
+    row.innerHTML = `
+      <div class="setup-swatch" style="background:${color}"></div>
+      <input  class="setup-name"     type="text" value="${data.name}" maxlength="10">
+      <button class="setup-type-btn${isCPU ? ' cpu-mode' : ''}">${isCPU ? 'CPU' : 'HUMAN'}</button>
+      <select class="setup-diff" style="display:${isCPU ? '' : 'none'}">
+        <option value="easy"   ${data.difficulty === 'easy'   ? 'selected' : ''}>Easy</option>
+        <option value="medium" ${data.difficulty === 'medium' ? 'selected' : ''}>Med</option>
+        <option value="hard"   ${data.difficulty === 'hard'   ? 'selected' : ''}>Hard</option>
+      </select>
+    `;
+
+    const nameInput  = row.querySelector('.setup-name');
+    const typeBtn    = row.querySelector('.setup-type-btn');
+    const diffSelect = row.querySelector('.setup-diff');
+
+    nameInput.addEventListener('input', () => {
+      setupRowData[i].name = nameInput.value.trim() || `P${i + 1}`;
+    });
+    typeBtn.addEventListener('click', () => {
+      setupRowData[i].type = setupRowData[i].type === 'human' ? 'cpu' : 'human';
+      renderSetupRows(currentSetupCount);
+    });
+    diffSelect.addEventListener('change', () => {
+      setupRowData[i].difficulty = diffSelect.value;
+    });
+
+    container.appendChild(row);
+  }
+
+  document.getElementById('setup-count-display').textContent = n;
+}
+
+function initSetupListeners() {
+  document.getElementById('setup-minus').addEventListener('click', () => {
+    if (currentSetupCount <= 2) return;
+    currentSetupCount--;
+    renderSetupRows(currentSetupCount);
+  });
+
+  document.getElementById('setup-plus').addEventListener('click', () => {
+    if (currentSetupCount >= 10) return;
+    currentSetupCount++;
+    renderSetupRows(currentSetupCount);
+  });
+
+  document.getElementById('setup-start').addEventListener('click', () => {
+    // Read current row values directly from the DOM to capture any unsaved typing
+    const rows = document.querySelectorAll('.setup-row');
+    playerConfigs = [];
+    rows.forEach((row, i) => {
+      const name = row.querySelector('.setup-name').value.trim() || `P${i + 1}`;
+      const type = setupRowData[i].type;
+      const diff = row.querySelector('.setup-diff').value;
+      setupRowData[i].name       = name;
+      setupRowData[i].difficulty = diff;
+      playerConfigs.push({ name, type, difficulty: diff, color: PLAYER_COLORS[i] });
+    });
+    hideSetup();
+    initGame();
+  });
+}
 
 // ── init ───────────────────────────────────────────────────────────────────
 function initGame() {
+  if (!playerConfigs || playerConfigs.length === 0) return;
   if (animId) cancelAnimationFrame(animId);
-  gameOver      = false;
-  projectile    = null;
-  explosions    = [];
-  currentPlayer = 0;
-  lastTime      = null;
-  winEl.style.display = 'none';
+
+  gameOver          = false;
+  projectiles       = [];
+  napalmParticles   = [];
+  explosions        = [];
+  currentPlayer     = 0;
+  lastTime          = null;
+  turnCount         = 0;
+  shopOpen          = false;
+  napalmTurnPending = false;
+  cpuThinking       = false;
+  cpuThinkTimer     = 0;
+  camera.x = camera.targetX = 0;
+  camera.y = camera.targetY = 0;
+
+  shopEl.style.display = 'none';
+  winEl.style.display  = 'none';
+
   resize();
+
+  // Scale world width with player count: 2p=1.0×, 4p=1.5×, 6p=2.0×, 8p=2.5×, 10p=3.0×
+  const n = playerConfigs.length;
+  worldWidth = Math.round(canvas.width * (0.5 + n * 0.25));
+
   generateTerrain();
   generateStars();
   placeTanks();
   newWind();
   updateUI();
+  updateWeaponIndicator();
+
+  // Set initial camera on first player
+  setCameraTarget(tanks[0]);
+  camera.x = camera.targetX;
+
+  // If first player is CPU, trigger their turn after a brief pause
+  if (tanks[0].isAI) {
+    setTimeout(startCpuTurn, 900);
+  }
+
   animId = requestAnimationFrame(gameLoop);
 }
 
-initGame();
+// ── entry point ────────────────────────────────────────────────────────────
+initSetupListeners();
+showSetup();
 </script>
 </body>
 </html>

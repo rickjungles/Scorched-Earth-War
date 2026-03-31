@@ -161,159 +161,147 @@ canvas { display: block; }
   text-align: right;
   line-height: 1.5;
 }
-/* ── setup screen ─────────────────────────────────────────────────────────── */
+/* ── DOS-era setup screen ─────────────────────────────────────────────────── */
 #setup {
   display: none;
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.95);
+  background: #000080;
   z-index: 200;
   overflow-y: auto;
-}
-#setup-inner {
-  max-width: 640px;
-  margin: 36px auto;
-  background: rgba(10,20,40,0.97);
-  border: 2px solid rgba(255,255,255,0.18);
-  border-radius: 14px;
-  padding: 40px 44px;
-  color: #fff;
   font-family: 'Courier New', monospace;
 }
+#setup-inner {
+  max-width: 860px;
+  margin: 20px auto;
+  padding: 16px 20px 28px;
+  color: #fff;
+}
 #setup-title {
-  font-size: 32px;
-  letter-spacing: 5px;
+  font-size: 42px;
+  font-weight: bold;
   text-align: center;
+  color: #AA0000;
+  letter-spacing: 6px;
   margin-bottom: 4px;
+  text-shadow: 2px 2px #550000;
 }
 #setup-subtitle {
   text-align: center;
-  font-size: 12px;
-  color: rgba(255,255,255,0.3);
-  letter-spacing: 5px;
-  margin-bottom: 30px;
-}
-#setup-player-count {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
-  margin-bottom: 20px;
   font-size: 14px;
-  letter-spacing: 2px;
-  color: rgba(255,255,255,0.7);
-}
-#setup-count-controls { display: flex; align-items: center; gap: 14px; }
-#setup-count-controls button {
-  width: 30px; height: 30px;
-  background: #225599;
-  color: #fff;
-  border: 1px solid rgba(255,255,255,0.25);
-  border-radius: 6px;
-  font-size: 20px;
-  cursor: pointer;
-  font-family: 'Courier New', monospace;
-  line-height: 1;
-  display: flex; align-items: center; justify-content: center;
-}
-#setup-count-controls button:hover { background: #3366bb; }
-#setup-count-display { font-size: 22px; min-width: 28px; text-align: center; }
-.setup-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 10px;
-  padding: 9px 12px;
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.10);
-  border-radius: 8px;
-}
-.setup-swatch {
-  width: 20px; height: 20px;
-  border-radius: 50%;
-  border: 2px solid rgba(255,255,255,0.3);
-  flex-shrink: 0;
-}
-.setup-name {
-  flex: 1;
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.15);
-  border-radius: 5px;
-  color: #fff;
-  font-family: 'Courier New', monospace;
-  font-size: 14px;
-  padding: 4px 8px;
-  min-width: 0;
-}
-.setup-name:focus { outline: none; border-color: rgba(255,255,255,0.4); }
-.setup-type-btn {
-  padding: 4px 12px;
-  border-radius: 5px;
-  border: 1px solid rgba(255,255,255,0.18);
-  cursor: pointer;
-  font-family: 'Courier New', monospace;
-  font-size: 12px;
-  background: #1a3355;
-  color: #aac4ff;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-.setup-type-btn.cpu-mode { background: #553311; color: #ffcc88; }
-.setup-diff {
-  padding: 4px 6px;
-  border-radius: 5px;
-  border: 1px solid rgba(255,255,255,0.15);
-  background: rgba(0,0,0,0.5);
-  color: #ccc;
-  font-family: 'Courier New', monospace;
-  font-size: 12px;
-  cursor: pointer;
-  flex-shrink: 0;
-}
-#setup-start {
-  display: block;
-  width: 100%;
-  margin-top: 24px;
-  padding: 14px;
-  background: #1a5522;
-  color: #fff;
-  border: 1px solid rgba(255,255,255,0.25);
-  border-radius: 8px;
-  font-size: 18px;
-  font-family: 'Courier New', monospace;
+  color: #FFFF55;
   letter-spacing: 3px;
-  cursor: pointer;
+  margin-bottom: 18px;
 }
-#setup-start:hover { background: #226633; }
-/* ── round count selector (setup) ────────────────────────────────────────── */
-#setup-rounds-row {
+.dos-panel {
+  border: 2px solid #00AAAA;
+  box-shadow: inset 0 0 0 1px #00AAAA;
+  margin-bottom: 12px;
+}
+.dos-panel-title {
+  background: #00AAAA;
+  color: #000080;
+  font-size: 12px;
+  font-weight: bold;
+  letter-spacing: 4px;
+  padding: 2px 10px;
+  text-transform: uppercase;
+}
+.dos-panel-body { padding: 8px 12px; }
+#setup-players-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+#setup-players-table th {
+  color: #FFFF55;
+  font-size: 11px;
+  letter-spacing: 2px;
+  padding: 2px 6px 5px;
+  text-align: left;
+  border-bottom: 1px solid #00AAAA;
+}
+.player-row td { padding: 3px 6px; vertical-align: middle; }
+.player-row.off-row td { color: #555; }
+.player-row.off-row .player-color-swatch { opacity: 0.3; }
+.player-num { color: #FFFF55; width: 22px; text-align: right; }
+.player-name-input {
+  background: transparent;
+  border: 1px solid transparent;
+  color: #fff;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  width: 120px;
+  padding: 2px 4px;
+}
+.player-name-input:focus { outline: none; border-color: #00AAAA; background: rgba(0,0,0,0.3); }
+.off-row .player-name-input { color: #555; }
+.player-color-swatch {
+  width: 16px; height: 16px;
+  border: 2px solid rgba(255,255,255,0.4);
+  cursor: pointer;
+  display: inline-block;
+  vertical-align: middle;
+}
+.player-color-swatch:hover { border-color: #fff; }
+.player-color-swatch:focus { outline: 2px solid #FFFF55; outline-offset: 1px; }
+.player-type-btn {
+  background: transparent;
+  border: 1px solid #00AAAA;
+  color: #00AAAA;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  padding: 2px 8px;
+  cursor: pointer;
+  min-width: 116px;
+  text-align: center;
+}
+.player-type-btn:hover { background: #00AAAA; color: #000080; }
+.off-row .player-type-btn { border-color: #555; color: #555; }
+.off-row .player-type-btn:hover { background: #555; color: #000; }
+.setting-row {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 16px;
-  margin-bottom: 20px;
-  font-size: 14px;
-  letter-spacing: 2px;
-  color: rgba(255,255,255,0.7);
+  padding: 3px 0;
+  border-bottom: 1px solid rgba(0,170,170,0.2);
 }
-#setup-rounds-controls { display: flex; gap: 8px; }
-.rounds-btn {
-  padding: 5px 16px;
-  background: #1a2a44;
-  color: #aac4ff;
-  border: 1px solid rgba(255,255,255,0.2);
-  border-radius: 6px;
-  font-family: 'Courier New', monospace;
-  font-size: 15px;
-  cursor: pointer;
-  letter-spacing: 1px;
+.setting-row:last-child { border-bottom: none; }
+.setting-label { color: #FFFF55; font-size: 13px; letter-spacing: 1px; width: 144px; flex-shrink: 0; }
+.setting-arrow {
+  color: #00AAAA; cursor: pointer; padding: 1px 6px; font-size: 13px;
+  user-select: none; border: 1px solid transparent;
 }
-.rounds-btn:hover { background: #223366; }
-.rounds-btn.active {
-  background: #225599;
-  color: #fff;
-  border-color: rgba(255,255,255,0.45);
+.setting-arrow:hover { background: #00AAAA; color: #000080; }
+.setting-value {
+  color: #fff; font-size: 14px; cursor: pointer;
+  padding: 1px 10px; border: 1px solid #00AAAA;
+  min-width: 130px; text-align: center; user-select: none;
 }
+.setting-value:hover { background: #00AAAA; color: #000080; }
+.setting-value:focus { outline: 2px solid #FFFF55; outline-offset: 1px; }
+.chip-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+.dos-chip {
+  border: 1px solid #00AA00; color: #00AA00;
+  font-family: 'Courier New', monospace; font-size: 12px;
+  padding: 2px 8px; cursor: pointer; user-select: none; background: transparent;
+}
+.dos-chip:hover { background: rgba(0,170,0,0.15); }
+.dos-chip.off { border-color: #555; color: #555; }
+.dos-chip.off:hover { background: rgba(85,85,85,0.15); }
+.dos-chip:focus { outline: 2px solid #FFFF55; outline-offset: 1px; }
+#setup-footer {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-top: 12px; gap: 12px;
+}
+#setup-kbd-hints { color: #00AAAA; font-size: 12px; letter-spacing: 1px; flex: 1; }
+#setup-start {
+  padding: 8px 24px; background: #007700; color: #fff;
+  border: 2px solid #00AA00;
+  font-family: 'Courier New', monospace; font-size: 15px;
+  letter-spacing: 3px; cursor: pointer; white-space: nowrap;
+}
+#setup-start:hover:not(:disabled) { background: #00AA00; color: #000; }
+#setup-start:disabled { background: #333; color: #555; border-color: #555; cursor: not-allowed; }
 /* ── scoreboard overlay ───────────────────────────────────────────────────── */
 #scoreboard {
   display: none;
@@ -408,26 +396,43 @@ canvas { display: block; }
 <div id="setup">
   <div id="setup-inner">
     <h1 id="setup-title">SCORCHED EARTH</h1>
-    <div id="setup-subtitle">ARTILLERY COMBAT</div>
-    <div id="setup-player-count">
-      <span>PLAYERS</span>
-      <div id="setup-count-controls">
-        <button id="setup-minus">−</button>
-        <span id="setup-count-display">2</span>
-        <button id="setup-plus">+</button>
+    <div id="setup-subtitle">The Mother of All Games</div>
+
+    <div class="dos-panel">
+      <div class="dos-panel-title">Players</div>
+      <div class="dos-panel-body">
+        <table id="setup-players-table">
+          <thead><tr>
+            <th>#</th><th>Name</th><th>Color</th><th>Type</th>
+          </tr></thead>
+          <tbody id="setup-players-body"></tbody>
+        </table>
       </div>
     </div>
-    <div id="setup-rounds-row">
-      <span>ROUNDS</span>
-      <div id="setup-rounds-controls">
-        <button class="rounds-btn" data-rounds="1">1</button>
-        <button class="rounds-btn active" data-rounds="5">5</button>
-        <button class="rounds-btn" data-rounds="10">10</button>
-        <button class="rounds-btn" data-rounds="20">20</button>
+
+    <div class="dos-panel">
+      <div class="dos-panel-title">Game Settings</div>
+      <div class="dos-panel-body" id="setup-settings-body"></div>
+    </div>
+
+    <div class="dos-panel">
+      <div class="dos-panel-title">Weapons Loadout</div>
+      <div class="dos-panel-body">
+        <div class="chip-grid" id="setup-weapons-chips"></div>
       </div>
     </div>
-    <div id="setup-rows"></div>
-    <button id="setup-start">▶ START GAME</button>
+
+    <div class="dos-panel">
+      <div class="dos-panel-title">Defenses</div>
+      <div class="dos-panel-body">
+        <div class="chip-grid" id="setup-defenses-chips"></div>
+      </div>
+    </div>
+
+    <div id="setup-footer">
+      <div id="setup-kbd-hints">Tab/Arrows: navigate &nbsp;|&nbsp; Space/Enter: toggle &nbsp;|&nbsp; C: cycle color</div>
+      <button id="setup-start">&#9654; START GAME</button>
+    </div>
   </div>
 </div>
 <div id="scoreboard">
@@ -515,6 +520,31 @@ const AI_DIFFICULTY = {
 };
 
 const CPU_THINK_DELAY = 1.4;  // seconds before CPU fires
+
+// ── menu / setup constants ─────────────────────────────────────────────────
+const MENU_WEAPONS = [
+  'Baby Missile','Missile','Nuke','MIRV',"Death's Head",
+  'Napalm','Hot Napalm','Funky Bomb','Dirt Bomb','Sandhog',
+  'Roller','Heavy Roller','Riot Bomb','Digger',
+];
+const MENU_DEFENSES = [
+  'Shield S','Shield M','Shield L','Deflector','Mag Deflector',
+  'Parachute','Battery','Fuel Tank','Auto Defense',
+];
+const SETTING_DEFS = [
+  { key:'rounds',   label:'Rounds',        opts:[1,5,10,20,50],                        fmt:v=>String(v) },
+  { key:'cash',     label:'Starting Cash', opts:[5000,10000,15000,20000,30000,50000],  fmt:v=>'$'+v.toLocaleString() },
+  { key:'interest', label:'Interest Rate', opts:[0,5,10,15,20,25,30],                 fmt:v=>v+'%' },
+  { key:'terrain',  label:'Terrain',       opts:['Random','Plains','Plateaus','Mountains','Canyon'], fmt:v=>v },
+  { key:'walls',    label:'Walls',         opts:['None','Rubber','Wrap','Concrete'],   fmt:v=>v },
+  { key:'wind',     label:'Wind',          opts:['None','Light','Gusty','Tornado'],    fmt:v=>v },
+  { key:'gravity',  label:'Gravity',       opts:['Low','Normal','High'],               fmt:v=>v },
+];
+const PLAYER_TYPES = ['off','human','cpu-easy','cpu-medium','cpu-hard'];
+const PLAYER_TYPE_LABELS = {
+  'off':'Off','human':'Human',
+  'cpu-easy':'CPU Easy','cpu-medium':'CPU Medium','cpu-hard':'CPU Hard',
+};
 const AI_SIM_DT       = 1 / 120; // physics step for trajectory sweeps
 
 // ── audio ──────────────────────────────────────────────────────────────────
@@ -721,6 +751,15 @@ let cpuAimPower   = 50;
 let playerConfigs    = [];
 let setupRowData     = [];
 let currentSetupCount = 2;
+let gameSettings     = {};
+
+// ── DOS menu state ──────────────────────────────────────────────────────────
+let menuPlayers     = Array.from({length:10}, (_, i) => ({
+  name:`Player ${i+1}`, colorIdx:i, typeIdx: i < 2 ? 1 : 0,
+}));
+let menuSettingsIdx = { rounds:1, cash:1, interest:2, terrain:0, walls:0, wind:1, gravity:1 };
+let menuWeapons     = Object.fromEntries(MENU_WEAPONS.map(w=>[w,true]));
+let menuDefenses    = Object.fromEntries(MENU_DEFENSES.map(d=>[d,true]));
 
 // ── resize ─────────────────────────────────────────────────────────────────
 function resize() {
@@ -792,7 +831,7 @@ function placeTanks() {
       angle:    defaultAngle,
       power:    50,
       health:      100,
-      money:       5000,
+      money:       gameSettings.cash ?? 5000,
       damageDealt: 0,
       killedBy:    -1,
       inventory: {
@@ -1383,7 +1422,9 @@ function startNextRound() {
   scoreboardEl.style.display = 'none';
   currentRound++;
 
-  const savedMoney = tanks.map(t => t.money);
+  const savedMoney     = tanks.map(t => t.money);
+  const savedInventory = tanks.map(t => ({ ...t.inventory }));
+  const savedWeapon    = tanks.map(t => t.selectedWeapon);
 
   gameOver          = false;
   projectiles       = [];
@@ -1402,7 +1443,12 @@ function startNextRound() {
   generateTerrain();
   generateStars();
   placeTanks();
-  tanks.forEach((t, i) => { t.money = savedMoney[i]; });
+  tanks.forEach((t, i) => {
+    t.money     = savedMoney[i];
+    t.inventory = savedInventory[i];
+    const sw = savedWeapon[i];
+    t.selectedWeapon = (t.inventory[sw] === Infinity || t.inventory[sw] > 0) ? sw : 'Baby Missile';
+  });
 
   cashAtRoundStart = tanks.map(t => t.money);
 
@@ -1842,7 +1888,7 @@ function showSetup() {
   document.getElementById('vol').style.display           = 'none';
   document.getElementById('weapon-indicator').style.display = 'none';
   winEl.style.display = 'none';
-  renderSetupRows(currentSetupCount);
+  renderMenuSetup();
 }
 
 function hideSetup() {
@@ -1853,93 +1899,164 @@ function hideSetup() {
   document.getElementById('weapon-indicator').style.display = '';
 }
 
-function renderSetupRows(n) {
-  // Grow setupRowData as needed (don't shrink — preserve existing entries)
-  while (setupRowData.length < n) {
-    const i = setupRowData.length;
-    setupRowData.push({ name: `P${i + 1}`, type: 'human', difficulty: 'medium' });
-  }
+function htmlEsc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
 
-  const container = document.getElementById('setup-rows');
-  container.innerHTML = '';
-
-  for (let i = 0; i < n; i++) {
-    const data  = setupRowData[i];
-    const color = PLAYER_COLORS[i];
-    const isCPU = data.type === 'cpu';
-    const row   = document.createElement('div');
-    row.className = 'setup-row';
-
-    row.innerHTML = `
-      <div class="setup-swatch" style="background:${color}"></div>
-      <input  class="setup-name"     type="text" value="${data.name}" maxlength="10">
-      <button class="setup-type-btn${isCPU ? ' cpu-mode' : ''}">${isCPU ? 'CPU' : 'HUMAN'}</button>
-      <select class="setup-diff" style="display:${isCPU ? '' : 'none'}">
-        <option value="easy"   ${data.difficulty === 'easy'   ? 'selected' : ''}>Easy</option>
-        <option value="medium" ${data.difficulty === 'medium' ? 'selected' : ''}>Med</option>
-        <option value="hard"   ${data.difficulty === 'hard'   ? 'selected' : ''}>Hard</option>
-      </select>
+function renderPlayerRows() {
+  const tbody = document.getElementById('setup-players-body');
+  tbody.innerHTML = '';
+  menuPlayers.forEach((p, i) => {
+    const type  = PLAYER_TYPES[p.typeIdx];
+    const isOff = type === 'off';
+    const color = PLAYER_COLORS[p.colorIdx];
+    const tr    = document.createElement('tr');
+    tr.className = 'player-row' + (isOff ? ' off-row' : '');
+    tr.innerHTML = `
+      <td class="player-num">${i+1}</td>
+      <td><input class="player-name-input" type="text" value="${htmlEsc(p.name)}" maxlength="12"></td>
+      <td><span class="player-color-swatch" style="background:${color}" tabindex="0" title="Click to cycle color"></span></td>
+      <td><button class="player-type-btn">${PLAYER_TYPE_LABELS[type]}</button></td>
     `;
-
-    const nameInput  = row.querySelector('.setup-name');
-    const typeBtn    = row.querySelector('.setup-type-btn');
-    const diffSelect = row.querySelector('.setup-diff');
-
-    nameInput.addEventListener('input', () => {
-      setupRowData[i].name = nameInput.value.trim() || `P${i + 1}`;
+    tr.querySelector('.player-name-input').addEventListener('input', e => {
+      menuPlayers[i].name = e.target.value || `Player ${i+1}`;
     });
-    typeBtn.addEventListener('click', () => {
-      setupRowData[i].type = setupRowData[i].type === 'human' ? 'cpu' : 'human';
-      renderSetupRows(currentSetupCount);
+    const swatch = tr.querySelector('.player-color-swatch');
+    swatch.addEventListener('click', () => cyclePlayerColor(i));
+    swatch.addEventListener('keydown', e => {
+      if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); cyclePlayerColor(i); }
     });
-    diffSelect.addEventListener('change', () => {
-      setupRowData[i].difficulty = diffSelect.value;
+    const typeBtn = tr.querySelector('.player-type-btn');
+    typeBtn.addEventListener('click', () => cyclePlayerType(i, 1));
+    typeBtn.addEventListener('keydown', e => {
+      if (e.key === 'ArrowRight' || e.key === 'ArrowUp')
+        { e.preventDefault(); cyclePlayerType(i, 1); }
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowDown')
+        { e.preventDefault(); cyclePlayerType(i, -1); }
     });
+    tbody.appendChild(tr);
+  });
+  updateStartBtn();
+}
 
-    container.appendChild(row);
-  }
+function cyclePlayerType(i, dir) {
+  menuPlayers[i].typeIdx = (menuPlayers[i].typeIdx + PLAYER_TYPES.length + dir) % PLAYER_TYPES.length;
+  renderPlayerRows();
+  const btns = document.querySelectorAll('.player-type-btn');
+  if (btns[i]) btns[i].focus();
+}
 
-  document.getElementById('setup-count-display').textContent = n;
+function cyclePlayerColor(i) {
+  const usedIdx = new Set(
+    menuPlayers.filter((p,j) => j !== i && PLAYER_TYPES[p.typeIdx] !== 'off').map(p => p.colorIdx)
+  );
+  let next = (menuPlayers[i].colorIdx + 1) % PLAYER_COLORS.length;
+  let tries = 0;
+  while (usedIdx.has(next) && tries++ < PLAYER_COLORS.length)
+    next = (next + 1) % PLAYER_COLORS.length;
+  menuPlayers[i].colorIdx = next;
+  renderPlayerRows();
+  const swatches = document.querySelectorAll('.player-color-swatch');
+  if (swatches[i]) swatches[i].focus();
+}
+
+function renderSettingsPanel() {
+  const body = document.getElementById('setup-settings-body');
+  body.innerHTML = '';
+  SETTING_DEFS.forEach((def, si) => {
+    const val = def.opts[menuSettingsIdx[def.key]];
+    const row = document.createElement('div');
+    row.className = 'setting-row';
+    row.innerHTML = `
+      <span class="setting-label">${def.label}</span>
+      <span class="setting-arrow" data-si="${si}" data-dir="-1">&#9668;</span>
+      <span class="setting-value" data-si="${si}" tabindex="0">${htmlEsc(def.fmt(val))}</span>
+      <span class="setting-arrow" data-si="${si}" data-dir="1">&#9658;</span>
+    `;
+    row.querySelectorAll('.setting-arrow').forEach(el =>
+      el.addEventListener('click', () => stepSetting(si, +el.dataset.dir))
+    );
+    const valEl = row.querySelector('.setting-value');
+    valEl.addEventListener('click', () => stepSetting(si, 1));
+    valEl.addEventListener('keydown', e => {
+      if (e.key === 'ArrowRight' || e.key === 'ArrowUp')
+        { e.preventDefault(); stepSetting(si, 1); }
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowDown')
+        { e.preventDefault(); stepSetting(si, -1); }
+    });
+    body.appendChild(row);
+  });
+}
+
+function stepSetting(si, dir) {
+  const def = SETTING_DEFS[si];
+  menuSettingsIdx[def.key] = (menuSettingsIdx[def.key] + def.opts.length + dir) % def.opts.length;
+  renderSettingsPanel();
+  const vals = document.querySelectorAll('.setting-value');
+  if (vals[si]) vals[si].focus();
+}
+
+function renderChips(containerId, items, stateObj) {
+  const container = document.getElementById(containerId);
+  container.innerHTML = '';
+  items.forEach(item => {
+    const btn = document.createElement('button');
+    btn.className = 'dos-chip' + (stateObj[item] ? '' : ' off');
+    btn.textContent = item;
+    const toggle = () => {
+      stateObj[item] = !stateObj[item];
+      btn.className = 'dos-chip' + (stateObj[item] ? '' : ' off');
+    };
+    btn.addEventListener('click', toggle);
+    btn.addEventListener('keydown', e => {
+      if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); toggle(); }
+    });
+    container.appendChild(btn);
+  });
+}
+
+function updateStartBtn() {
+  const btn = document.getElementById('setup-start');
+  if (!btn) return;
+  const active = menuPlayers.filter(p => PLAYER_TYPES[p.typeIdx] !== 'off').length;
+  btn.disabled = active < 2;
+}
+
+function renderMenuSetup() {
+  renderPlayerRows();
+  renderSettingsPanel();
+  renderChips('setup-weapons-chips', MENU_WEAPONS, menuWeapons);
+  renderChips('setup-defenses-chips', MENU_DEFENSES, menuDefenses);
+  updateStartBtn();
 }
 
 function initSetupListeners() {
-  document.getElementById('setup-minus').addEventListener('click', () => {
-    if (currentSetupCount <= 2) return;
-    currentSetupCount--;
-    renderSetupRows(currentSetupCount);
-  });
-
-  document.getElementById('setup-plus').addEventListener('click', () => {
-    if (currentSetupCount >= 10) return;
-    currentSetupCount++;
-    renderSetupRows(currentSetupCount);
-  });
-
-  // Rounds picker
-  document.querySelectorAll('.rounds-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.rounds-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      totalRounds = parseInt(btn.dataset.rounds, 10);
-    });
-  });
-
+  renderMenuSetup();
   document.getElementById('setup-start').addEventListener('click', () => {
-    // Read totalRounds from active button
-    const activeBtn = document.querySelector('.rounds-btn.active');
-    if (activeBtn) totalRounds = parseInt(activeBtn.dataset.rounds, 10);
-
-    // Read current row values directly from the DOM to capture any unsaved typing
-    const rows = document.querySelectorAll('.setup-row');
-    playerConfigs = [];
-    rows.forEach((row, i) => {
-      const name = row.querySelector('.setup-name').value.trim() || `P${i + 1}`;
-      const type = setupRowData[i].type;
-      const diff = row.querySelector('.setup-diff').value;
-      setupRowData[i].name       = name;
-      setupRowData[i].difficulty = diff;
-      playerConfigs.push({ name, type, difficulty: diff, color: PLAYER_COLORS[i] });
-    });
+    const activePlayers = menuPlayers
+      .filter(p => PLAYER_TYPES[p.typeIdx] !== 'off')
+      .map((p, i) => {
+        const type    = PLAYER_TYPES[p.typeIdx];
+        const isHuman = type === 'human';
+        return {
+          name:       p.name.trim() || `Player ${i+1}`,
+          color:      PLAYER_COLORS[p.colorIdx],
+          type:       isHuman ? 'human' : 'cpu',
+          difficulty: isHuman ? 'medium' : type.replace('cpu-',''),
+        };
+      });
+    const settingsOut = {};
+    SETTING_DEFS.forEach(def => { settingsOut[def.key] = def.opts[menuSettingsIdx[def.key]]; });
+    const config = {
+      players:         activePlayers,
+      settings:        settingsOut,
+      enabledWeapons:  MENU_WEAPONS.filter(w => menuWeapons[w]),
+      enabledDefenses: MENU_DEFENSES.filter(d => menuDefenses[d]),
+    };
+    document.dispatchEvent(new CustomEvent('scorched-earth-start', { detail: config }));
+    playerConfigs = activePlayers;
+    totalRounds   = settingsOut.rounds;
+    gameSettings  = settingsOut;
     hideSetup();
     initGame();
   });

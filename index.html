@@ -67,84 +67,126 @@ canvas { display: block; }
 }
 #vol span { color: rgba(255,255,255,0.65); font-size: 15px; user-select: none; }
 #vol input[type=range] { width: 76px; cursor: pointer; accent-color: #5599ff; }
-/* ── shop modal ────────────────────────────────────────────────────────────── */
+/* ── DOS-era shop screen ──────────────────────────────────────────────────── */
 #shop {
   display: none;
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.82);
+  background: #000080;
   z-index: 100;
   overflow-y: auto;
+  font-family: 'Courier New', monospace;
 }
 #shop-inner {
-  max-width: 680px;
-  margin: 40px auto;
-  background: rgba(10,20,40,0.97);
-  border: 2px solid rgba(255,255,255,0.18);
-  border-radius: 14px;
-  padding: 36px 40px;
+  max-width: 960px;
+  margin: 22px auto;
+  padding: 0 20px 20px;
   color: #fff;
-  font-family: 'Courier New', monospace;
+}
+#shop-hdr {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding-bottom: 6px;
+  border-bottom: 2px solid #00AAAA;
+  margin-bottom: 12px;
 }
 #shop-title {
-  font-size: 26px;
-  letter-spacing: 3px;
-  text-align: center;
-  margin-bottom: 6px;
-}
-#shop-balance {
-  text-align: center;
-  font-size: 18px;
-  color: #88ff88;
-  margin-bottom: 24px;
-}
-#shop-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px;
-  margin-bottom: 28px;
-}
-.shop-card {
-  border: 1px solid rgba(255,255,255,0.18);
-  border-radius: 8px;
-  padding: 14px 16px;
-  background: rgba(255,255,255,0.04);
-}
-.shop-card h3 { font-size: 15px; margin-bottom: 4px; }
-.shop-card .shop-desc { font-size: 12px; color: #aaa; margin-bottom: 8px; }
-.shop-card .shop-meta { font-size: 13px; margin-bottom: 8px; }
-.shop-card .shop-cost { color: #ffdd66; }
-.shop-card .shop-owned { color: #88ccff; }
-.shop-card button {
-  padding: 6px 14px;
-  background: #225599;
-  color: #fff;
-  border: 1px solid rgba(255,255,255,0.25);
-  border-radius: 5px;
-  cursor: pointer;
-  font-family: 'Courier New', monospace;
-  font-size: 13px;
-}
-.shop-card button:disabled {
-  background: #333;
-  color: #666;
-  cursor: not-allowed;
-}
-.shop-card button:not(:disabled):hover { background: #3366bb; }
-#shop-done {
-  display: block;
-  width: 100%;
-  padding: 14px;
-  background: #226622;
-  color: #fff;
-  border: 1px solid rgba(255,255,255,0.25);
-  border-radius: 8px;
   font-size: 17px;
-  font-family: 'Courier New', monospace;
-  cursor: pointer;
+  font-weight: bold;
+  color: #FFFF55;
   letter-spacing: 2px;
 }
-#shop-done:hover { background: #338833; }
+#shop-round {
+  font-size: 12px;
+  color: #00AAAA;
+  letter-spacing: 1px;
+  margin-top: 2px;
+}
+#shop-cash {
+  font-size: 15px;
+  color: #00FF00;
+  text-align: right;
+}
+#shop-interest {
+  font-size: 12px;
+  color: #88FF88;
+  text-align: right;
+  margin-top: 2px;
+  min-height: 16px;
+}
+#shop-cols {
+  display: flex;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+.shop-col { flex: 1; border: 2px solid #00AAAA; display: flex; flex-direction: column; max-height: calc(100vh - 170px); }
+#shop-wlist, #shop-dlist { overflow-y: auto; flex: 1; }
+.shop-cat-hdr {
+  font-size: 10px; color: #00AAAA; letter-spacing: 3px;
+  padding: 3px 8px 1px; border-top: 1px solid rgba(0,170,170,0.3);
+  text-transform: uppercase; user-select: none;
+}
+.shop-cat-hdr.shop-cat-first { border-top: none; }
+.shop-col-title {
+  background: #00AAAA;
+  color: #000080;
+  font-size: 11px;
+  font-weight: bold;
+  letter-spacing: 4px;
+  padding: 2px 8px;
+}
+.shop-row {
+  display: flex;
+  align-items: center;
+  padding: 3px 7px;
+  gap: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  user-select: none;
+  border-bottom: 1px solid rgba(0,170,170,0.15);
+}
+.shop-row:last-child { border-bottom: none; }
+.shop-row.selected { background: #00AAAA; color: #000080; }
+.shop-row.grayed { color: #555; }
+.shop-row-name { min-width: 86px; white-space: nowrap; }
+.shop-row-tag  { min-width: 76px; font-size: 11px; color: #FFFF55; }
+.shop-row.selected .shop-row-tag { color: #000060; }
+.shop-row.grayed   .shop-row-tag { color: #444; }
+.shop-row-cost { min-width: 50px; text-align: right; color: #FFFF55; }
+.shop-row.selected .shop-row-cost { color: #000060; }
+.shop-row.grayed   .shop-row-cost { color: #444; }
+.shop-row-count { min-width: 26px; text-align: center; font-weight: bold; color: #00FFFF; }
+.shop-row.selected .shop-row-count { color: #000080; }
+.shop-row.grayed   .shop-row-count { color: #444; }
+.shop-row-btn {
+  width: 20px; height: 17px; padding: 0; line-height: 15px; text-align: center;
+  background: transparent; border: 1px solid #00AAAA; color: #00AAAA;
+  font-family: 'Courier New', monospace; font-size: 13px; cursor: pointer;
+}
+.shop-row-btn:disabled { border-color: #444; color: #444; cursor: not-allowed; }
+.shop-row.selected .shop-row-btn:not(:disabled) { border-color: #000060; color: #000060; }
+.shop-row.selected .shop-row-btn:disabled { border-color: rgba(0,0,80,.4); color: rgba(0,0,80,.4); }
+#shop-ftr {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 2px solid #00AAAA;
+  padding-top: 8px;
+}
+#shop-spent { color: #FFFF55; font-size: 13px; }
+#shop-kbd   { color: #00AAAA; font-size: 11px; letter-spacing: 1px; }
+#shop-done {
+  padding: 6px 22px;
+  background: #007700;
+  color: #fff;
+  border: 2px solid #00AA00;
+  font-family: 'Courier New', monospace;
+  font-size: 14px;
+  letter-spacing: 3px;
+  cursor: pointer;
+}
+#shop-done:hover { background: #00AA00; color: #000; }
 /* ── weapon indicator (top-right) ─────────────────────────────────────────── */
 #weapon-indicator {
   position: fixed;
@@ -386,10 +428,31 @@ canvas { display: block; }
 <div id="keys">← → angle &nbsp;|&nbsp; ↑ ↓ power &nbsp;|&nbsp; SPACE fire &nbsp;|&nbsp; Q/E weapon &nbsp;|&nbsp; hold SHIFT ×5</div>
 <div id="shop">
   <div id="shop-inner">
-    <h2 id="shop-title">WEAPONS SHOP</h2>
-    <div id="shop-balance"></div>
-    <div id="shop-grid"></div>
-    <button id="shop-done">DONE — Start Turn</button>
+    <div id="shop-hdr">
+      <div>
+        <div id="shop-title">WEAPONS SHOP</div>
+        <div id="shop-round"></div>
+      </div>
+      <div>
+        <div id="shop-cash"></div>
+        <div id="shop-interest"></div>
+      </div>
+    </div>
+    <div id="shop-cols">
+      <div id="shop-wcol" class="shop-col">
+        <div class="shop-col-title">WEAPONS</div>
+        <div id="shop-wlist"></div>
+      </div>
+      <div id="shop-dcol" class="shop-col">
+        <div class="shop-col-title">DEFENSES</div>
+        <div id="shop-dlist"></div>
+      </div>
+    </div>
+    <div id="shop-ftr">
+      <span id="shop-spent">Total spent this round: $0</span>
+      <span id="shop-kbd">↑↓ select &nbsp;|&nbsp; → / + buy &nbsp;|&nbsp; ← / - sell &nbsp;|&nbsp; Enter / D done</span>
+      <button id="shop-done">[ DONE ]</button>
+    </div>
   </div>
 </div>
 <div id="weapon-indicator"></div>
@@ -472,31 +535,102 @@ const MONEY_PER_DAMAGE = 10;
 
 // ── weapon definitions ─────────────────────────────────────────────────────
 const WEAPONS = {
+  // ── Projectile ─────────────────────────────────────────────────────────
   'Baby Missile': {
-    cost: 0, blastR: 24, hitDamage: 38, type: 'standard',
+    cost: 0,    blastR: 24,  hitDamage: 38,  type: 'standard', category: 'Projectile',
     desc: 'Small blast. Infinite ammo.',
   },
   'Missile': {
-    cost: 500, blastR: 48, hitDamage: 75, type: 'standard',
+    cost: 500,  blastR: 48,  hitDamage: 75,  type: 'standard', category: 'Projectile',
     desc: 'Standard warhead.',
   },
+  'Large Missile': {
+    cost: 1500, blastR: 66,  hitDamage: 90,  type: 'standard', category: 'Projectile',
+    desc: 'Heavy warhead, large blast.',
+  },
+  'Baby Nuke': {
+    cost: 3000, blastR: 72,  hitDamage: 100, type: 'nuke',     category: 'Projectile',
+    desc: 'Nuclear payload with screen shake.', shakeAmt: 10,
+  },
+  'Nuke': {
+    cost: 5000, blastR: 120, hitDamage: 130, type: 'nuke',     category: 'Projectile',
+    desc: 'Massive nuclear blast.', shakeAmt: 22,
+  },
   'MIRV': {
-    cost: 2000, blastR: 32, hitDamage: 55, type: 'mirv',
+    cost: 2000, blastR: 32,  hitDamage: 55,  type: 'mirv',     category: 'Projectile',
     desc: 'Splits into 3 warheads at peak.', subCount: 3, spreadVx: 120,
   },
-  'Dirt Bomb': {
-    cost: 300, blastR: 40, hitDamage: 0, type: 'dirt',
-    desc: 'Raises terrain on impact.',
+  "Death's Head": {
+    cost: 4000, blastR: 32,  hitDamage: 55,  type: 'mirv',     category: 'Projectile',
+    desc: "Splits into 5 warheads at peak.", subCount: 5, spreadVx: 90,
   },
   'Napalm': {
-    cost: 1500, blastR: 36, hitDamage: 30, type: 'napalm',
+    cost: 1500, blastR: 36,  hitDamage: 30,  type: 'napalm',   category: 'Projectile',
     desc: 'Spreads fire along terrain.',
     napalmCount: 12, napalmSpeed: 55, napalmLife: 2.8,
   },
+  'Hot Napalm': {
+    cost: 3500, blastR: 52,  hitDamage: 40,  type: 'napalm',   category: 'Projectile',
+    desc: 'Wide, long-burning fire spread.',
+    napalmCount: 20, napalmSpeed: 70, napalmLife: 4.2,
+  },
   'Funky Bomb': {
-    cost: 3000, blastR: 100, hitDamage: 95, type: 'standard',
+    cost: 3000, blastR: 100, hitDamage: 95,  type: 'standard', category: 'Projectile',
     desc: 'Massive blast radius.',
   },
+  'Dirt Bomb': {
+    cost: 300,  blastR: 40,  hitDamage: 0,   type: 'dirt',     category: 'Projectile',
+    desc: 'Raises terrain on impact.',
+  },
+  'Dirt Ball': {
+    cost: 1000, blastR: 62,  hitDamage: 0,   type: 'dirt',     category: 'Projectile',
+    desc: 'Raises a large mound of terrain.',
+  },
+  // ── Ground ─────────────────────────────────────────────────────────────
+  'Roller': {
+    cost: 800,  blastR: 28,  hitDamage: 50,  type: 'roller',   category: 'Ground',
+    desc: 'Rolls along terrain after landing.',
+    rollSpeed: 90, maxRollDist: 360,
+  },
+  'Heavy Roller': {
+    cost: 2000, blastR: 48,  hitDamage: 80,  type: 'roller',   category: 'Ground',
+    desc: 'Like Roller but with a larger blast.',
+    rollSpeed: 90, maxRollDist: 360,
+  },
+  'Riot Bomb': {
+    cost: 1200, blastR: 22,  hitDamage: 35,  type: 'riot',     category: 'Ground',
+    desc: 'Scatters 20 bomblets on impact.',
+    riotCount: 20,
+  },
+  'Digger': {
+    cost: 500,  blastR: 24,  hitDamage: 50,  type: 'digger',   category: 'Ground',
+    desc: 'Burrows down, explodes underground.',
+    burrowSpeed: 220, maxBurrow: 150,
+  },
+  'Sandhog': {
+    cost: 1500, blastR: 42,  hitDamage: 75,  type: 'digger',   category: 'Ground',
+    desc: 'Deep burrower with larger blast.',
+    burrowSpeed: 220, maxBurrow: 260,
+  },
+  // ── Utility ────────────────────────────────────────────────────────────
+  'Tracer': {
+    cost: 100,  blastR: 0,   hitDamage: 0,   type: 'tracer',   category: 'Utility',
+    desc: 'No damage. Tests your aim.',
+  },
+  'Lazy Boy': {
+    cost: 2500, blastR: 48,  hitDamage: 75,  type: 'lazyboy',  category: 'Utility',
+    desc: 'Auto-aims at nearest enemy.',
+  },
+};
+
+// ── defense definitions ────────────────────────────────────────────────────
+const DEFENSES = {
+  'Shield S':  { cost: 1500, desc: 'Absorbs 30 damage',  shieldHP: 30  },
+  'Shield M':  { cost: 3000, desc: 'Absorbs 60 damage',  shieldHP: 60  },
+  'Shield L':  { cost: 5000, desc: 'Absorbs 100 damage', shieldHP: 100 },
+  'Parachute': { cost:  800, desc: 'Prevents fall damage'               },
+  'Battery':   { cost: 1000, desc: '20% bonus interest'                 },
+  'Fuel Tank': { cost:  600, desc: '50 movement units',  fuel: 50       },
 };
 
 // ── player / AI constants ──────────────────────────────────────────────────
@@ -523,9 +657,10 @@ const CPU_THINK_DELAY = 1.4;  // seconds before CPU fires
 
 // ── menu / setup constants ─────────────────────────────────────────────────
 const MENU_WEAPONS = [
-  'Baby Missile','Missile','Nuke','MIRV',"Death's Head",
-  'Napalm','Hot Napalm','Funky Bomb','Dirt Bomb','Sandhog',
-  'Roller','Heavy Roller','Riot Bomb','Digger',
+  'Baby Missile','Missile','Large Missile','Baby Nuke','Nuke',
+  'MIRV',"Death's Head",'Napalm','Hot Napalm','Funky Bomb',
+  'Dirt Bomb','Dirt Ball','Roller','Heavy Roller','Riot Bomb',
+  'Digger','Sandhog','Tracer','Lazy Boy',
 ];
 const MENU_DEFENSES = [
   'Shield S','Shield M','Shield L','Deflector','Mag Deflector',
@@ -728,7 +863,14 @@ let explosions       = [];
 let projectiles      = [];
 let napalmParticles  = [];
 let turnCount        = 0;
-let shopOpen         = false;
+let shopOpen          = false;
+let screenShake       = 0;
+let shopCursor        = 0;
+let shopCurrentPlayer = -1;
+let shopRowItems      = [];
+let shopMoneyAtOpen   = 0;
+let enabledWeapons    = [];
+let enabledDefenses   = [];
 let napalmTurnPending = false;
 let worldWidth       = 0;
 
@@ -834,14 +976,13 @@ function placeTanks() {
       money:       gameSettings.cash ?? 5000,
       damageDealt: 0,
       killedBy:    -1,
-      inventory: {
-        'Baby Missile': Infinity,
-        'Missile':    0,
-        'MIRV':       0,
-        'Dirt Bomb':  0,
-        'Napalm':     0,
-        'Funky Bomb': 0,
-      },
+      inventory: Object.fromEntries(
+        Object.entries(WEAPONS).map(([n, w]) => [n, w.cost === 0 ? Infinity : 0])
+      ),
+      defInventory: Object.fromEntries(Object.keys(DEFENSES).map(k => [k, 0])),
+      shieldHP: 0,
+      fuel: 0,
+      interestThisRound: 0,
       selectedWeapon: 'Baby Missile',
     });
   }
@@ -855,7 +996,13 @@ function newWind() {
 // ── camera helpers ─────────────────────────────────────────────────────────
 function applyCamera() {
   ctx.save();
-  ctx.translate(-Math.round(camera.x), -Math.round(camera.y));
+  const sx = screenShake > 0 ? Math.round((Math.random() * 2 - 1) * screenShake) : 0;
+  const sy = screenShake > 0 ? Math.round((Math.random() * 2 - 1) * screenShake) : 0;
+  ctx.translate(-Math.round(camera.x) + sx, -Math.round(camera.y) + sy);
+}
+
+function shakeScreen(amount) {
+  screenShake = Math.max(screenShake, amount);
 }
 
 function restoreCamera() {
@@ -1222,14 +1369,26 @@ function updateTankPhysics(dt) {
 function onImpact(proj, px, py) {
   const wep = proj.weapon;
 
+  // Tracer: silent marker, no damage, no terrain change
+  if (wep.type === 'tracer') {
+    addExplosion(px, py, 8);
+    projectiles = projectiles.filter(p => p !== proj);
+    if (projectiles.length === 0 && !napalmTurnPending) { stopWhistle(); if (!checkWin()) nextTurn(); }
+    return;
+  }
+
   soundExplosion();
   addExplosion(px, py, wep.blastR);
+
+  if (wep.type === 'nuke' && wep.shakeAmt) shakeScreen(wep.shakeAmt);
 
   if (wep.type === 'dirt') {
     raiseTerrain(px, py, wep.blastR);
   } else {
     blastTerrain(px, py, wep.blastR);
   }
+
+  if (wep.type === 'riot') spawnRiotChildren(proj, px, py);
 
   let anyTankDamaged = false;
   if (wep.hitDamage > 0) {
@@ -1238,14 +1397,21 @@ function onImpact(proj, px, py) {
       const dist = Math.hypot(px - t.x, py - t.y);
       if (dist < wep.blastR + TANK_HIT_R) {
         const frac = Math.max(0, 1 - dist / (wep.blastR + TANK_HIT_R));
-        const dmg  = Math.round(wep.hitDamage * Math.pow(frac, 1.4));
+        let dmg    = Math.round(wep.hitDamage * Math.pow(frac, 1.4));
         if (dmg > 0) {
-          const prevHealth = t.health;
-          t.health = Math.max(0, t.health - dmg);
-          tanks[proj.owner].money += dmg * MONEY_PER_DAMAGE;
-          tanks[proj.owner].damageDealt += dmg;
-          if (prevHealth > 0 && t.health <= 0) t.killedBy = proj.owner;
-          anyTankDamaged = true;
+          if (t.shieldHP > 0) {
+            const absorbed = Math.min(t.shieldHP, dmg);
+            t.shieldHP = Math.max(0, t.shieldHP - absorbed);
+            dmg        = Math.max(0, dmg - absorbed);
+          }
+          if (dmg > 0) {
+            const prevHealth = t.health;
+            t.health = Math.max(0, t.health - dmg);
+            tanks[proj.owner].money += dmg * MONEY_PER_DAMAGE;
+            tanks[proj.owner].damageDealt += dmg;
+            if (prevHealth > 0 && t.health <= 0) t.killedBy = proj.owner;
+            anyTankDamaged = true;
+          }
         }
       }
     }
@@ -1268,8 +1434,11 @@ function onImpact(proj, px, py) {
 // ── MIRV ───────────────────────────────────────────────────────────────────
 function spawnMirvChildren(parent) {
   const wep = parent.weapon;
+  const n   = wep.subCount || 3;
   const childWeapon = { blastR: wep.blastR, hitDamage: wep.hitDamage, type: 'standard' };
-  for (const dvx of [-wep.spreadVx, 0, wep.spreadVx]) {
+  for (let k = 0; k < n; k++) {
+    const t   = n === 1 ? 0 : (k / (n - 1) - 0.5) * 2;   // −1 … +1
+    const dvx = t * (wep.spreadVx || 120);
     projectiles.push({
       x: parent.x, y: parent.y,
       vx: parent.vx + dvx, vy: parent.vy,
@@ -1278,6 +1447,23 @@ function spawnMirvChildren(parent) {
     });
   }
   addExplosion(parent.x, parent.y, 16);
+}
+
+function spawnRiotChildren(proj, px, py) {
+  const n = proj.weapon.riotCount || 20;
+  const childWep = { blastR: 18, hitDamage: 25, type: 'standard' };
+  for (let k = 0; k < n; k++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 60 + Math.random() * 150;
+    projectiles.push({
+      x: px + (Math.random() - 0.5) * 10,
+      y: py - 4,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed - 40,
+      trail: [], type: 'standard', weapon: childWep,
+      owner: proj.owner, mirvSplit: false,
+    });
+  }
 }
 
 // ── napalm ─────────────────────────────────────────────────────────────────
@@ -1422,9 +1608,10 @@ function startNextRound() {
   scoreboardEl.style.display = 'none';
   currentRound++;
 
-  const savedMoney     = tanks.map(t => t.money);
-  const savedInventory = tanks.map(t => ({ ...t.inventory }));
-  const savedWeapon    = tanks.map(t => t.selectedWeapon);
+  const savedMoney       = tanks.map(t => t.money);
+  const savedInventory   = tanks.map(t => ({ ...t.inventory }));
+  const savedDefInv      = tanks.map(t => ({ ...t.defInventory }));
+  const savedWeapon      = tanks.map(t => t.selectedWeapon);
 
   gameOver          = false;
   projectiles       = [];
@@ -1434,6 +1621,7 @@ function startNextRound() {
   lastTime          = null;
   turnCount         = 0;
   shopOpen          = false;
+  screenShake       = 0;
   napalmTurnPending = false;
   cpuThinking       = false;
   cpuThinkTimer     = 0;
@@ -1444,10 +1632,21 @@ function startNextRound() {
   generateStars();
   placeTanks();
   tanks.forEach((t, i) => {
-    t.money     = savedMoney[i];
-    t.inventory = savedInventory[i];
+    t.money       = savedMoney[i];
+    t.inventory   = savedInventory[i];
+    t.defInventory = savedDefInv[i];
     const sw = savedWeapon[i];
     t.selectedWeapon = (t.inventory[sw] === Infinity || t.inventory[sw] > 0) ? sw : 'Baby Missile';
+    // Apply interest on carried-over cash
+    const rate = (gameSettings.interest || 0) / 100;
+    let bonus = 0;
+    if (rate > 0) {
+      const batteryBonus = 0.20 * (t.defInventory['Battery'] || 0);
+      bonus = Math.floor(t.money * (rate + batteryBonus));
+      t.money += bonus;
+    }
+    t.interestThisRound = bonus;
+    applyDefenses(t);
   });
 
   cashAtRoundStart = tanks.map(t => t.money);
@@ -1538,56 +1737,202 @@ function cycleWeapon(dir) {
   updateWeaponIndicator();
 }
 
-// ── shop ───────────────────────────────────────────────────────────────────
+// ── shop helpers ───────────────────────────────────────────────────────────
+function blastDesc(r) {
+  if (r <  30) return 'Small';
+  if (r <  50) return 'Medium';
+  if (r <  75) return 'Large';
+  return 'Massive';
+}
+
+function weaponTag(wep) {
+  if (wep.type === 'tracer')  return '(No blast)';
+  if (wep.type === 'mirv')    return `(${blastDesc(wep.blastR)} \xd7${wep.subCount})`;
+  if (wep.type === 'riot')    return `(${blastDesc(wep.blastR)} \xd7${wep.riotCount})`;
+  return `(${blastDesc(wep.blastR)})`;
+}
+
+function applyDefenses(t) {
+  let hp = 0, fuel = 0;
+  for (const [name, def] of Object.entries(DEFENSES)) {
+    const qty = t.defInventory[name] || 0;
+    if (qty > 0) {
+      if (def.shieldHP) hp   += def.shieldHP * qty;
+      if (def.fuel)     fuel += def.fuel     * qty;
+    }
+  }
+  t.shieldHP = hp;
+  t.fuel     = fuel;
+}
+
+function shopBuyItem(playerIndex, isDefense, name) {
+  const t = tanks[playerIndex];
+  if (isDefense) {
+    const def = DEFENSES[name];
+    if (!def || t.money < def.cost || !enabledDefenses.includes(name)) return;
+    t.money -= def.cost;
+    t.defInventory[name] = (t.defInventory[name] || 0) + 1;
+    applyDefenses(t);
+  } else {
+    const wep = WEAPONS[name];
+    if (!wep || wep.cost === 0 || t.money < wep.cost) return;
+    t.money -= wep.cost;
+    t.inventory[name]++;
+    if (t.selectedWeapon === 'Baby Missile') t.selectedWeapon = name;
+  }
+  renderShop(playerIndex);
+}
+
+function shopSellItem(playerIndex, isDefense, name) {
+  const t = tanks[playerIndex];
+  if (isDefense) {
+    const def = DEFENSES[name];
+    if (!def || (t.defInventory[name] || 0) <= 0) return;
+    t.defInventory[name]--;
+    t.money += Math.floor(def.cost * 0.8);
+    applyDefenses(t);
+  } else {
+    const wep = WEAPONS[name];
+    if (!wep || wep.cost === 0) return;
+    const owned = t.inventory[name];
+    if (!owned || owned <= 0 || owned === Infinity) return;
+    t.inventory[name]--;
+    t.money += Math.floor(wep.cost * 0.8);
+    if (t.inventory[name] === 0 && t.selectedWeapon === name) t.selectedWeapon = 'Baby Missile';
+  }
+  renderShop(playerIndex);
+}
+
+function handleShopKey(e) {
+  if (!shopRowItems.length) return;
+  const pi = shopCurrentPlayer;
+  switch (e.key) {
+    case 'ArrowUp':
+      e.preventDefault();
+      shopCursor = Math.max(0, shopCursor - 1);
+      renderShop(pi);
+      break;
+    case 'ArrowDown':
+      e.preventDefault();
+      shopCursor = Math.min(shopRowItems.length - 1, shopCursor + 1);
+      renderShop(pi);
+      break;
+    case 'ArrowRight': case '+': case '=':
+      e.preventDefault();
+      { const row = shopRowItems[shopCursor]; shopBuyItem(pi, row.isDefense, row.name); }
+      break;
+    case 'ArrowLeft': case '-':
+      e.preventDefault();
+      { const row = shopRowItems[shopCursor]; shopSellItem(pi, row.isDefense, row.name); }
+      break;
+    case 'Enter': case 'd': case 'D':
+      e.preventDefault();
+      document.getElementById('shop-done').click();
+      break;
+  }
+}
+
+// ── shop render ────────────────────────────────────────────────────────────
 function renderShop(playerIndex) {
   const t = tanks[playerIndex];
-  document.getElementById('shop-balance').textContent = `Cash: $${t.money}`;
 
-  const grid = document.getElementById('shop-grid');
-  grid.innerHTML = '';
+  // Header: cash and interest
+  document.getElementById('shop-cash').textContent = `$${t.money.toLocaleString()}`;
+  const intEl = document.getElementById('shop-interest');
+  intEl.textContent = t.interestThisRound > 0
+    ? `(+$${t.interestThisRound.toLocaleString()} interest)` : '';
 
+  // Total spent
+  const spent = Math.max(0, shopMoneyAtOpen - t.money);
+  document.getElementById('shop-spent').textContent = `Total spent this round: $${spent.toLocaleString()}`;
+
+  shopRowItems = [];
+
+  function makeRow(name, tagText, costStr, ownedStr, isDefense, canBuy, canSell) {
+    const cursorIdx = shopRowItems.length;
+    shopRowItems.push({ isDefense, name });
+
+    const isEnabled  = isDefense ? enabledDefenses.includes(name) : (name === 'Baby Missile' || enabledWeapons.includes(name));
+    const isSelected = shopCursor === cursorIdx;
+    const cls = 'shop-row' + (isSelected ? ' selected' : '') + (!isEnabled ? ' grayed' : '');
+
+    const row = document.createElement('div');
+    row.className = cls;
+
+    const sellDis = (!canSell || !isEnabled) ? ' disabled' : '';
+    const buyDis  = (!canBuy  || !isEnabled) ? ' disabled' : '';
+    row.innerHTML =
+      `<span class="shop-row-name">${name}</span>` +
+      `<span class="shop-row-tag">${tagText}</span>` +
+      `<span class="shop-row-cost">${costStr}</span>` +
+      `<span class="shop-row-count">${ownedStr}</span>` +
+      `<button class="shop-row-btn"${sellDis}>-</button>` +
+      `<button class="shop-row-btn"${buyDis}>+</button>`;
+
+    const [sellBtn, buyBtn] = row.querySelectorAll('.shop-row-btn');
+    sellBtn.addEventListener('click', ev => { ev.stopPropagation(); shopSellItem(playerIndex, isDefense, name); });
+    buyBtn .addEventListener('click', ev => { ev.stopPropagation(); shopBuyItem (playerIndex, isDefense, name); });
+    row.addEventListener('click', () => { shopCursor = cursorIdx; renderShop(playerIndex); });
+    return row;
+  }
+
+  // Weapons column (grouped by category)
+  const wList = document.getElementById('shop-wlist');
+  wList.innerHTML = '';
+  let lastCat = null;
   for (const [name, wep] of Object.entries(WEAPONS)) {
+    if (wep.category !== lastCat) {
+      lastCat = wep.category;
+      const hdr = document.createElement('div');
+      hdr.className = 'shop-cat-hdr' + (wep.category === 'Projectile' ? ' shop-cat-first' : '');
+      hdr.textContent = wep.category;
+      wList.appendChild(hdr);
+    }
     const owned    = t.inventory[name];
     const ownedStr = owned === Infinity ? '∞' : String(owned);
-    const costStr  = wep.cost === 0 ? 'FREE' : `$${wep.cost}`;
+    const costStr  = wep.cost === 0 ? 'FREE' : `$${wep.cost.toLocaleString()}`;
     const canBuy   = wep.cost > 0 && t.money >= wep.cost;
-
-    const card = document.createElement('div');
-    card.className = 'shop-card';
-    card.innerHTML = `
-      <h3>${name}</h3>
-      <div class="shop-desc">${wep.desc}</div>
-      <div class="shop-meta">
-        <span class="shop-cost">${costStr}</span>
-        &nbsp;&nbsp;
-        <span class="shop-owned">Owned: ${ownedStr}</span>
-      </div>
-      <button ${canBuy ? '' : 'disabled'}>${wep.cost === 0 ? 'Infinite' : 'BUY'}</button>
-    `;
-    if (canBuy) {
-      card.querySelector('button').addEventListener('click', () => {
-        t.money -= wep.cost;
-        t.inventory[name]++;
-        if (t.selectedWeapon === 'Baby Missile') t.selectedWeapon = name;
-        renderShop(playerIndex);
-      });
-    }
-    grid.appendChild(card);
+    const canSell  = wep.cost > 0 && owned > 0 && owned !== Infinity;
+    wList.appendChild(makeRow(name, weaponTag(wep), costStr, ownedStr, false, canBuy, canSell));
   }
+
+  // Defenses column
+  const dList = document.getElementById('shop-dlist');
+  dList.innerHTML = '';
+  for (const [name, def] of Object.entries(DEFENSES)) {
+    const owned   = t.defInventory[name] || 0;
+    const canBuy  = t.money >= def.cost;
+    const canSell = owned > 0;
+    dList.appendChild(makeRow(name, def.desc, `$${def.cost.toLocaleString()}`, String(owned), true, canBuy, canSell));
+  }
+
+  // Scroll selected row into view
+  const selRow = wList.querySelector('.shop-row.selected') || dList.querySelector('.shop-row.selected');
+  if (selRow) selRow.scrollIntoView({ block: 'nearest' });
 }
 
 // ── CPU auto-buy ───────────────────────────────────────────────────────────
 function cpuAutoBuy(playerIndex) {
   const t = tanks[playerIndex];
-  // Buy the highest-damage weapon the CPU can afford (greedy, one purchase)
-  const best = Object.entries(WEAPONS)
-    .filter(([, wep]) => wep.cost > 0 && t.money >= wep.cost)
+  // Prioritize missiles: buy highest-damage weapon affordable
+  const bestWeapon = Object.entries(WEAPONS)
+    .filter(([name, wep]) => wep.cost > 0 && t.money >= wep.cost && enabledWeapons.includes(name))
     .sort(([, a], [, b]) => b.hitDamage - a.hitDamage)[0];
-  if (best) {
-    t.money -= best[1].cost;
-    t.inventory[best[0]]++;
-    if (t.selectedWeapon === 'Baby Missile') t.selectedWeapon = best[0];
+  if (bestWeapon) {
+    t.money -= bestWeapon[1].cost;
+    t.inventory[bestWeapon[0]]++;
+    if (t.selectedWeapon === 'Baby Missile') t.selectedWeapon = bestWeapon[0];
   }
+  // Buy one shield if affordable (prefer M, then S)
+  for (const shName of ['Shield M', 'Shield S']) {
+    const def = DEFENSES[shName];
+    if (def && t.money >= def.cost && enabledDefenses.includes(shName)) {
+      t.money -= def.cost;
+      t.defInventory[shName] = (t.defInventory[shName] || 0) + 1;
+      break;
+    }
+  }
+  applyDefenses(t);
 }
 
 // ── shop phase (runs at game/round start, cycles all players) ──────────────
@@ -1614,9 +1959,16 @@ function runShopPhase(onComplete) {
 
 function openShopForPlayer(playerIndex, onDone) {
   const t = tanks[playerIndex];
-  shopOpen = true;
+  shopOpen          = true;
+  shopCurrentPlayer = playerIndex;
+  shopMoneyAtOpen   = t.money;
+  shopCursor        = 0;
+
   document.getElementById('shop-title').innerHTML =
-    `WEAPONS SHOP — <span style="color:${t.color}">${t.name}</span>`;
+    `WEAPONS SHOP \u2014 <span style="color:${t.color}">${t.name}</span>`;
+  document.getElementById('shop-round').textContent =
+    `Round ${currentRound} of ${totalRounds}`;
+
   renderShop(playerIndex);
   shopEl.style.display = 'block';
 
@@ -1667,15 +2019,16 @@ function cpuSimulateLanding(shooter, angleDeg, power) {
   return x;
 }
 
+const CPU_SKIP_WEAPONS = new Set(['Lazy Boy', 'Tracer']);
 function cpuSelectWeapon(tankIndex) {
   const t = tanks[tankIndex];
   const best = Object.entries(WEAPONS)
-    .filter(([name]) => name !== 'Baby Missile' && (t.inventory[name] || 0) > 0)
+    .filter(([name]) => !CPU_SKIP_WEAPONS.has(name) && name !== 'Baby Missile' && (t.inventory[name] || 0) > 0)
     .sort(([, a], [, b]) => b.hitDamage - a.hitDamage)[0];
   t.selectedWeapon = best ? best[0] : 'Baby Missile';
 }
 
-function cpuComputeAim(tankIndex, targetIndex) {
+function cpuComputeAim(tankIndex, targetIndex, noiseOverride = null) {
   const shooter = tanks[tankIndex];
   const targetX = tanks[targetIndex].x;
 
@@ -1707,8 +2060,8 @@ function cpuComputeAim(tankIndex, targetIndex) {
     }
   }
 
-  // Apply difficulty noise
-  const cfg    = AI_DIFFICULTY[shooter.difficulty] || AI_DIFFICULTY.medium;
+  // Apply difficulty noise (suppressed for perfect-aim weapons like Lazy Boy)
+  const cfg    = noiseOverride || AI_DIFFICULTY[shooter.difficulty] || AI_DIFFICULTY.medium;
   const aNoise = (Math.random() * 2 - 1) * cfg.angleNoise;
   const pNoise = (Math.random() * 2 - 1) * cfg.powerNoise;
 
@@ -1750,16 +2103,28 @@ function fire() {
     if (t.inventory[t.selectedWeapon] === 0) t.selectedWeapon = 'Baby Missile';
   }
 
-  const rad   = t.angle * Math.PI / 180;
-  const spd   = t.power * POWER_SCALE;
+  let fireAngle = t.angle;
+  let firePower = t.power;
+  if (wep.type === 'lazyboy') {
+    const tgt = cpuSelectTarget(currentPlayer);
+    if (tgt >= 0) {
+      const aim = cpuComputeAim(currentPlayer, tgt, { angleNoise: 0, powerNoise: 0 });
+      fireAngle = aim.angle;
+      firePower = aim.power;
+    }
+  }
+
+  const rad   = fireAngle * Math.PI / 180;
+  const spd   = firePower * POWER_SCALE;
   const bodyY = t.y - 11;
+  const projType = wep.type === 'lazyboy' ? 'standard' : wep.type;
 
   projectiles.push({
     x: t.x + Math.cos(rad) * (CANNON_LEN + 5),
     y: bodyY - Math.sin(rad) * (CANNON_LEN + 5),
     vx:  Math.cos(rad) * spd,
     vy: -Math.sin(rad) * spd,
-    trail: [], type: wep.type, weapon: wep,
+    trail: [], type: projType, weapon: wep,
     owner: currentPlayer, mirvSplit: false,
   });
 
@@ -1793,12 +2158,57 @@ function gameLoop(ts) {
   camera.x += (camera.targetX - camera.x) * Math.min(1, 3.5 * dt);
   camera.y += (camera.targetY - camera.y) * Math.min(1, 3.5 * dt);
 
+  // Screen-shake decay
+  if (screenShake > 0) screenShake = Math.max(0, screenShake - 18 * dt);
+
   // Projectile physics (iterate backwards for safe splicing)
   for (let i = projectiles.length - 1; i >= 0; i--) {
     const proj = projectiles[i];
     proj.trail.push({ x: proj.x, y: proj.y });
     if (proj.trail.length > TRAIL_LEN) proj.trail.shift();
 
+    // ── Roller (hugs terrain surface after first bounce) ────────────────
+    if (proj.rolling) {
+      proj.rollDist = (proj.rollDist || 0) + Math.abs(proj.rollVx) * dt;
+      proj.x += proj.rollVx * dt;
+      const rpx = Math.max(0, Math.min(worldWidth - 1, Math.round(proj.x)));
+      if (terrain[rpx] != null) proj.y = terrain[rpx];
+      const maxDist = proj.weapon.maxRollDist || 360;
+      if (rpx <= 0 || rpx >= worldWidth - 1 || proj.rollDist >= maxDist) {
+        onImpact(proj, rpx, Math.round(proj.y)); continue;
+      }
+      for (let j = 0; j < tanks.length; j++) {
+        if (j === proj.owner) continue;
+        const t = tanks[j];
+        if (t.health <= 0) continue;
+        if (Math.hypot(proj.x - t.x, proj.y - (t.y - 9)) < TANK_HIT_R + 8) {
+          onImpact(proj, rpx, Math.round(proj.y)); break;
+        }
+      }
+      continue;
+    }
+
+    // ── Digger (burrows straight down after terrain hit) ─────────────────
+    if (proj.burrowing) {
+      const spd = proj.weapon.burrowSpeed || 220;
+      proj.burrowDist = (proj.burrowDist || 0) + spd * dt;
+      proj.y += spd * dt;
+      const dpx = Math.max(0, Math.min(worldWidth - 1, Math.round(proj.x)));
+      if (proj.burrowDist >= (proj.weapon.maxBurrow || 150) || proj.y > canvas.height + 20) {
+        onImpact(proj, dpx, Math.round(proj.y)); continue;
+      }
+      for (let j = 0; j < tanks.length; j++) {
+        if (j === proj.owner) continue;
+        const t = tanks[j];
+        if (t.health <= 0) continue;
+        if (Math.hypot(proj.x - t.x, proj.y - t.y) < TANK_HIT_R + 5) {
+          onImpact(proj, dpx, Math.round(proj.y)); break;
+        }
+      }
+      continue;
+    }
+
+    // ── Normal arc physics ───────────────────────────────────────────────
     proj.vx += wind * WIND_SCALE * dt;
     proj.vy += GRAVITY * dt;
     proj.x  += proj.vx * dt;
@@ -1823,7 +2233,28 @@ function gameLoop(ts) {
         if (!checkWin()) nextTurn();
       }
     } else if (py >= 0 && terrain[px] != null && py >= terrain[px]) {
-      onImpact(proj, px, Math.round(py));
+      if (proj.type === 'roller' && !proj.rolling) {
+        proj.rolling  = true;
+        proj.rollDist = 0;
+        proj.rollVx   = proj.vx >= 0 ? (proj.weapon.rollSpeed || 90) : -(proj.weapon.rollSpeed || 90);
+        proj.y        = terrain[px];
+      } else if (proj.type === 'digger' && !proj.burrowing) {
+        proj.burrowing  = true;
+        proj.burrowDist = 0;
+        proj.vx         = 0;
+      } else {
+        onImpact(proj, px, Math.round(py));
+      }
+    } else {
+      for (let j = 0; j < tanks.length; j++) {
+        if (j === proj.owner) continue;
+        const t = tanks[j];
+        if (t.health <= 0) continue;
+        if (Math.hypot(proj.x - t.x, proj.y - (t.y - 9)) < TANK_HIT_R) {
+          onImpact(proj, px, Math.round(py));
+          break;
+        }
+      }
     }
   }
 
@@ -1854,7 +2285,8 @@ function gameLoop(ts) {
 // ── keyboard ───────────────────────────────────────────────────────────────
 document.addEventListener('keydown', e => {
   ensureAudio();
-  if (gameOver || projectiles.length > 0 || shopOpen || cpuThinking) return;
+  if (shopOpen) { handleShopKey(e); return; }
+  if (gameOver || projectiles.length > 0 || cpuThinking) return;
   if (!tanks || !tanks[currentPlayer] || tanks[currentPlayer].isAI) return;
   const t    = tanks[currentPlayer];
   const step = e.shiftKey ? 5 : 1;
@@ -2054,9 +2486,11 @@ function initSetupListeners() {
       enabledDefenses: MENU_DEFENSES.filter(d => menuDefenses[d]),
     };
     document.dispatchEvent(new CustomEvent('scorched-earth-start', { detail: config }));
-    playerConfigs = activePlayers;
-    totalRounds   = settingsOut.rounds;
-    gameSettings  = settingsOut;
+    playerConfigs   = activePlayers;
+    totalRounds     = settingsOut.rounds;
+    gameSettings    = settingsOut;
+    enabledWeapons  = config.enabledWeapons;
+    enabledDefenses = config.enabledDefenses;
     hideSetup();
     initGame();
   });
@@ -2075,6 +2509,7 @@ function initGame() {
   lastTime          = null;
   turnCount         = 0;
   shopOpen          = false;
+  screenShake       = 0;
   napalmTurnPending = false;
   cpuThinking       = false;
   cpuThinkTimer     = 0;

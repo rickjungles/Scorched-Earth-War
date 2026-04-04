@@ -1068,6 +1068,7 @@ let introPhase     = 'none';  // 'running' | 'none'
 let introTimer     = 0;
 let introTankDrops = [];      // [{y, vy, settled, startDelay, finalY}]
 let introFinishCb  = null;
+let lastTerrainPick = '';
 
 // ── round / scoring state ──────────────────────────────────────────────────
 let totalRounds      = 5;
@@ -1211,8 +1212,12 @@ function generateTerrain() {
   const style = gameSettings.terrain || 'Random';
   const w = worldWidth, h = canvas.height;
   const STYLES = ['Plains','Plateaus','Mountains','Canyon','Fortress'];
-  const pick = STYLES[Math.floor(Math.random() * STYLES.length)];
-  switch (style === 'Random' ? pick : style === 'Mixed' ? pick : style) {
+  // For Random/Mixed: pick from styles excluding the last one used
+  const pool = STYLES.filter(s => s !== lastTerrainPick);
+  const pick = pool[Math.floor(Math.random() * pool.length)];
+  const chosen = (style === 'Random' || style === 'Mixed') ? pick : style;
+  lastTerrainPick = chosen;
+  switch (chosen) {
     case 'Plains':    terrain = _terrainPlains(w, h);    break;
     case 'Plateaus':  terrain = _terrainPlateaus(w, h);  break;
     case 'Mountains': terrain = _terrainMountains(w, h); break;
@@ -3236,6 +3241,7 @@ function initGame() {
   introTimer        = 0;
   introTankDrops    = [];
   introFinishCb     = null;
+  lastTerrainPick   = '';
   cpuThinking       = false;
   cpuThinkTimer     = 0;
   camera.x = camera.targetX = 0;

@@ -192,16 +192,146 @@ canvas { display: block; }
   position: fixed;
   top: 62px;
   right: 12px;
-  background: rgba(0,0,0,0.65);
+  background: rgba(0,0,0,0.72);
   color: #fff;
-  padding: 7px 16px;
+  padding: 7px 10px;
   border-radius: 6px;
-  font-size: 14px;
+  font-size: 12px;
   font-family: 'Courier New', monospace;
   border: 1px solid rgba(255,255,255,0.15);
   pointer-events: none;
   text-align: right;
-  line-height: 1.5;
+  line-height: 1.6;
+  max-height: calc(100vh - 130px);
+  overflow-y: auto;
+  min-width: 160px;
+}
+#weapon-indicator .wi-header {
+  font-size: 11px;
+  opacity: 0.55;
+  margin-bottom: 4px;
+  border-bottom: 1px solid rgba(255,255,255,0.12);
+  padding-bottom: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+#weapon-indicator .wi-row {
+  white-space: nowrap;
+  padding: 1px 0;
+}
+#weapon-indicator .wi-row.wi-selected {
+  color: #ffe050;
+  font-weight: bold;
+}
+#weapon-indicator .wi-ammo {
+  opacity: 0.6;
+  font-size: 11px;
+}
+#weapon-indicator .wi-section {
+  margin-top: 6px;
+  font-size: 10px;
+  opacity: 0.40;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border-top: 1px solid rgba(255,255,255,0.08);
+  padding-top: 4px;
+}
+/* ── quit confirm overlay ──────────────────────────────────────────────────── */
+#quit-confirm {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.70);
+  z-index: 900;
+  align-items: center;
+  justify-content: center;
+}
+#quit-confirm.visible { display: flex; }
+#quit-confirm-box {
+  background: #000;
+  border: 2px solid #0ff;
+  color: #0ff;
+  font-family: 'Courier New', monospace;
+  padding: 28px 40px;
+  text-align: center;
+  min-width: 320px;
+}
+#quit-confirm-box h2 {
+  margin: 0 0 8px;
+  font-size: 20px;
+  letter-spacing: 0.1em;
+}
+#quit-confirm-box p {
+  margin: 0 0 22px;
+  color: rgba(255,255,255,0.6);
+  font-size: 13px;
+}
+#quit-confirm-box .qc-btns {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+}
+#quit-confirm-box button {
+  font-family: 'Courier New', monospace;
+  font-size: 14px;
+  padding: 6px 24px;
+  cursor: pointer;
+  border: 1px solid #0ff;
+  background: #000;
+  color: #0ff;
+  letter-spacing: 0.08em;
+}
+#quit-confirm-box button:hover { background: #0ff; color: #000; }
+#quit-btn-yes { border-color: #f55 !important; color: #f55 !important; }
+#quit-btn-yes:hover { background: #f55 !important; color: #000 !important; }
+/* ── about overlay ─────────────────────────────────────────────────────────── */
+#about-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.75);
+  z-index: 900;
+  align-items: center;
+  justify-content: center;
+}
+#about-overlay.visible { display: flex; }
+#about-box {
+  background: #000;
+  border: 2px solid #0ff;
+  color: #fff;
+  font-family: 'Courier New', monospace;
+  padding: 32px 44px 28px;
+  min-width: 380px;
+  max-width: 520px;
+}
+#about-box h2 {
+  margin: 0 0 2px;
+  font-size: 22px;
+  color: #ff5555;
+  letter-spacing: 0.12em;
+  text-shadow: 2px 2px #550000;
+}
+#about-box .about-subtitle {
+  color: #FFFF55;
+  font-size: 13px;
+  margin-bottom: 20px;
+  letter-spacing: 0.05em;
+}
+#about-box .about-ver {
+  color: #0ff;
+  font-size: 13px;
+  margin-bottom: 18px;
+}
+#about-box .about-body {
+  color: rgba(255,255,255,0.75);
+  font-size: 13px;
+  line-height: 1.7;
+  margin-bottom: 22px;
+}
+#about-box .about-dismiss {
+  text-align: right;
+  color: rgba(0,255,255,0.45);
+  font-size: 12px;
 }
 /* ── DOS-era setup screen ─────────────────────────────────────────────────── */
 #setup {
@@ -332,10 +462,11 @@ canvas { display: block; }
 .dos-chip.off:hover { background: rgba(85,85,85,0.15); }
 .dos-chip:focus { outline: 2px solid #FFFF55; outline-offset: 1px; }
 #setup-footer {
-  display: flex; align-items: center; justify-content: space-between;
-  margin-top: 12px; gap: 12px;
+  display: flex; flex-direction: column; align-items: stretch;
+  margin-top: 12px; gap: 10px;
 }
-#setup-kbd-hints { color: #00AAAA; font-size: 12px; letter-spacing: 1px; flex: 1; }
+#setup-kbd-hints { color: #00AAAA; font-size: 12px; letter-spacing: 1px; text-align: center; }
+#setup-start-row { display: flex; justify-content: center; }
 #setup-start {
   padding: 8px 24px; background: #007700; color: #fff;
   border: 2px solid #00AA00;
@@ -345,6 +476,7 @@ canvas { display: block; }
 #setup-start:hover:not(:disabled) { background: #00AA00; color: #000; }
 #setup-start:disabled { background: #333; color: #555; border-color: #555; cursor: not-allowed; }
 /* ── scoreboard overlay ───────────────────────────────────────────────────── */
+/* ── between-rounds / final scoreboard (DOS style) ────────────── */
 #scoreboard {
   display: none;
   position: fixed;
@@ -352,69 +484,70 @@ canvas { display: block; }
   background: rgba(0,0,0,0.88);
   z-index: 150;
   overflow-y: auto;
+  font-family: 'Courier New', monospace;
 }
 #scoreboard-inner {
-  max-width: 620px;
-  margin: 48px auto;
-  background: rgba(8,16,32,0.98);
-  border: 2px solid rgba(255,255,255,0.18);
-  border-radius: 14px;
-  padding: 36px 44px;
+  max-width: 760px;
+  margin: 28px auto;
+  background: #000080;
+  border: 2px solid #0ff;
   color: #fff;
   font-family: 'Courier New', monospace;
 }
-#scoreboard-title {
-  font-size: 26px;
-  letter-spacing: 5px;
+#sb-header {
   text-align: center;
-  margin-bottom: 6px;
+  padding: 18px 32px 14px;
+  border-bottom: 1px solid #0ff;
 }
-#scoreboard-subtitle {
-  text-align: center;
-  font-size: 13px;
-  color: rgba(255,255,255,0.5);
-  letter-spacing: 3px;
-  margin-bottom: 26px;
-  min-height: 18px;
+#sb-round-title {
+  font-size: 22px;
+  font-weight: bold;
+  color: #ff5555;
+  letter-spacing: 0.14em;
+  margin: 0 0 4px;
+  text-shadow: 1px 1px #550000;
 }
-#scoreboard-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-bottom: 28px;
-  font-size: 13px;
-}
+#sb-round-sub  { font-size: 14px; color: #FFFF55; letter-spacing: 0.1em; margin-bottom: 8px; }
+#sb-winner     { font-size: 15px; letter-spacing: 0.06em; min-height: 22px; }
+#sb-table-section { padding: 14px 20px; border-bottom: 1px solid rgba(0,255,255,0.3); }
+#scoreboard-table { width: 100%; border-collapse: collapse; font-size: 12px; }
 #scoreboard-table th {
-  text-align: left;
-  padding: 6px 10px;
-  letter-spacing: 2px;
-  font-size: 11px;
-  color: rgba(255,255,255,0.45);
-  border-bottom: 1px solid rgba(255,255,255,0.12);
+  text-align: center; padding: 5px 8px; font-size: 10px;
+  letter-spacing: 0.1em; color: #0ff;
+  border-bottom: 1px solid #0ff; white-space: nowrap;
 }
+#scoreboard-table th:first-child { text-align: left; }
 #scoreboard-table td {
-  padding: 9px 10px;
-  border-bottom: 1px solid rgba(255,255,255,0.07);
+  padding: 6px 8px; border-bottom: 1px solid rgba(0,255,255,0.10);
+  text-align: center;
 }
-.sb-player-cell { display: flex; align-items: center; gap: 8px; }
-.sb-swatch { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
-.rank-1 td { color: #ffd700; }
-.rank-2 td { color: #c0c0c0; }
-.rank-3 td { color: #cd7f32; }
-.rank-dead td { color: rgba(255,255,255,0.35); }
+#scoreboard-table td:first-child { text-align: left; }
+.sb-player-cell { display: flex; align-items: center; gap: 7px; }
+.sb-swatch      { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.sb-leader td   { background: rgba(255,255,255,0.07); }
+.sb-dead td     { color: rgba(255,255,255,0.32); }
+.sb-rank-up     { color: #55ff55; font-size: 10px; }
+.sb-rank-dn     { color: #ff5555; font-size: 10px; }
+.sb-rank-nc     { color: rgba(255,255,255,0.25); font-size: 10px; }
+#sb-cash-section { padding: 10px 20px 14px; border-bottom: 1px solid rgba(0,255,255,0.3); }
+#sb-cash-title  { font-size: 10px; color: #0ff; letter-spacing: 0.12em; margin-bottom: 7px; }
+.sb-cash-row    { font-size: 12px; color: rgba(255,255,255,0.78); margin-bottom: 4px; }
+.sb-cash-name   { display: inline-block; min-width: 110px; }
+.sb-cash-math   { color: rgba(255,255,255,0.45); }
+.sb-cash-total  { color: #FFFF55; font-weight: bold; }
+#sb-footer {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 20px;
+}
+#sb-footer-left { font-size: 12px; color: rgba(255,255,255,0.45); letter-spacing: 0.06em; }
 #scoreboard-next {
-  display: block;
-  width: 100%;
-  padding: 14px;
-  background: #1a5522;
-  color: #fff;
-  border: 1px solid rgba(255,255,255,0.25);
-  border-radius: 8px;
-  font-size: 17px;
-  font-family: 'Courier New', monospace;
-  letter-spacing: 3px;
-  cursor: pointer;
+  padding: 7px 20px; background: #007700; color: #fff;
+  border: 2px solid #00AA00;
+  font-family: 'Courier New', monospace; font-size: 14px;
+  letter-spacing: 0.1em; cursor: pointer; white-space: nowrap;
 }
-#scoreboard-next:hover { background: #226633; }
+#scoreboard-next:hover:not(:disabled) { background: #00AA00; color: #000; }
+#scoreboard-next:disabled { background: #333; color: #666; border-color: #555; cursor: not-allowed; }
 </style>
 </head>
 <body>
@@ -425,7 +558,7 @@ canvas { display: block; }
   <span>🔊</span>
   <input type="range" id="volSlider" min="0" max="1" step="0.05" value="0.6">
 </div>
-<div id="keys">← → angle &nbsp;|&nbsp; ↑ ↓ power &nbsp;|&nbsp; SPACE fire &nbsp;|&nbsp; Q/E weapon &nbsp;|&nbsp; hold SHIFT ×5</div>
+<div id="keys">← → angle &nbsp;|&nbsp; ↑ ↓ power &nbsp;|&nbsp; SPACE fire &nbsp;|&nbsp; Q/E weapon &nbsp;|&nbsp; hold SHIFT ×5 &nbsp;|&nbsp; ESC quit</div>
 <div id="shop">
   <div id="shop-inner">
     <div id="shop-hdr">
@@ -456,6 +589,31 @@ canvas { display: block; }
   </div>
 </div>
 <div id="weapon-indicator"></div>
+<div id="quit-confirm">
+  <div id="quit-confirm-box">
+    <h2>QUIT TO MENU?</h2>
+    <p>Current game progress will be lost.</p>
+    <div class="qc-btns">
+      <button id="quit-btn-yes">[ YES ]</button>
+      <button id="quit-btn-no">[ NO ]</button>
+    </div>
+  </div>
+</div>
+<div id="about-overlay">
+  <div id="about-box">
+    <h2>SCORCHED EARTH</h2>
+    <div class="about-subtitle">The Mother of All Games</div>
+    <div class="about-ver">Version 1.6.0</div>
+    <div class="about-body">
+      A JavaScript/HTML5 reimagining of the classic 1991 DOS artillery game.<br><br>
+      Up to 10 players (human or CPU) take turns firing weapons at each other
+      across a destructible landscape. Buy weapons between rounds, manage your
+      cash, and be the last tank standing.<br><br>
+      Inspired by the original Scorched Earth by Wendell Hicken.
+    </div>
+    <div class="about-dismiss">Press A or Escape to close</div>
+  </div>
+</div>
 <div id="setup">
   <div id="setup-inner">
     <h1 id="setup-title">SCORCHED EARTH</h1>
@@ -493,23 +651,32 @@ canvas { display: block; }
     </div>
 
     <div id="setup-footer">
-      <div id="setup-kbd-hints">Tab/Arrows: navigate &nbsp;|&nbsp; Space/Enter: toggle &nbsp;|&nbsp; C: cycle color</div>
-      <button id="setup-start">&#9654; START GAME</button>
+      <div id="setup-kbd-hints">Tab/Arrows: navigate &nbsp;|&nbsp; Space/Enter: toggle &nbsp;|&nbsp; C: cycle color &nbsp;|&nbsp; A: about</div>
+      <div id="setup-start-row"><button id="setup-start">&#9654; START GAME</button></div>
     </div>
   </div>
 </div>
 <div id="scoreboard">
   <div id="scoreboard-inner">
-    <h2 id="scoreboard-title"></h2>
-    <div id="scoreboard-subtitle"></div>
-    <table id="scoreboard-table">
-      <thead><tr>
-        <th>PLAYER</th><th>KILLS</th><th>DAMAGE</th>
-        <th>CASH EARNED</th><th>SCORE</th>
-      </tr></thead>
-      <tbody id="scoreboard-body"></tbody>
-    </table>
-    <button id="scoreboard-next"></button>
+    <div id="sb-header">
+      <div id="sb-round-title"></div>
+      <div id="sb-round-sub"></div>
+      <div id="sb-winner"></div>
+    </div>
+    <div id="sb-table-section">
+      <table id="scoreboard-table">
+        <thead><tr id="sb-thead-row"></tr></thead>
+        <tbody id="scoreboard-body"></tbody>
+      </table>
+    </div>
+    <div id="sb-cash-section">
+      <div id="sb-cash-title">CASH SUMMARY</div>
+      <div id="sb-cash-rows"></div>
+    </div>
+    <div id="sb-footer">
+      <div id="sb-footer-left"></div>
+      <button id="scoreboard-next"></button>
+    </div>
   </div>
 </div>
 <script>
@@ -537,45 +704,45 @@ const MONEY_PER_DAMAGE = 10;
 const WEAPONS = {
   // ── Projectile ─────────────────────────────────────────────────────────
   'Baby Missile': {
-    cost: 0,    blastR: 24,  hitDamage: 38,  type: 'standard', category: 'Projectile',
+    cost: 0,    blastR: 24,  hitDamage: 76,  type: 'standard', category: 'Projectile',
     desc: 'Small blast. Infinite ammo.',
   },
   'Missile': {
-    cost: 500,  blastR: 48,  hitDamage: 75,  type: 'standard', category: 'Projectile',
+    cost: 500,  blastR: 48,  hitDamage: 150, type: 'standard', category: 'Projectile',
     desc: 'Standard warhead.',
   },
   'Large Missile': {
-    cost: 1500, blastR: 66,  hitDamage: 90,  type: 'standard', category: 'Projectile',
+    cost: 1500, blastR: 66,  hitDamage: 180, type: 'standard', category: 'Projectile',
     desc: 'Heavy warhead, large blast.',
   },
   'Baby Nuke': {
-    cost: 3000, blastR: 72,  hitDamage: 100, type: 'nuke',     category: 'Projectile',
+    cost: 3000, blastR: 72,  hitDamage: 200, type: 'nuke',     category: 'Projectile',
     desc: 'Nuclear payload with screen shake.', shakeAmt: 10,
   },
   'Nuke': {
-    cost: 5000, blastR: 120, hitDamage: 130, type: 'nuke',     category: 'Projectile',
+    cost: 5000, blastR: 120, hitDamage: 260, type: 'nuke',     category: 'Projectile',
     desc: 'Massive nuclear blast.', shakeAmt: 22,
   },
   'MIRV': {
-    cost: 2000, blastR: 32,  hitDamage: 55,  type: 'mirv',     category: 'Projectile',
+    cost: 2000, blastR: 32,  hitDamage: 110, type: 'mirv',     category: 'Projectile',
     desc: 'Splits into 3 warheads at peak.', subCount: 3, spreadVx: 120,
   },
   "Death's Head": {
-    cost: 4000, blastR: 32,  hitDamage: 55,  type: 'mirv',     category: 'Projectile',
+    cost: 4000, blastR: 32,  hitDamage: 110, type: 'mirv',     category: 'Projectile',
     desc: "Splits into 5 warheads at peak.", subCount: 5, spreadVx: 90,
   },
   'Napalm': {
-    cost: 1500, blastR: 36,  hitDamage: 30,  type: 'napalm',   category: 'Projectile',
+    cost: 1500, blastR: 36,  hitDamage: 60,  type: 'napalm',   category: 'Projectile',
     desc: 'Spreads fire along terrain.',
     napalmCount: 12, napalmSpeed: 55, napalmLife: 2.8,
   },
   'Hot Napalm': {
-    cost: 3500, blastR: 52,  hitDamage: 40,  type: 'napalm',   category: 'Projectile',
+    cost: 3500, blastR: 52,  hitDamage: 80,  type: 'napalm',   category: 'Projectile',
     desc: 'Wide, long-burning fire spread.',
     napalmCount: 20, napalmSpeed: 70, napalmLife: 4.2,
   },
   'Funky Bomb': {
-    cost: 3000, blastR: 100, hitDamage: 95,  type: 'standard', category: 'Projectile',
+    cost: 3000, blastR: 100, hitDamage: 190, type: 'standard', category: 'Projectile',
     desc: 'Massive blast radius.',
   },
   'Dirt Bomb': {
@@ -588,27 +755,27 @@ const WEAPONS = {
   },
   // ── Ground ─────────────────────────────────────────────────────────────
   'Roller': {
-    cost: 800,  blastR: 28,  hitDamage: 50,  type: 'roller',   category: 'Ground',
+    cost: 800,  blastR: 28,  hitDamage: 100, type: 'roller',   category: 'Ground',
     desc: 'Rolls along terrain after landing.',
     rollSpeed: 90, maxRollDist: 360,
   },
   'Heavy Roller': {
-    cost: 2000, blastR: 48,  hitDamage: 80,  type: 'roller',   category: 'Ground',
+    cost: 2000, blastR: 48,  hitDamage: 160, type: 'roller',   category: 'Ground',
     desc: 'Like Roller but with a larger blast.',
     rollSpeed: 90, maxRollDist: 360,
   },
   'Riot Bomb': {
-    cost: 1200, blastR: 22,  hitDamage: 35,  type: 'riot',     category: 'Ground',
+    cost: 1200, blastR: 22,  hitDamage: 70,  type: 'riot',     category: 'Ground',
     desc: 'Scatters 20 bomblets on impact.',
     riotCount: 20,
   },
   'Digger': {
-    cost: 500,  blastR: 24,  hitDamage: 50,  type: 'digger',   category: 'Ground',
+    cost: 500,  blastR: 24,  hitDamage: 100, type: 'digger',   category: 'Ground',
     desc: 'Burrows down, explodes underground.',
     burrowSpeed: 220, maxBurrow: 150,
   },
   'Sandhog': {
-    cost: 1500, blastR: 42,  hitDamage: 75,  type: 'digger',   category: 'Ground',
+    cost: 1500, blastR: 42,  hitDamage: 150, type: 'digger',   category: 'Ground',
     desc: 'Deep burrower with larger blast.',
     burrowSpeed: 220, maxBurrow: 260,
   },
@@ -618,7 +785,7 @@ const WEAPONS = {
     desc: 'No damage. Tests your aim.',
   },
   'Lazy Boy': {
-    cost: 2500, blastR: 48,  hitDamage: 75,  type: 'lazyboy',  category: 'Utility',
+    cost: 2500, blastR: 48,  hitDamage: 150, type: 'lazyboy',  category: 'Utility',
     desc: 'Auto-aims at nearest enemy.',
   },
 };
@@ -670,8 +837,8 @@ const SETTING_DEFS = [
   { key:'rounds',   label:'Rounds',        opts:[1,5,10,20,50],                        fmt:v=>String(v) },
   { key:'cash',     label:'Starting Cash', opts:[5000,10000,15000,20000,30000,50000],  fmt:v=>'$'+v.toLocaleString() },
   { key:'interest', label:'Interest Rate', opts:[0,5,10,15,20,25,30],                 fmt:v=>v+'%' },
-  { key:'terrain',  label:'Terrain',       opts:['Random','Plains','Plateaus','Mountains','Canyon'], fmt:v=>v },
-  { key:'walls',    label:'Walls',         opts:['None','Rubber','Wrap','Concrete'],   fmt:v=>v },
+  { key:'terrain',  label:'Terrain',       opts:['Random','Plains','Plateaus','Mountains','Canyon','Fortress','Mixed'], fmt:v=>v },
+  { key:'walls',    label:'Walls',         opts:['None','Rubber','Wrap','Concrete','Absorb','Random'], fmt:v=>v },
   { key:'wind',     label:'Wind',          opts:['None','Light','Gusty','Tornado'],    fmt:v=>v },
   { key:'gravity',  label:'Gravity',       opts:['Low','Normal','High'],               fmt:v=>v },
 ];
@@ -727,6 +894,27 @@ function soundFire() {
   const ngn = audioCtx.createGain();
   ngn.gain.setValueAtTime(0.28, now);
   ngn.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+  ns.connect(ngn); ngn.connect(masterGain);
+  ns.start(now);
+}
+
+function soundThud() {
+  if (!ensureAudio()) return;
+  const now = audioCtx.currentTime;
+  const osc = audioCtx.createOscillator();
+  const ogn = audioCtx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(90, now);
+  osc.frequency.exponentialRampToValueAtTime(28, now + 0.20);
+  ogn.gain.setValueAtTime(0.65, now);
+  ogn.gain.exponentialRampToValueAtTime(0.001, now + 0.20);
+  osc.connect(ogn); ogn.connect(masterGain);
+  osc.start(now); osc.stop(now + 0.20);
+  const ns  = audioCtx.createBufferSource();
+  ns.buffer = makeNoise(0.14);
+  const ngn = audioCtx.createGain();
+  ngn.gain.setValueAtTime(0.35, now);
+  ngn.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
   ns.connect(ngn); ngn.connect(masterGain);
   ns.start(now);
 }
@@ -872,13 +1060,22 @@ let shopMoneyAtOpen   = 0;
 let enabledWeapons    = [];
 let enabledDefenses   = [];
 let napalmTurnPending = false;
+let wallFlashes       = [];
 let worldWidth       = 0;
+
+// ── intro sequence state ───────────────────────────────────────────────────
+let introPhase     = 'none';  // 'running' | 'none'
+let introTimer     = 0;
+let introTankDrops = [];      // [{y, vy, settled, startDelay, finalY}]
+let introFinishCb  = null;
 
 // ── round / scoring state ──────────────────────────────────────────────────
 let totalRounds      = 5;
 let currentRound     = 1;
 let playerStats      = [];  // [{ name, color, kills, damageDealt, cashEarned, roundWins, score }]
 let cashAtRoundStart = [];  // tank.money snapshot at round start
+let lastRoundData    = [];  // per-round snapshot: [{ kills, damage, cash }]
+let prevRankings     = [];  // sorted player indices before this round's score update
 
 // camera (world-space x/y offset; only x is used)
 let camera = { x: 0, y: 0, targetX: 0, targetY: 0 };
@@ -896,10 +1093,10 @@ let currentSetupCount = 2;
 let gameSettings     = {};
 
 // ── DOS menu state ──────────────────────────────────────────────────────────
-let menuPlayers     = Array.from({length:10}, (_, i) => ({
+let menuPlayers     = Array.from({length:5}, (_, i) => ({
   name:`Player ${i+1}`, colorIdx:i, typeIdx: i < 2 ? 1 : 0,
 }));
-let menuSettingsIdx = { rounds:1, cash:1, interest:2, terrain:0, walls:0, wind:1, gravity:1 };
+let menuSettingsIdx = { rounds:1, cash:1, interest:2, terrain:0, walls:5, wind:1, gravity:1 };
 let menuWeapons     = Object.fromEntries(MENU_WEAPONS.map(w=>[w,true]));
 let menuDefenses    = Object.fromEntries(MENU_DEFENSES.map(d=>[d,true]));
 
@@ -909,27 +1106,119 @@ function resize() {
   canvas.height = window.innerHeight;
 }
 
-// ── midpoint displacement terrain ──────────────────────────────────────────
-function generateTerrain() {
-  const w = worldWidth, h = canvas.height;
-  terrain = new Array(w);
-  const lo = h * 0.42, hi = h * 0.74;
-  terrain[0]     = lo + Math.random() * (hi - lo);
-  terrain[w - 1] = lo + Math.random() * (hi - lo);
-
-  function subdivide(l, r, scale) {
+// ── terrain style functions ────────────────────────────────────────────────
+function _midpoint(t, w, lo, hi, scale, clampLo, clampHi) {
+  t[0]     = lo + Math.random() * (hi - lo);
+  t[w - 1] = lo + Math.random() * (hi - lo);
+  function sub(l, r, sc) {
     if (r - l <= 1) return;
-    const mid  = (l + r) >> 1;
-    const disp = (Math.random() - 0.5) * scale * (r - l);
-    terrain[mid] = Math.max(lo * 0.55, Math.min(hi * 1.08,
-      (terrain[l] + terrain[r]) / 2 + disp));
-    subdivide(l, mid, scale);
-    subdivide(mid, r, scale);
+    const mid = (l + r) >> 1;
+    const disp = (Math.random() - 0.5) * sc * (r - l);
+    t[mid] = Math.max(clampLo, Math.min(clampHi, (t[l] + t[r]) / 2 + disp));
+    sub(l, mid, sc); sub(mid, r, sc);
   }
-  subdivide(0, w - 1, 0.42);
+  sub(0, w - 1, scale);
+  for (let x = 1; x < w - 1; x++) if (t[x] == null) t[x] = (t[x - 1] + t[x + 1]) / 2;
+}
 
-  for (let x = 1; x < w - 1; x++) {
-    if (terrain[x] == null) terrain[x] = (terrain[x - 1] + terrain[x + 1]) / 2;
+function _terrainRandom(w, h) {
+  const t = new Array(w);
+  const lo = h * 0.58, hi = h * 0.82;
+  _midpoint(t, w, lo, hi, 0.42, lo * 0.55, hi * 1.04);
+  return t;
+}
+
+function _terrainPlains(w, h) {
+  const t = new Array(w);
+  const lo = h * 0.66, hi = h * 0.82;
+  _midpoint(t, w, lo, hi, 0.07, lo * 0.92, hi);
+  return t;
+}
+
+function _terrainMountains(w, h) {
+  const t = new Array(w);
+  const lo = h * 0.28, hi = h * 0.88;
+  _midpoint(t, w, lo, hi, 0.78, lo * 0.55, hi * 1.04);
+  return t;
+}
+
+function _terrainPlateaus(w, h) {
+  const t = new Array(w);
+  const n = 3 + Math.floor(Math.random() * 3);
+  const levels = Array.from({length: n}, () => h * (0.44 + Math.random() * 0.38));
+  const CLIFF = 22;
+  const segW = w / n;
+  for (let p = 0; p < n; p++) {
+    const sx  = Math.floor(p * segW);
+    const ex  = Math.floor((p + 1) * segW);
+    const prevLvl = p === 0 ? levels[0] : levels[p - 1];
+    const lvl = levels[p];
+    for (let x = sx; x < ex; x++) {
+      const f = Math.min(1, (x - sx) / CLIFF);
+      const smooth = f < 1 ? f * f * (3 - 2 * f) : 1;
+      t[x] = Math.max(h * 0.20, Math.min(h * 0.92,
+        prevLvl + (lvl - prevLvl) * smooth + (Math.random() - 0.5) * 3));
+    }
+  }
+  for (let x = 0; x < w; x++) if (t[x] == null) t[x] = h * 0.70;
+  return t;
+}
+
+function _terrainCanyon(w, h) {
+  const t = new Array(w);
+  for (let x = 0; x < w; x++) {
+    const f    = x / (w - 1);
+    const bowl = Math.cos(f * Math.PI);  // +1 at edges, -1 at center
+    const base = h * 0.72 - bowl * h * 0.22;
+    t[x] = Math.max(h * 0.20, Math.min(h * 0.93, base + (Math.random() - 0.5) * 8));
+  }
+  return t;
+}
+
+function _terrainFortress(w, h) {
+  const n      = playerConfigs ? playerConfigs.length : 2;
+  const baseY  = h * 0.82;
+  const t      = new Array(w).fill(baseY);
+  const WALL_H = h * 0.18;
+  const fortY  = baseY - WALL_H;
+  const RAMP   = 16;
+  const segW   = w / n;
+  for (let p = 0; p < n; p++) {
+    const cx   = (p + 0.5) * segW;
+    const fortW = segW * 0.45;
+    const fx0  = cx - fortW / 2;
+    const fx1  = cx + fortW / 2;
+    for (let x = Math.floor(fx0 - RAMP); x <= Math.ceil(fx1 + RAMP); x++) {
+      if (x < 0 || x >= w) continue;
+      let y;
+      if (x < fx0) {
+        const f = Math.max(0, (x - (fx0 - RAMP)) / RAMP);
+        y = baseY - WALL_H * f * f;
+      } else if (x <= fx1) {
+        y = fortY + (Math.random() - 0.5) * 3;
+      } else {
+        const f = Math.min(1, (x - fx1) / RAMP);
+        y = fortY + (baseY - fortY) * f * f;
+      }
+      t[x] = Math.max(h * 0.20, Math.min(h * 0.95, y));
+    }
+  }
+  return t;
+}
+
+// ── terrain dispatcher ─────────────────────────────────────────────────────
+function generateTerrain() {
+  const style = gameSettings.terrain || 'Random';
+  const w = worldWidth, h = canvas.height;
+  const STYLES = ['Plains','Plateaus','Mountains','Canyon','Fortress'];
+  const pick = STYLES[Math.floor(Math.random() * STYLES.length)];
+  switch (style === 'Random' ? pick : style === 'Mixed' ? pick : style) {
+    case 'Plains':    terrain = _terrainPlains(w, h);    break;
+    case 'Plateaus':  terrain = _terrainPlateaus(w, h);  break;
+    case 'Mountains': terrain = _terrainMountains(w, h); break;
+    case 'Canyon':    terrain = _terrainCanyon(w, h);    break;
+    case 'Fortress':  terrain = _terrainFortress(w, h);  break;
+    default:          terrain = _terrainRandom(w, h);    break;
   }
 }
 
@@ -940,7 +1229,7 @@ function generateStars() {
   for (let i = 0; i < count; i++) {
     stars.push({
       x: Math.random() * worldWidth,
-      y: Math.random() * canvas.height * 0.55,
+      y: Math.random() * canvas.height * 0.70,
       r: Math.random() < 0.15 ? 1.5 : 1,
       a: 0.4 + Math.random() * 0.6,
     });
@@ -1259,6 +1548,27 @@ function drawWindIndicator() {
   ctx.textAlign = 'right';
   ctx.fillText(mphStr, bx + bw - 8, cy);
 
+  // Wall-mode indicator (left of wind box)
+  if (gameSettings && gameSettings.walls) {
+    const wbw = 110, wbh = 38;
+    const wbx = bx - wbw - 6;
+    const wby = by;
+    ctx.fillStyle = 'rgba(0,0,0,0.58)';
+    ctx.fillRect(wbx, wby, wbw, wbh);
+    ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(wbx, wby, wbw, wbh);
+    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    ctx.font = '12px Courier New';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('WALLS', wbx + 9, wby + wbh / 2);
+    ctx.fillStyle = 'rgba(255,200,60,0.90)';
+    ctx.font = 'bold 12px Courier New';
+    ctx.textAlign = 'right';
+    ctx.fillText(gameSettings.walls, wbx + wbw - 8, wby + wbh / 2);
+  }
+
   const arrowOrigin = bx + 52;
   const maxLen      = 68;
 
@@ -1293,6 +1603,41 @@ function drawWindIndicator() {
   ctx.closePath();
   ctx.fillStyle = arrowColor;
   ctx.fill();
+}
+
+function drawWallBorder() {
+  const mode = gameSettings && gameSettings.walls;
+  if (!mode || mode === 'None') return;
+  const WALL_COLORS = {
+    Rubber:   'rgba(160, 32, 240, 0.82)',
+    Wrap:     'rgba(0, 210, 255, 0.70)',
+    Concrete: 'rgba(230, 230, 230, 0.85)',
+    Absorb:   'rgba(255, 185, 0, 0.78)',
+  };
+  const color = WALL_COLORS[mode];
+  if (!color) return;
+  const W = canvas.width, H = canvas.height, T = 5;
+  ctx.fillStyle = color;
+  ctx.fillRect(0, 0, T, H);         // left
+  ctx.fillRect(W - T, 0, T, H);     // right
+  if (mode !== 'Absorb') {           // Absorb top is open
+    ctx.fillRect(0, 0, W, T);        // ceiling
+  }
+}
+
+function drawWallFlashes() {
+  for (const f of wallFlashes) {
+    const t     = f.age / f.duration;
+    const alpha = (1 - t) * 0.85;
+    const size  = 28 * (1 - t);
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(f.x, f.y, size, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
 }
 
 // ── terrain destruction ─────────────────────────────────────────────────────
@@ -1394,7 +1739,7 @@ function onImpact(proj, px, py) {
   if (wep.hitDamage > 0) {
     for (const t of tanks) {
       if (t.health <= 0) continue;
-      const dist = Math.hypot(px - t.x, py - t.y);
+      const dist = Math.hypot(px - t.x, py - (t.y - 9));
       if (dist < wep.blastR + TANK_HIT_R) {
         const frac = Math.max(0, 1 - dist / (wep.blastR + TANK_HIT_R));
         let dmg    = Math.round(wep.hitDamage * Math.pow(frac, 1.4));
@@ -1451,7 +1796,7 @@ function spawnMirvChildren(parent) {
 
 function spawnRiotChildren(proj, px, py) {
   const n = proj.weapon.riotCount || 20;
-  const childWep = { blastR: 18, hitDamage: 25, type: 'standard' };
+  const childWep = { blastR: 18, hitDamage: 50, type: 'standard' };
   for (let k = 0; k < n; k++) {
     const angle = Math.random() * Math.PI * 2;
     const speed = 60 + Math.random() * 150;
@@ -1527,25 +1872,36 @@ function checkWin() {
 }
 
 function endRound() {
+  // Compute per-round kills before accumulating
+  const roundKills = new Array(tanks.length).fill(0);
+  tanks.forEach(t => { if (t.health <= 0 && t.killedBy >= 0) roundKills[t.killedBy]++; });
+
+  // Capture per-round snapshot
+  lastRoundData = tanks.map((t, i) => ({
+    kills:  roundKills[i],
+    damage: t.damageDealt,
+    cash:   Math.max(0, t.money - cashAtRoundStart[i]),
+  }));
+
+  // Save rankings before score update (for rank-change arrows)
+  prevRankings = playerStats.map((_, i) => i)
+    .sort((a, b) => playerStats[b].score - playerStats[a].score);
+
   // Credit kills
-  tanks.forEach(t => {
-    if (t.health <= 0 && t.killedBy >= 0) playerStats[t.killedBy].kills++;
-  });
+  tanks.forEach(t => { if (t.health <= 0 && t.killedBy >= 0) playerStats[t.killedBy].kills++; });
 
   // Award round win to survivor
   const living = tanks.filter(t => t.health > 0);
   if (living.length === 1) playerStats[tanks.indexOf(living[0])].roundWins++;
 
-  // Accumulate per-round stats
+  // Accumulate per-round stats into cumulative totals
   tanks.forEach((t, i) => {
     playerStats[i].damageDealt += t.damageDealt;
     playerStats[i].cashEarned  += Math.max(0, t.money - cashAtRoundStart[i]);
   });
 
   // Recompute scores
-  playerStats.forEach(s => {
-    s.score = s.kills * 1000 + s.damageDealt + s.roundWins * 500;
-  });
+  playerStats.forEach(s => { s.score = s.kills * 1000 + s.damageDealt + s.roundWins * 500; });
 
   showScoreboard(currentRound >= totalRounds);
 }
@@ -1553,55 +1909,145 @@ function endRound() {
 function showScoreboard(isFinal) {
   const living = tanks.filter(t => t.health > 0);
 
-  document.getElementById('scoreboard-title').textContent =
-    isFinal ? 'FINAL RESULTS' : `ROUND ${currentRound} OF ${totalRounds}`;
+  // Header
+  document.getElementById('sb-round-title').textContent =
+    isFinal ? 'ROUND COMPLETE' : `ROUND ${currentRound} COMPLETE`;
+  document.getElementById('sb-round-sub').textContent =
+    `Round ${currentRound} of ${totalRounds}`;
 
-  let subtitle = '';
-  if (!isFinal) {
-    if (living.length === 1) {
-      const w = living[0];
-      subtitle = `<span style="color:${w.color}">${w.name} wins the round!</span>`;
-    } else {
-      subtitle = 'DRAW';
-    }
+  // Winner banner
+  const winnerEl = document.getElementById('sb-winner');
+  if (living.length === 1) {
+    const w = living[0];
+    winnerEl.innerHTML = `<span style="color:${w.color}">&#9658; ${htmlEsc(w.name)} &mdash; WINNER</span>`;
+  } else {
+    winnerEl.innerHTML = '<span style="color:#888">&#8212;&nbsp;DRAW&nbsp;&#8212;</span>';
   }
-  document.getElementById('scoreboard-subtitle').innerHTML = subtitle;
 
-  // Build rows — sort by score for final, preserve original order otherwise
-  const indices = playerStats.map((_, i) => i);
-  if (isFinal) indices.sort((a, b) => playerStats[b].score - playerStats[a].score);
+  // Sorted indices (by total score descending)
+  const sortedIdx = playerStats.map((_, i) => i)
+    .sort((a, b) => playerStats[b].score - playerStats[a].score);
 
+  // Rank-change map: prevRankMap[playerIndex] = their rank last round
+  const prevRankMap = {};
+  prevRankings.forEach((si, r) => { prevRankMap[si] = r; });
+
+  // Table headers
+  document.getElementById('sb-thead-row').innerHTML =
+    '<th>PLAYER</th><th>RND K</th><th>RND DMG</th><th>RND CASH</th><th>TTL KILLS</th><th>SCORE</th>';
+
+  // Table body
   const tbody = document.getElementById('scoreboard-body');
   tbody.innerHTML = '';
-  indices.forEach((si, rank) => {
-    const s = playerStats[si];
+  sortedIdx.forEach((si, rank) => {
+    const s  = playerStats[si];
+    const rd = lastRoundData[si] || { kills: 0, damage: 0, cash: 0 };
     const tr = document.createElement('tr');
-    if (isFinal) {
-      tr.className = rank === 0 ? 'rank-1' : rank === 1 ? 'rank-2' : rank === 2 ? 'rank-3' : '';
-    } else if (tanks[si] && tanks[si].health <= 0) {
-      tr.className = 'rank-dead';
+    const isDead = tanks[si] && tanks[si].health <= 0;
+    tr.className = rank === 0 ? 'sb-leader' : isDead ? 'sb-dead' : '';
+
+    // Rank-change arrow
+    let arrow = '';
+    if (prevRankings.length > 0) {
+      const prev = prevRankMap[si] ?? rank;
+      const diff = prev - rank;
+      arrow = diff > 0 ? '<span class="sb-rank-up">&#9650;</span>'
+            : diff < 0 ? '<span class="sb-rank-dn">&#9660;</span>'
+                       : '<span class="sb-rank-nc">&#8212;</span>';
     }
-    const rankPrefix = isFinal ? `${rank + 1}. ` : '';
+
     tr.innerHTML = `
       <td><div class="sb-player-cell">
         <div class="sb-swatch" style="background:${s.color}"></div>
-        ${rankPrefix}${s.name}
+        ${arrow}&nbsp;<span style="color:${s.color}">${htmlEsc(s.name)}</span>
       </div></td>
+      <td>${rd.kills}</td>
+      <td>${rd.damage.toLocaleString()}</td>
+      <td>$${rd.cash.toLocaleString()}</td>
       <td>${s.kills}</td>
-      <td>${s.damageDealt}</td>
-      <td>$${s.cashEarned}</td>
-      <td>${s.score}</td>
-    `;
+      <td>${s.score.toLocaleString()}</td>`;
     tbody.appendChild(tr);
   });
 
+  // Cash summary
+  const cashRows = document.getElementById('sb-cash-rows');
+  cashRows.innerHTML = '';
+  document.getElementById('sb-cash-section').style.display = '';
+  const rate = (gameSettings.interest || 0) / 100;
+  tanks.forEach((t, i) => {
+    const s        = playerStats[i];
+    const prev     = cashAtRoundStart[i];
+    const earned   = Math.max(0, t.money - cashAtRoundStart[i]);
+    const batBonus = 0.20 * ((t.defInventory || {})['Battery'] || 0);
+    const interest = rate > 0 ? Math.floor(t.money * (rate + batBonus)) : 0;
+    const newBal   = t.money + interest;
+    const intPct   = Math.round((rate + batBonus) * 100);
+    const intPart  = rate > 0
+      ? ` + <span style="color:#55ff55">$${interest.toLocaleString()}</span><span class="sb-cash-math"> (${intPct}%)</span>`
+      : '';
+    const div = document.createElement('div');
+    div.className = 'sb-cash-row';
+    div.innerHTML =
+      `<span class="sb-cash-name" style="color:${s.color}">${htmlEsc(s.name)}</span>` +
+      `<span class="sb-cash-math">$${prev.toLocaleString()} + $${earned.toLocaleString()}${intPart} = </span>` +
+      `<span class="sb-cash-total">$${newBal.toLocaleString()}</span>`;
+    cashRows.appendChild(div);
+  });
+
+  // Footer
+  document.getElementById('sb-footer-left').textContent =
+    `Round ${currentRound} of ${totalRounds}`;
   const btn = document.getElementById('scoreboard-next');
-  btn.textContent = isFinal ? '▶ PLAY AGAIN' : 'NEXT ROUND →';
-  btn.onclick = isFinal ? () => { scoreboardEl.style.display = 'none'; showSetup(); }
-                        : startNextRound;
+  btn.textContent = isFinal ? 'FINAL RESULTS \u00bb' : 'NEXT ROUND \u2192';
+  btn.disabled = true;
+  btn.onclick   = isFinal ? showFinalResults : startNextRound;
+  setTimeout(() => { if (scoreboardEl.style.display !== 'none') btn.disabled = false; }, 1000);
 
   winEl.style.display = 'none';
   scoreboardEl.style.display = 'block';
+}
+
+function showFinalResults() {
+  const sortedIdx = playerStats.map((_, i) => i)
+    .sort((a, b) => playerStats[b].score - playerStats[a].score);
+  const winner = playerStats[sortedIdx[0]];
+
+  document.getElementById('sb-round-title').textContent = 'FINAL RESULTS';
+  document.getElementById('sb-round-sub').textContent =
+    `${totalRounds} Round${totalRounds !== 1 ? 's' : ''} Complete`;
+  document.getElementById('sb-winner').innerHTML =
+    `<span style="color:${winner.color}">&#9658; ${htmlEsc(winner.name)} &mdash; OVERALL WINNER</span>`;
+
+  const rankColors = ['#ffd700', '#c0c0c0', '#cd7f32'];
+  document.getElementById('sb-thead-row').innerHTML =
+    '<th>PLAYER</th><th>KILLS</th><th>DAMAGE</th><th>CASH EARNED</th><th>RND WINS</th><th>SCORE</th>';
+
+  const tbody = document.getElementById('scoreboard-body');
+  tbody.innerHTML = '';
+  sortedIdx.forEach((si, rank) => {
+    const s  = playerStats[si];
+    const tr = document.createElement('tr');
+    tr.className = rank === 0 ? 'sb-leader' : '';
+    const col = rankColors[rank] || '#fff';
+    tr.innerHTML = `
+      <td><div class="sb-player-cell">
+        <div class="sb-swatch" style="background:${s.color}"></div>
+        <span style="color:${col}">${rank + 1}. ${htmlEsc(s.name)}</span>
+      </div></td>
+      <td>${s.kills}</td>
+      <td>${s.damageDealt.toLocaleString()}</td>
+      <td>$${s.cashEarned.toLocaleString()}</td>
+      <td>${s.roundWins}</td>
+      <td>${s.score.toLocaleString()}</td>`;
+    tbody.appendChild(tr);
+  });
+
+  document.getElementById('sb-cash-section').style.display = 'none';
+  document.getElementById('sb-footer-left').textContent = 'Thanks for playing!';
+  const btn = document.getElementById('scoreboard-next');
+  btn.textContent = '\u25ba PLAY AGAIN';
+  btn.disabled = false;
+  btn.onclick = () => { scoreboardEl.style.display = 'none'; showSetup(); };
 }
 
 function startNextRound() {
@@ -1623,10 +2069,20 @@ function startNextRound() {
   shopOpen          = false;
   screenShake       = 0;
   napalmTurnPending = false;
+  wallFlashes       = [];
+  introPhase        = 'none';
+  introTimer        = 0;
+  introTankDrops    = [];
+  introFinishCb     = null;
   cpuThinking       = false;
   cpuThinkTimer     = 0;
   camera.x = camera.targetX = 0;
   camera.y = camera.targetY = 0;
+
+  if (gameSettings.wallsOriginal === 'Random') {
+    const concrete = ['None','Rubber','Wrap','Concrete','Absorb'];
+    gameSettings.walls = concrete[Math.floor(Math.random() * concrete.length)];
+  }
 
   generateTerrain();
   generateStars();
@@ -1658,16 +2114,18 @@ function startNextRound() {
   camera.x = camera.targetX;
 
   runShopPhase(() => {
-    currentPlayer = 0;
-    const n = tanks.length;
-    for (let i = 0; i < n; i++) {
-      if (tanks[currentPlayer].health > 0) break;
-      currentPlayer = (currentPlayer + 1) % n;
-    }
-    updateUI();
-    updateWeaponIndicator();
-    setCameraTarget(tanks[currentPlayer]);
-    if (tanks[currentPlayer].isAI) setTimeout(startCpuTurn, 400);
+    startIntroSequence(() => {
+      currentPlayer = 0;
+      const n = tanks.length;
+      for (let i = 0; i < n; i++) {
+        if (tanks[currentPlayer].health > 0) break;
+        currentPlayer = (currentPlayer + 1) % n;
+      }
+      updateUI();
+      updateWeaponIndicator();
+      setCameraTarget(tanks[currentPlayer]);
+      if (tanks[currentPlayer].isAI) setTimeout(startCpuTurn, 400);
+    });
   });
 }
 
@@ -1717,11 +2175,30 @@ function updateUI() {
 
 function updateWeaponIndicator() {
   if (gameOver) return;
-  const t   = tanks[currentPlayer];
-  const inv = t.inventory[t.selectedWeapon];
-  const ammo = inv === Infinity ? '∞' : String(inv);
-  document.getElementById('weapon-indicator').innerHTML =
-    `<span style="color:${t.color}">${t.selectedWeapon}</span><br><small>${ammo} &nbsp;|&nbsp; $${t.money}</small>`;
+  const t = tanks[currentPlayer];
+  const tag = t.isAI ? ' [CPU]' : '';
+  let html = `<div class="wi-header" style="color:${t.color}">${t.name}${tag} &nbsp;$${t.money}</div>`;
+
+  // Weapons
+  const weaponRows = Object.entries(t.inventory)
+    .filter(([, qty]) => qty === Infinity || qty > 0)
+    .map(([name, qty]) => {
+      const ammo = qty === Infinity ? '∞' : qty;
+      const sel  = name === t.selectedWeapon;
+      const mark = sel ? '&#9658; ' : '&nbsp;&nbsp;';
+      return `<div class="wi-row${sel ? ' wi-selected' : ''}">${mark}${name} <span class="wi-ammo">(${ammo})</span></div>`;
+    });
+  html += weaponRows.join('');
+
+  // Defenses
+  const defRows = Object.entries(t.defInventory || {})
+    .filter(([, qty]) => qty > 0)
+    .map(([name, qty]) => `<div class="wi-row">&nbsp;&nbsp;${name} <span class="wi-ammo">(${qty})</span></div>`);
+  if (defRows.length > 0) {
+    html += `<div class="wi-section">Defenses</div>` + defRows.join('');
+  }
+
+  document.getElementById('weapon-indicator').innerHTML = html;
 }
 
 // ── weapon cycling ─────────────────────────────────────────────────────────
@@ -2134,11 +2611,114 @@ function fire() {
   updateWeaponIndicator();
 }
 
+// ── intro sequence ─────────────────────────────────────────────────────────
+function startIntroSequence(cb) {
+  introFinishCb  = cb;
+  introPhase     = 'running';
+  introTimer     = 0;
+  introTankDrops = tanks.map((t, i) => ({
+    y:          -120 - i * 50,
+    vy:         0,
+    bounces:    0,
+    settled:    false,
+    startDelay: 1.0 + i * 0.28,
+    finalY:     t.y,
+  }));
+  // Move all tanks off-screen until their drop begins
+  tanks.forEach(t => { t.y = -300; });
+}
+
+function updateIntroDrops(dt) {
+  const DROP_G = 500;
+  let allSettled = true;
+  for (let i = 0; i < introTankDrops.length; i++) {
+    const d = introTankDrops[i];
+    if (d.settled) { tanks[i].y = d.finalY; continue; }
+    allSettled = false;
+    if (introTimer < d.startDelay) continue;
+    d.vy += DROP_G * dt;
+    d.y  += d.vy * dt;
+    tanks[i].y = d.y;
+    if (d.y >= d.finalY) {
+      d.y        = d.finalY;
+      tanks[i].y = d.finalY;
+      if (Math.abs(d.vy) < 50 || d.bounces >= 2) {
+        d.settled = true;
+      } else {
+        d.vy      = -d.vy * 0.35;
+        d.bounces++;
+        soundThud();
+      }
+    }
+  }
+  if (allSettled && introTimer > 2.4) {
+    introPhase = 'none';
+    const cb = introFinishCb;
+    introFinishCb = null;
+    if (cb) cb();
+  }
+}
+
+function drawIntroSweep() {
+  if (introTimer >= 1.6) return;
+  const frac  = introTimer / 1.6;
+  const sx    = frac * worldWidth;
+  const grd   = ctx.createLinearGradient(sx - 50, 0, sx + 24, 0);
+  grd.addColorStop(0,   'rgba(80,200,255,0)');
+  grd.addColorStop(0.5, 'rgba(120,220,255,0.40)');
+  grd.addColorStop(1,   'rgba(200,240,255,0.12)');
+  ctx.fillStyle = grd;
+  ctx.fillRect(sx - 50, 0, 74, canvas.height);
+}
+
+function drawIntroBanner() {
+  let alpha = 0;
+  const t = introTimer;
+  if      (t < 0.35)  alpha = t / 0.35;
+  else if (t < 1.8)   alpha = 1.0;
+  else if (t < 2.2)   alpha = (2.2 - t) / 0.4;
+  if (alpha <= 0) return;
+  const cx = canvas.width / 2, cy = canvas.height / 2;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle   = 'rgba(0,0,0,0.72)';
+  ctx.fillRect(cx - 230, cy - 58, 460, 116);
+  ctx.strokeStyle = '#dd2222';
+  ctx.lineWidth   = 3;
+  ctx.strokeRect(cx - 230, cy - 58, 460, 116);
+  ctx.fillStyle   = '#ff4444';
+  ctx.font        = 'bold 62px "Courier New"';
+  ctx.textAlign   = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(`ROUND ${currentRound}`, cx, cy);
+  ctx.restore();
+}
+
 // ── main loop ──────────────────────────────────────────────────────────────
 function gameLoop(ts) {
   if (!lastTime) lastTime = ts;
   const dt = Math.min((ts - lastTime) / 1000, 0.05);
   lastTime = ts;
+
+  // ── intro sequence ─────────────────────────────────────────────────────
+  if (introPhase !== 'none') {
+    introTimer += dt;
+    updateIntroDrops(dt);
+    camera.x += (camera.targetX - camera.x) * Math.min(1, 3.5 * dt);
+    applyCamera();
+    drawScene();
+    for (let i = 0; i < tanks.length; i++) {
+      if (introTimer >= introTankDrops[i].startDelay || introTankDrops[i].settled) {
+        drawTank(tanks[i], false);
+      }
+    }
+    drawIntroSweep();
+    restoreCamera();
+    drawWallBorder();
+    drawIntroBanner();
+    animId = requestAnimationFrame(gameLoop);
+    return;
+  }
 
   // CPU think / aim animation
   if (cpuThinking && !shopOpen && projectiles.length === 0 && !gameOver) {
@@ -2174,8 +2754,25 @@ function gameLoop(ts) {
       const rpx = Math.max(0, Math.min(worldWidth - 1, Math.round(proj.x)));
       if (terrain[rpx] != null) proj.y = terrain[rpx];
       const maxDist = proj.weapon.maxRollDist || 360;
-      if (rpx <= 0 || rpx >= worldWidth - 1 || proj.rollDist >= maxDist) {
+      if (proj.rollDist >= maxDist) {
         onImpact(proj, rpx, Math.round(proj.y)); continue;
+      }
+      if (rpx <= 0 || rpx >= worldWidth - 1) {
+        const wm = gameSettings.walls || 'None';
+        if (wm === 'Rubber') {
+          proj.rollVx = -proj.rollVx * 0.80;
+          proj.x = rpx <= 0 ? 1 : worldWidth - 2;
+          wallFlashes.push({ x: proj.x, y: proj.y, age: 0, duration: 0.25 });
+        } else if (wm === 'Wrap') {
+          proj.x = rpx <= 0 ? worldWidth - 2 : 1;
+        } else if (wm === 'Concrete' || wm === 'Absorb') {
+          onImpact(proj, rpx, Math.round(proj.y)); continue;
+        } else {
+          // None — roller vanishes at edge, turn ends
+          projectiles.splice(i, 1);
+          if (projectiles.length === 0 && !napalmTurnPending) { stopWhistle(); if (!checkWin()) nextTurn(); }
+          continue;
+        }
       }
       for (let j = 0; j < tanks.length; j++) {
         if (j === proj.owner) continue;
@@ -2226,13 +2823,70 @@ function gameLoop(ts) {
     const py = proj.y;
     const w  = worldWidth, h = canvas.height;
 
-    if (px < 0 || px >= w || py > h + 60) {
+    // Bottom boundary — always remove
+    if (py > h + 60) {
       projectiles.splice(i, 1);
-      if (projectiles.length === 0 && !napalmTurnPending) {
-        stopWhistle();
-        if (!checkWin()) nextTurn();
+      if (projectiles.length === 0 && !napalmTurnPending) { stopWhistle(); if (!checkWin()) nextTurn(); }
+      continue;
+    }
+
+    const hitLeft  = proj.x < 0;
+    const hitRight = proj.x >= w;
+    const hitTop   = py < 0;
+
+    if (hitLeft || hitRight || hitTop) {
+      const wallMode = gameSettings.walls || 'None';
+      if (wallMode === 'Rubber') {
+        const BOUNCE_DAMPEN = 0.80;
+        if (hitLeft || hitRight) {
+          proj.vx = -proj.vx * BOUNCE_DAMPEN;
+          proj.vy *= BOUNCE_DAMPEN;
+          proj.x  = hitLeft ? 1 : w - 2;
+          wallFlashes.push({ x: proj.x, y: proj.y, age: 0, duration: 0.25 });
+        } else {
+          proj.vy = -proj.vy * BOUNCE_DAMPEN;
+          proj.vx *= BOUNCE_DAMPEN;
+          proj.y  = 1;
+          wallFlashes.push({ x: proj.x, y: proj.y, age: 0, duration: 0.25 });
+        }
+      } else if (wallMode === 'Wrap') {
+        if (hitLeft)  proj.x = w - 2;
+        if (hitRight) proj.x = 1;
+        if (hitTop) { proj.y = 1; proj.vy = Math.abs(proj.vy); } // lossless ceiling reflect, no flash
+      } else if (wallMode === 'Concrete') {
+        const ex = hitLeft ? 0 : hitRight ? w - 1 : Math.round(proj.x);
+        const ey = hitTop  ? 0 : Math.round(proj.y);
+        onImpact(proj, ex, ey);
+      } else if (wallMode === 'Absorb') {
+        if (hitTop) {
+          projectiles.splice(i, 1);
+          if (projectiles.length === 0 && !napalmTurnPending) { stopWhistle(); if (!checkWin()) nextTurn(); }
+        } else {
+          proj.weapon = Object.assign({}, proj.weapon, { blastR: Math.round((proj.weapon.blastR || BLAST_R) * 0.5) });
+          const ex = hitLeft ? 0 : w - 1;
+          onImpact(proj, ex, Math.round(proj.y));
+        }
+      } else {
+        // None — disappear
+        projectiles.splice(i, 1);
+        if (projectiles.length === 0 && !napalmTurnPending) { stopWhistle(); if (!checkWin()) nextTurn(); }
       }
-    } else if (py >= 0 && terrain[px] != null && py >= terrain[px]) {
+      continue;
+    }
+
+    // Tank collision checked FIRST — terrain craters must not swallow missiles that hit a tank
+    let tankHit = false;
+    for (let j = 0; j < tanks.length; j++) {
+      if (j === proj.owner) continue;
+      const t = tanks[j];
+      if (t.health <= 0) continue;
+      if (Math.hypot(proj.x - t.x, proj.y - (t.y - 9)) < TANK_HIT_R) {
+        onImpact(proj, px, Math.round(py));
+        tankHit = true;
+        break;
+      }
+    }
+    if (!tankHit && py >= 0 && terrain[px] != null && py >= terrain[px]) {
       if (proj.type === 'roller' && !proj.rolling) {
         proj.rolling  = true;
         proj.rollDist = 0;
@@ -2245,16 +2899,6 @@ function gameLoop(ts) {
       } else {
         onImpact(proj, px, Math.round(py));
       }
-    } else {
-      for (let j = 0; j < tanks.length; j++) {
-        if (j === proj.owner) continue;
-        const t = tanks[j];
-        if (t.health <= 0) continue;
-        if (Math.hypot(proj.x - t.x, proj.y - (t.y - 9)) < TANK_HIT_R) {
-          onImpact(proj, px, Math.round(py));
-          break;
-        }
-      }
     }
   }
 
@@ -2263,6 +2907,10 @@ function gameLoop(ts) {
   updateTankPhysics(dt);
   updateExplosions(dt);
   updateNapalm(dt);
+  for (let i = wallFlashes.length - 1; i >= 0; i--) {
+    wallFlashes[i].age += dt;
+    if (wallFlashes[i].age >= wallFlashes[i].duration) wallFlashes.splice(i, 1);
+  }
 
   // Draw — world-space items under camera transform
   applyCamera();
@@ -2274,18 +2922,85 @@ function gameLoop(ts) {
   drawProjectiles();
   drawExplosions();
   drawNapalm();
+  drawWallFlashes();
   restoreCamera();
 
   // Screen-space HUD (drawn after restoreCamera)
+  drawWallBorder();
   drawWindIndicator();
 
   animId = requestAnimationFrame(gameLoop);
 }
 
+// ── about overlay ──────────────────────────────────────────────────────────
+const aboutOverlayEl = document.getElementById('about-overlay');
+aboutOverlayEl.addEventListener('click', e => {
+  if (e.target === aboutOverlayEl) aboutOverlayEl.classList.remove('visible');
+});
+
+// ── quit to menu ───────────────────────────────────────────────────────────
+const quitConfirmEl = document.getElementById('quit-confirm');
+document.getElementById('quit-btn-yes').addEventListener('click', () => {
+  quitConfirmEl.classList.remove('visible');
+  if (animId) { cancelAnimationFrame(animId); animId = null; }
+  gameOver = true;
+  showSetup();
+});
+document.getElementById('quit-btn-no').addEventListener('click', () => {
+  quitConfirmEl.classList.remove('visible');
+});
+
+function showQuitConfirm() {
+  if (setupEl.style.display !== 'none') return; // already on menu
+  quitConfirmEl.classList.add('visible');
+}
+
 // ── keyboard ───────────────────────────────────────────────────────────────
 document.addEventListener('keydown', e => {
   ensureAudio();
+
+  // Escape: close any open overlay first
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    if (aboutOverlayEl.classList.contains('visible')) {
+      aboutOverlayEl.classList.remove('visible'); return;
+    }
+    if (quitConfirmEl.classList.contains('visible')) {
+      quitConfirmEl.classList.remove('visible'); return;
+    }
+    if (setupEl.style.display === 'none' && !shopOpen) {
+      showQuitConfirm();
+    }
+    return;
+  }
+
+  // A: about (on menu screen only)
+  if ((e.key === 'a' || e.key === 'A') && setupEl.style.display !== 'none') {
+    e.preventDefault();
+    aboutOverlayEl.classList.toggle('visible');
+    return;
+  }
+
+  // Ctrl-Q: quit confirm during gameplay
+  if (e.ctrlKey && (e.key === 'q' || e.key === 'Q')) {
+    if (setupEl.style.display === 'none' && !shopOpen) {
+      e.preventDefault();
+      showQuitConfirm();
+    }
+    return;
+  }
+
+  if (scoreboardEl.style.display !== 'none') {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      const btn = document.getElementById('scoreboard-next');
+      if (btn && !btn.disabled) btn.click();
+    }
+    return;
+  }
+
   if (shopOpen) { handleShopKey(e); return; }
+  if (introPhase !== 'none') return;
   if (gameOver || projectiles.length > 0 || cpuThinking) return;
   if (!tanks || !tanks[currentPlayer] || tanks[currentPlayer].isAI) return;
   const t    = tanks[currentPlayer];
@@ -2296,7 +3011,7 @@ document.addEventListener('keydown', e => {
     case 'ArrowUp':    e.preventDefault(); t.power = Math.min(MAX_POWER, t.power + step); soundPower(+1); break;
     case 'ArrowDown':  e.preventDefault(); t.power = Math.max(1,         t.power - step); soundPower(-1); break;
     case ' ':          e.preventDefault(); fire(); return;
-    case 'q': case 'Q': e.preventDefault(); cycleWeapon(-1); return;
+    case 'q': case 'Q': if (!e.ctrlKey) { e.preventDefault(); cycleWeapon(-1); } return;
     case 'e': case 'E': e.preventDefault(); cycleWeapon(+1); return;
   }
   updateUI();
@@ -2479,6 +3194,11 @@ function initSetupListeners() {
       });
     const settingsOut = {};
     SETTING_DEFS.forEach(def => { settingsOut[def.key] = def.opts[menuSettingsIdx[def.key]]; });
+    settingsOut.wallsOriginal = settingsOut.walls;
+    if (settingsOut.walls === 'Random') {
+      const concrete = ['None','Rubber','Wrap','Concrete','Absorb'];
+      settingsOut.walls = concrete[Math.floor(Math.random() * concrete.length)];
+    }
     const config = {
       players:         activePlayers,
       settings:        settingsOut,
@@ -2511,6 +3231,11 @@ function initGame() {
   shopOpen          = false;
   screenShake       = 0;
   napalmTurnPending = false;
+  wallFlashes       = [];
+  introPhase        = 'none';
+  introTimer        = 0;
+  introTankDrops    = [];
+  introFinishCb     = null;
   cpuThinking       = false;
   cpuThinkTimer     = 0;
   camera.x = camera.targetX = 0;
@@ -2548,16 +3273,18 @@ function initGame() {
   animId = requestAnimationFrame(gameLoop);  // start render loop so terrain is visible during shop
 
   runShopPhase(() => {
-    currentPlayer = 0;
-    const n = tanks.length;
-    for (let i = 0; i < n; i++) {
-      if (tanks[currentPlayer].health > 0) break;
-      currentPlayer = (currentPlayer + 1) % n;
-    }
-    updateUI();
-    updateWeaponIndicator();
-    setCameraTarget(tanks[currentPlayer]);
-    if (tanks[currentPlayer].isAI) setTimeout(startCpuTurn, 400);
+    startIntroSequence(() => {
+      currentPlayer = 0;
+      const n = tanks.length;
+      for (let i = 0; i < n; i++) {
+        if (tanks[currentPlayer].health > 0) break;
+        currentPlayer = (currentPlayer + 1) % n;
+      }
+      updateUI();
+      updateWeaponIndicator();
+      setCameraTarget(tanks[currentPlayer]);
+      if (tanks[currentPlayer].isAI) setTimeout(startCpuTurn, 400);
+    });
   });
 }
 

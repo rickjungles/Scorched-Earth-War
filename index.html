@@ -948,6 +948,184 @@ function stopWhistle() {
   setTimeout(() => { try { o.stop(); o.disconnect(); g.disconnect(); } catch (_) {} }, 300);
 }
 
+// ── kill effect sounds ──────────────────────────────────────────────────────
+function soundKillExplosion() {
+  if (!ensureAudio()) return;
+  const now = audioCtx.currentTime;
+  const dur = 1.2;
+  const ns  = audioCtx.createBufferSource();
+  ns.buffer = makeNoise(dur);
+  const lpf = audioCtx.createBiquadFilter();
+  lpf.type = 'lowpass';
+  lpf.frequency.setValueAtTime(1200, now);
+  lpf.frequency.exponentialRampToValueAtTime(30, now + dur * 0.7);
+  const gn = audioCtx.createGain();
+  gn.gain.setValueAtTime(1.8, now);
+  gn.gain.exponentialRampToValueAtTime(0.001, now + dur);
+  ns.connect(lpf); lpf.connect(gn); gn.connect(masterGain);
+  ns.start(now); ns.stop(now + dur);
+  // low thud
+  const osc = audioCtx.createOscillator();
+  const ogn = audioCtx.createGain();
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(80, now);
+  osc.frequency.exponentialRampToValueAtTime(18, now + 0.6);
+  ogn.gain.setValueAtTime(0.9, now);
+  ogn.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+  osc.connect(ogn); ogn.connect(masterGain);
+  osc.start(now); osc.stop(now + 0.6);
+}
+
+function soundKillNuke() {
+  if (!ensureAudio()) return;
+  const now = audioCtx.currentTime;
+  const dur = 3.0;
+  // deep rumble
+  const ns  = audioCtx.createBufferSource();
+  ns.buffer = makeNoise(dur);
+  const lpf = audioCtx.createBiquadFilter();
+  lpf.type = 'lowpass';
+  lpf.frequency.setValueAtTime(300, now);
+  lpf.frequency.exponentialRampToValueAtTime(20, now + dur * 0.9);
+  const gn = audioCtx.createGain();
+  gn.gain.setValueAtTime(2.2, now);
+  gn.gain.exponentialRampToValueAtTime(0.001, now + dur);
+  ns.connect(lpf); lpf.connect(gn); gn.connect(masterGain);
+  ns.start(now); ns.stop(now + dur);
+  // high whine
+  const osc = audioCtx.createOscillator();
+  const ogn = audioCtx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(1800, now);
+  osc.frequency.exponentialRampToValueAtTime(60, now + 2.0);
+  ogn.gain.setValueAtTime(0.25, now);
+  ogn.gain.exponentialRampToValueAtTime(0.001, now + 2.0);
+  osc.connect(ogn); ogn.connect(masterGain);
+  osc.start(now); osc.stop(now + 2.0);
+}
+
+function soundKillMeltdown() {
+  if (!ensureAudio()) return;
+  const now = audioCtx.currentTime;
+  const dur = 2.2;
+  const ns  = audioCtx.createBufferSource();
+  ns.buffer = makeNoise(dur);
+  const bpf = audioCtx.createBiquadFilter();
+  bpf.type = 'bandpass';
+  bpf.frequency.setValueAtTime(400, now);
+  bpf.frequency.linearRampToValueAtTime(200, now + dur);
+  bpf.Q.value = 3;
+  const gn = audioCtx.createGain();
+  gn.gain.setValueAtTime(0.9, now);
+  gn.gain.exponentialRampToValueAtTime(0.001, now + dur);
+  ns.connect(bpf); bpf.connect(gn); gn.connect(masterGain);
+  ns.start(now); ns.stop(now + dur);
+  // sizzle osc
+  const osc = audioCtx.createOscillator();
+  const ogn = audioCtx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(55, now);
+  osc.frequency.linearRampToValueAtTime(40, now + dur);
+  ogn.gain.setValueAtTime(0.4, now);
+  ogn.gain.exponentialRampToValueAtTime(0.001, now + dur);
+  osc.connect(ogn); ogn.connect(masterGain);
+  osc.start(now); osc.stop(now + dur);
+}
+
+function soundKillPop() {
+  if (!ensureAudio()) return;
+  const now = audioCtx.currentTime;
+  // ascending whistle
+  const osc = audioCtx.createOscillator();
+  const ogn = audioCtx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(300, now);
+  osc.frequency.exponentialRampToValueAtTime(2800, now + 0.35);
+  ogn.gain.setValueAtTime(0.18, now);
+  ogn.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+  osc.connect(ogn); ogn.connect(masterGain);
+  osc.start(now); osc.stop(now + 0.35);
+  // pop burst
+  const ns  = audioCtx.createBufferSource();
+  ns.buffer = makeNoise(0.12);
+  const lpf = audioCtx.createBiquadFilter();
+  lpf.type = 'lowpass';
+  lpf.frequency.value = 1600;
+  const gn = audioCtx.createGain();
+  gn.gain.setValueAtTime(0.9, now + 0.35);
+  gn.gain.exponentialRampToValueAtTime(0.001, now + 0.47);
+  ns.connect(lpf); lpf.connect(gn); gn.connect(masterGain);
+  ns.start(now + 0.35);
+}
+
+function soundKillFireworks() {
+  if (!ensureAudio()) return;
+  const now = audioCtx.currentTime;
+  // launch whistle
+  const osc = audioCtx.createOscillator();
+  const ogn = audioCtx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(250, now);
+  osc.frequency.exponentialRampToValueAtTime(3000, now + 0.5);
+  ogn.gain.setValueAtTime(0.15, now);
+  ogn.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+  osc.connect(ogn); ogn.connect(masterGain);
+  osc.start(now); osc.stop(now + 0.5);
+  // 3 burst pops
+  [0.55, 0.65, 0.78].forEach(t => {
+    const ns  = audioCtx.createBufferSource();
+    ns.buffer = makeNoise(0.12);
+    const hpf = audioCtx.createBiquadFilter();
+    hpf.type = 'highpass';
+    hpf.frequency.value = 800;
+    const gn = audioCtx.createGain();
+    gn.gain.setValueAtTime(0.6, now + t);
+    gn.gain.exponentialRampToValueAtTime(0.001, now + t + 0.12);
+    ns.connect(hpf); hpf.connect(gn); gn.connect(masterGain);
+    ns.start(now + t);
+  });
+}
+
+function soundKillImplosion() {
+  if (!ensureAudio()) return;
+  const now = audioCtx.currentTime;
+  // vacuum suck — descending tone growing louder then cut
+  const osc = audioCtx.createOscillator();
+  const ogn = audioCtx.createGain();
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(600, now);
+  osc.frequency.exponentialRampToValueAtTime(60, now + 0.45);
+  ogn.gain.setValueAtTime(0.05, now);
+  ogn.gain.linearRampToValueAtTime(0.7, now + 0.42);
+  ogn.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+  osc.connect(ogn); ogn.connect(masterGain);
+  osc.start(now); osc.stop(now + 0.45);
+  // thump at collapse
+  const osc2 = audioCtx.createOscillator();
+  const ogn2 = audioCtx.createGain();
+  osc2.type = 'sine';
+  osc2.frequency.setValueAtTime(110, now + 0.45);
+  osc2.frequency.exponentialRampToValueAtTime(22, now + 0.75);
+  ogn2.gain.setValueAtTime(1.2, now + 0.45);
+  ogn2.gain.exponentialRampToValueAtTime(0.001, now + 0.75);
+  osc2.connect(ogn2); ogn2.connect(masterGain);
+  osc2.start(now + 0.45); osc2.stop(now + 0.75);
+}
+
+function soundKillTombstone() {
+  if (!ensureAudio()) return;
+  const now = audioCtx.currentTime;
+  const osc = audioCtx.createOscillator();
+  const ogn = audioCtx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(440, now);
+  osc.frequency.exponentialRampToValueAtTime(140, now + 0.8);
+  ogn.gain.setValueAtTime(0.18, now);
+  ogn.gain.exponentialRampToValueAtTime(0.001, now + 0.8);
+  osc.connect(ogn); ogn.connect(masterGain);
+  osc.start(now); osc.stop(now + 0.8);
+}
+
 function soundExplosion() {
   if (!ensureAudio()) return;
   const now = audioCtx.currentTime;
@@ -1062,6 +1240,9 @@ let enabledDefenses   = [];
 let napalmTurnPending = false;
 let wallFlashes       = [];
 let worldWidth       = 0;
+let killEffects       = [];   // active death animations
+let killEffectPending = false; // blocks nextTurn() while animations play
+let pendingTurnAction = null;  // deferred () => void, called when effects finish
 
 // ── intro sequence state ───────────────────────────────────────────────────
 let introPhase     = 'none';  // 'running' | 'none'
@@ -1073,6 +1254,7 @@ let lastTerrainPick = '';
 // ── round / scoring state ──────────────────────────────────────────────────
 let totalRounds      = 5;
 let currentRound     = 1;
+let roundFirstPlayer = 0;  // rotates each round to determine who shoots first
 let playerStats      = [];  // [{ name, color, kills, damageDealt, cashEarned, roundWins, score }]
 let cashAtRoundStart = [];  // tank.money snapshot at round start
 let lastRoundData    = [];  // per-round snapshot: [{ kills, damage, cash }]
@@ -1270,6 +1452,7 @@ function placeTanks() {
       money:       gameSettings.cash ?? 5000,
       damageDealt: 0,
       killedBy:    -1,
+      tombstone:   false,
       inventory: Object.fromEntries(
         Object.entries(WEAPONS).map(([n, w]) => [n, w.cost === 0 ? Infinity : 0])
       ),
@@ -1283,8 +1466,18 @@ function placeTanks() {
 }
 
 // ── wind ───────────────────────────────────────────────────────────────────
+function windMaxForSetting() {
+  const s = gameSettings && gameSettings.wind;
+  if (s === 'None')    return 0;
+  if (s === 'Light')   return 5;
+  if (s === 'Gusty')   return 15;
+  if (s === 'Tornado') return 30;
+  return 5; // default
+}
+
 function newWind() {
-  wind = Math.round((Math.random() * 2 - 1) * 10);
+  const max = windMaxForSetting();
+  wind = max === 0 ? 0 : Math.round((Math.random() * 2 - 1) * max);
 }
 
 // ── camera helpers ─────────────────────────────────────────────────────────
@@ -1346,8 +1539,23 @@ function drawTank(tank, active) {
   const { x, y, color, angle, health, name } = tank;
   const bodyY = y - 11;
 
-  // dead tanks: show a dark wreck
+  // dead tanks
   if (health <= 0) {
+    // kill effect animation handles rendering while active
+    if (killEffects.some(e => e.tank === tank)) return;
+    // tombstone marker
+    if (tank.tombstone) {
+      ctx.fillStyle = 'rgba(200,200,200,0.65)';
+      ctx.fillRect(x - 2, y - 22, 4, 16);  // cross vertical
+      ctx.fillRect(x - 8, y - 20, 16, 4);  // cross horizontal
+      ctx.font = 'bold 10px Courier New';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'alphabetic';
+      ctx.fillText('RIP', x, y - 1);
+      ctx.globalAlpha = 1;
+      return;
+    }
+    // standard wreck
     ctx.fillStyle = 'rgba(40,20,10,0.7)';
     ctx.fillRect(x - 14, bodyY, 28, 12);
     ctx.fillStyle = color;
@@ -1585,7 +1793,8 @@ function drawWindIndicator() {
     return;
   }
 
-  const len  = (Math.abs(wind) / 10) * maxLen;
+  const max  = windMaxForSetting();
+  const len  = (Math.abs(wind) / max) * maxLen;
   const dir  = wind > 0 ? 1 : -1;
   const gg   = Math.round(Math.max(50, 230 - Math.abs(wind) * 18));
   const arrowColor = `rgba(255,${gg},40,0.92)`;
@@ -1704,7 +1913,12 @@ function updateTankPhysics(dt) {
         const fallDist = t.y - t.fallStartY;
         const fallDmg  = Math.max(0, Math.round((fallDist - 20) * 0.45));
         if (fallDmg > 0) {
+          const prevHpFall = t.health;
           t.health = Math.max(0, t.health - fallDmg);
+          if (prevHpFall > 0 && t.health <= 0 && t.killedBy < 0) {
+            t.killedBy = -1;
+            triggerKillEffect(t);
+          }
           if (!gameOver) checkWin();
         }
         t.falling = false;
@@ -1723,7 +1937,7 @@ function onImpact(proj, px, py) {
   if (wep.type === 'tracer') {
     addExplosion(px, py, 8);
     projectiles = projectiles.filter(p => p !== proj);
-    if (projectiles.length === 0 && !napalmTurnPending) { stopWhistle(); if (!checkWin()) nextTurn(); }
+    if (projectiles.length === 0 && !napalmTurnPending) { stopWhistle(); if (!checkWin()) maybeNextTurn(); }
     return;
   }
 
@@ -1759,7 +1973,7 @@ function onImpact(proj, px, py) {
             t.health = Math.max(0, t.health - dmg);
             tanks[proj.owner].money += dmg * MONEY_PER_DAMAGE;
             tanks[proj.owner].damageDealt += dmg;
-            if (prevHealth > 0 && t.health <= 0) t.killedBy = proj.owner;
+            if (prevHealth > 0 && t.health <= 0) { t.killedBy = proj.owner; triggerKillEffect(t); }
             anyTankDamaged = true;
           }
         }
@@ -1777,7 +1991,7 @@ function onImpact(proj, px, py) {
 
   if (projectiles.length === 0 && !napalmTurnPending) {
     stopWhistle();
-    if (!checkWin()) nextTurn();
+    if (!checkWin()) maybeNextTurn();
   }
 }
 
@@ -1851,7 +2065,7 @@ function updateNapalm(dt) {
           t.health = Math.max(0, t.health - 8);
           tanks[p.owner].money += 8 * MONEY_PER_DAMAGE;
           tanks[p.owner].damageDealt += 8;
-          if (prevHp > 0 && t.health <= 0 && t.killedBy < 0) t.killedBy = p.owner;
+          if (prevHp > 0 && t.health <= 0 && t.killedBy < 0) { t.killedBy = p.owner; triggerKillEffect(t); }
           if (!gameOver) checkWin();
         }
       }
@@ -1860,8 +2074,293 @@ function updateNapalm(dt) {
   if (napalmParticles.length === 0 && napalmTurnPending) {
     napalmTurnPending = false;
     stopWhistle();
-    if (!checkWin()) nextTurn();
+    if (!checkWin()) maybeNextTurn();
   }
+}
+
+// ── kill effects ──────────────────────────────────────────────────────────
+function triggerKillEffect(tank) {
+  const roll = Math.random();
+  let type;
+  if      (roll < 0.10) type = 'nuke';
+  else if (roll < 0.18) type = 'tombstone';
+  else if (roll < 0.28) type = 'implosion';
+  else if (roll < 0.40) type = 'fireworks';
+  else if (roll < 0.52) type = 'pop';
+  else if (roll < 0.60) type = 'meltdown';
+  else                  type = 'explosion';
+
+  const durations = {
+    explosion: 1.4, nuke: 2.8, meltdown: 1.9,
+    pop: 1.1, fireworks: 2.3, implosion: 1.2, tombstone: 1.0
+  };
+
+  const e = { type, tank, age: 0, duration: durations[type], particles: [], data: {} };
+  initKillEffect(e);
+  killEffects.push(e);
+  killEffectPending = true;
+}
+
+function initKillEffect(e) {
+  const { type, tank } = e;
+  const { x, y } = tank;
+  if (type === 'explosion') {
+    blastTerrain(x, y, 80);
+    addExplosion(x, y, 80);
+    soundKillExplosion();
+    for (let i = 0; i < 14; i++) {
+      const ang = Math.random() * Math.PI * 2;
+      const spd = 80 + Math.random() * 200;
+      e.particles.push({ x, y, vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd - 130,
+        age: 0, life: 0.8 + Math.random() * 0.6,
+        color: `hsl(${(20 + Math.random() * 30) | 0},80%,${(40 + Math.random() * 20) | 0}%)`,
+        size: 3 + Math.random() * 5 });
+    }
+  } else if (type === 'nuke') {
+    blastTerrain(x, y, 210);
+    addExplosion(x, y, 190);
+    shakeScreen(30);
+    soundKillNuke();
+    e.data.flashAlpha = 0.95;
+    for (let i = 0; i < 22; i++) {
+      const ang = Math.random() * Math.PI * 2;
+      const spd = 120 + Math.random() * 350;
+      e.particles.push({ x, y, vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd - 220,
+        age: 0, life: 1.6 + Math.random() * 1.0, color: '#999', size: 4 + Math.random() * 6 });
+    }
+  } else if (type === 'meltdown') {
+    blastTerrain(x, y, 32);
+    soundKillMeltdown();
+    e.data.drip = 0;
+    for (let i = 0; i < 12; i++) {
+      e.particles.push({ x: x + (Math.random() - 0.5) * 30, y,
+        vx: (Math.random() - 0.5) * 45, vy: -25 - Math.random() * 55,
+        age: Math.random() * 0.3, life: 0.9 + Math.random() * 0.6,
+        color: `rgba(80,255,80,0.75)`, size: 3 + Math.random() * 4 });
+    }
+  } else if (type === 'pop') {
+    soundKillPop();
+    e.data.popY = y;
+    e.data.vy   = -560;
+    for (let i = 0; i < 8; i++) {
+      e.particles.push({ x: x + (Math.random() - 0.5) * 22, y,
+        vx: (Math.random() - 0.5) * 35, vy: -15 - Math.random() * 35,
+        age: 0, life: 0.6 + Math.random() * 0.4,
+        color: 'rgba(190,190,190,0.7)', size: 7 + Math.random() * 10 });
+    }
+  } else if (type === 'fireworks') {
+    soundKillFireworks();
+    for (let i = 0; i < 7; i++) {
+      const spread = (Math.random() - 0.5) * 1.5;
+      const spd    = 260 + Math.random() * 160;
+      const hue    = (parseInt(tank.color.slice(1, 3), 16) * 1.4) | 0; // rough hue from color
+      e.particles.push({ x, y, vx: Math.sin(spread) * spd, vy: -Math.cos(spread) * spd,
+        age: 0, life: 0.6 + Math.random() * 0.5, color: tank.color, size: 3,
+        isFW: true, burst: false, burstAt: 0.45 + Math.random() * 0.25 });
+    }
+  } else if (type === 'implosion') {
+    soundKillImplosion();
+    e.data.scale      = 1.0;
+    e.data.shockwaveR = 0;
+    e.data.shockAlpha = 0;
+    e.data.flashAlpha = 0;
+    e.data.blastDone  = false;
+  } else if (type === 'tombstone') {
+    soundKillTombstone();
+    e.data.fadeAlpha = 1.0;
+  }
+}
+
+function updateKillEffects(dt) {
+  const GRAVITY = 330;
+  for (let i = killEffects.length - 1; i >= 0; i--) {
+    const e = killEffects[i];
+    e.age += dt;
+    const prog = Math.min(1, e.age / e.duration);
+
+    // generic particle physics
+    for (let j = e.particles.length - 1; j >= 0; j--) {
+      const p = e.particles[j];
+      p.age += dt;
+      if (p.age >= p.life) { e.particles.splice(j, 1); continue; }
+      p.x  += p.vx * dt;
+      p.vy += GRAVITY * dt;
+      p.y  += p.vy * dt;
+      // fireworks burst logic
+      if (p.isFW && !p.burst && p.age >= p.burstAt) {
+        p.burst = true;
+        p.vx = 0; p.vy = 0;
+        for (let k = 0; k < 9; k++) {
+          const ang = (k / 9) * Math.PI * 2;
+          const spd = 70 + Math.random() * 90;
+          e.particles.push({ x: p.x, y: p.y,
+            vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd - 30,
+            age: 0, life: 0.55 + Math.random() * 0.3,
+            color: p.color, size: 3, isFW: false });
+        }
+      }
+    }
+
+    // effect-specific updates
+    if (e.type === 'nuke') {
+      e.data.flashAlpha = Math.max(0, 0.95 - prog * 2.8);
+      if (e.age > 0.25) shakeScreen(Math.max(0, 6 - (e.age - 0.25) * 3));
+    } else if (e.type === 'meltdown') {
+      e.data.drip = prog;
+    } else if (e.type === 'pop') {
+      e.data.vy  += GRAVITY * dt;
+      e.data.popY += e.data.vy * dt;
+    } else if (e.type === 'implosion') {
+      const shrinkProg = Math.min(1, e.age / (e.duration * 0.42));
+      e.data.scale = Math.max(0, 1 - shrinkProg);
+      if (!e.data.blastDone && e.age >= e.duration * 0.43) {
+        e.data.blastDone  = true;
+        blastTerrain(e.tank.x, e.tank.y, 24);
+        addExplosion(e.tank.x, e.tank.y, 22);
+        e.data.flashAlpha  = 0.85;
+        e.data.shockwaveR  = 22;
+        e.data.shockAlpha  = 1.0;
+      }
+      if (e.data.blastDone) {
+        e.data.shockwaveR += 210 * dt;
+        e.data.shockAlpha  = Math.max(0, e.data.shockAlpha - 2.8 * dt);
+        e.data.flashAlpha  = Math.max(0, e.data.flashAlpha - 3.5 * dt);
+      }
+    } else if (e.type === 'tombstone') {
+      e.data.fadeAlpha = Math.max(0, 1 - prog * 1.5);
+      if (prog >= 1) e.tank.tombstone = true;
+    }
+
+    if (e.age >= e.duration) killEffects.splice(i, 1);
+  }
+
+  // unblock turn when all effects done
+  if (killEffects.length === 0 && killEffectPending) {
+    killEffectPending = false;
+    if (pendingTurnAction) { pendingTurnAction(); pendingTurnAction = null; }
+  }
+}
+
+function drawKillEffects() {
+  for (const e of killEffects) {
+    const prog = Math.min(1, e.age / e.duration);
+
+    // generic particles
+    for (const p of e.particles) {
+      if (p.isFW && p.burst) continue; // spent rocket stub
+      const frac = Math.max(0, 1 - p.age / p.life);
+      ctx.globalAlpha = frac * 0.9;
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, Math.max(0.5, p.size * (p.isFW ? 1 : frac * 0.6 + 0.4)), 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    const { x, y } = e.tank;
+
+    if (e.type === 'nuke') {
+      // screen-space flash
+      if (e.data.flashAlpha > 0) {
+        ctx.save();
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.fillStyle = `rgba(255,255,255,${e.data.flashAlpha.toFixed(2)})`;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.restore();
+      }
+      // mushroom cloud
+      if (e.age > 0.2) {
+        const t2    = Math.min(1, (e.age - 0.2) / 1.8);
+        const stemH = 200 * t2;
+        const capR  = 75 * t2;
+        const alpha = Math.max(0, 0.7 - prog * 0.6);
+        const sg = ctx.createLinearGradient(x, y, x, y - stemH);
+        sg.addColorStop(0, `rgba(155,105,55,${alpha.toFixed(2)})`);
+        sg.addColorStop(1, `rgba(190,140,75,0)`);
+        ctx.fillStyle = sg;
+        ctx.beginPath();
+        ctx.rect(x - 11, y - stemH, 22, stemH);
+        ctx.fill();
+        const cg = ctx.createRadialGradient(x, y - stemH, 0, x, y - stemH, capR);
+        cg.addColorStop(0,   `rgba(230,170,90,${alpha.toFixed(2)})`);
+        cg.addColorStop(0.6, `rgba(180,100,40,${(alpha * 0.7).toFixed(2)})`);
+        cg.addColorStop(1,   'rgba(100,50,10,0)');
+        ctx.fillStyle = cg;
+        ctx.beginPath();
+        ctx.arc(x, y - stemH, capR, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    } else if (e.type === 'meltdown') {
+      const drip = e.data.drip;
+      // squished tank silhouette
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.scale(1 + drip * 0.6, Math.max(0.05, 1 - drip * 0.9));
+      ctx.fillStyle = e.tank.color;
+      ctx.globalAlpha = Math.max(0, 1 - drip * 0.7);
+      ctx.fillRect(-14, -11, 28, 12);
+      ctx.beginPath();
+      ctx.arc(0, -11, 9, Math.PI, 0);
+      ctx.fill();
+      ctx.restore();
+      ctx.globalAlpha = 1;
+      // green glow
+      const glR = 35 * (1 - drip * 0.4);
+      const gl  = ctx.createRadialGradient(x, y, 0, x, y, glR);
+      gl.addColorStop(0, `rgba(80,255,80,${(0.45 * (1 - drip)).toFixed(2)})`);
+      gl.addColorStop(1, 'rgba(0,200,0,0)');
+      ctx.fillStyle = gl;
+      ctx.beginPath();
+      ctx.arc(x, y, glR, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (e.type === 'pop') {
+      const curY = e.data.popY;
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, 1 - prog * 1.8);
+      ctx.fillStyle = e.tank.color;
+      ctx.fillRect(x - 14, curY - 11, 28, 12);
+      ctx.beginPath();
+      ctx.arc(x, curY - 11, 9, Math.PI, 0);
+      ctx.fill();
+      ctx.restore();
+    } else if (e.type === 'implosion') {
+      if (e.data.scale > 0.01) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.scale(e.data.scale, e.data.scale);
+        ctx.fillStyle = e.tank.color;
+        ctx.fillRect(-14, -11, 28, 12);
+        ctx.restore();
+      }
+      if (e.data.shockAlpha > 0) {
+        ctx.beginPath();
+        ctx.arc(x, y, e.data.shockwaveR, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(255,210,100,${e.data.shockAlpha.toFixed(2)})`;
+        ctx.lineWidth = 3.5;
+        ctx.stroke();
+        ctx.lineWidth = 1;
+      }
+      if (e.data.flashAlpha > 0) {
+        ctx.save();
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.fillStyle = `rgba(255,255,255,${e.data.flashAlpha.toFixed(2)})`;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.restore();
+      }
+    } else if (e.type === 'tombstone') {
+      // fade out tank graphic
+      ctx.save();
+      ctx.globalAlpha = e.data.fadeAlpha;
+      ctx.fillStyle = e.tank.color;
+      ctx.fillRect(x - 14, y - 11, 28, 12);
+      ctx.beginPath();
+      ctx.arc(x, y - 11, 9, Math.PI, 0);
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+  ctx.globalAlpha = 1;
+  ctx.lineWidth   = 1;
 }
 
 // ── round end / win check ─────────────────────────────────────────────────
@@ -1870,7 +2369,7 @@ function checkWin() {
   const living = tanks.filter(t => t.health > 0);
   if (living.length <= 1) {
     gameOver = true;
-    setTimeout(endRound, 900);
+    setTimeout(endRound, 1900);
     return true;
   }
   return false;
@@ -2058,6 +2557,7 @@ function showFinalResults() {
 function startNextRound() {
   scoreboardEl.style.display = 'none';
   currentRound++;
+  roundFirstPlayer = (roundFirstPlayer + 1) % playerConfigs.length;
 
   const savedMoney       = tanks.map(t => t.money);
   const savedInventory   = tanks.map(t => ({ ...t.inventory }));
@@ -2075,6 +2575,9 @@ function startNextRound() {
   screenShake       = 0;
   napalmTurnPending = false;
   wallFlashes       = [];
+  killEffects       = [];
+  killEffectPending = false;
+  pendingTurnAction = null;
   introPhase        = 'none';
   introTimer        = 0;
   introTankDrops    = [];
@@ -2112,15 +2615,16 @@ function startNextRound() {
 
   cashAtRoundStart = tanks.map(t => t.money);
 
+  currentPlayer = roundFirstPlayer % tanks.length;
   newWind();
   updateUI();
   updateWeaponIndicator();
-  setCameraTarget(tanks[0]);
+  setCameraTarget(tanks[currentPlayer]);
   camera.x = camera.targetX;
 
   runShopPhase(() => {
     startIntroSequence(() => {
-      currentPlayer = 0;
+      currentPlayer = roundFirstPlayer % tanks.length;
       const n = tanks.length;
       for (let i = 0; i < n; i++) {
         if (tanks[currentPlayer].health > 0) break;
@@ -2135,6 +2639,11 @@ function startNextRound() {
 }
 
 // ── turn management ────────────────────────────────────────────────────────
+function maybeNextTurn() {
+  if (killEffectPending) { pendingTurnAction = nextTurn; }
+  else                   { nextTurn(); }
+}
+
 function nextTurn() {
   if (gameOver) return;
 
@@ -2149,7 +2658,6 @@ function nextTurn() {
     if (tanks[currentPlayer].health > 0) break;
   }
 
-  newWind();
   updateUI();
   updateWeaponIndicator();
 
@@ -2775,7 +3283,7 @@ function gameLoop(ts) {
         } else {
           // None — roller vanishes at edge, turn ends
           projectiles.splice(i, 1);
-          if (projectiles.length === 0 && !napalmTurnPending) { stopWhistle(); if (!checkWin()) nextTurn(); }
+          if (projectiles.length === 0 && !napalmTurnPending) { stopWhistle(); if (!checkWin()) maybeNextTurn(); }
           continue;
         }
       }
@@ -2831,7 +3339,7 @@ function gameLoop(ts) {
     // Bottom boundary — always remove
     if (py > h + 60) {
       projectiles.splice(i, 1);
-      if (projectiles.length === 0 && !napalmTurnPending) { stopWhistle(); if (!checkWin()) nextTurn(); }
+      if (projectiles.length === 0 && !napalmTurnPending) { stopWhistle(); if (!checkWin()) maybeNextTurn(); }
       continue;
     }
 
@@ -2865,7 +3373,7 @@ function gameLoop(ts) {
       } else if (wallMode === 'Absorb') {
         if (hitTop) {
           projectiles.splice(i, 1);
-          if (projectiles.length === 0 && !napalmTurnPending) { stopWhistle(); if (!checkWin()) nextTurn(); }
+          if (projectiles.length === 0 && !napalmTurnPending) { stopWhistle(); if (!checkWin()) maybeNextTurn(); }
         } else {
           proj.weapon = Object.assign({}, proj.weapon, { blastR: Math.round((proj.weapon.blastR || BLAST_R) * 0.5) });
           const ex = hitLeft ? 0 : w - 1;
@@ -2874,7 +3382,7 @@ function gameLoop(ts) {
       } else {
         // None — disappear
         projectiles.splice(i, 1);
-        if (projectiles.length === 0 && !napalmTurnPending) { stopWhistle(); if (!checkWin()) nextTurn(); }
+        if (projectiles.length === 0 && !napalmTurnPending) { stopWhistle(); if (!checkWin()) maybeNextTurn(); }
       }
       continue;
     }
@@ -2912,6 +3420,7 @@ function gameLoop(ts) {
   updateTankPhysics(dt);
   updateExplosions(dt);
   updateNapalm(dt);
+  updateKillEffects(dt);
   for (let i = wallFlashes.length - 1; i >= 0; i--) {
     wallFlashes[i].age += dt;
     if (wallFlashes[i].age >= wallFlashes[i].duration) wallFlashes.splice(i, 1);
@@ -2927,6 +3436,7 @@ function gameLoop(ts) {
   drawProjectiles();
   drawExplosions();
   drawNapalm();
+  drawKillEffects();
   drawWallFlashes();
   restoreCamera();
 
@@ -3237,6 +3747,9 @@ function initGame() {
   screenShake       = 0;
   napalmTurnPending = false;
   wallFlashes       = [];
+  killEffects       = [];
+  killEffectPending = false;
+  pendingTurnAction = null;
   introPhase        = 'none';
   introTimer        = 0;
   introTankDrops    = [];
@@ -3252,7 +3765,8 @@ function initGame() {
   scoreboardEl.style.display = 'none';
 
   // Initialize round tracking
-  currentRound = 1;
+  currentRound     = 1;
+  roundFirstPlayer = 0;
   playerStats  = playerConfigs.map(cfg => ({
     name: cfg.name, color: cfg.color,
     kills: 0, damageDealt: 0, cashEarned: 0, roundWins: 0, score: 0,
@@ -3268,19 +3782,20 @@ function initGame() {
   generateStars();
   placeTanks();
   cashAtRoundStart = tanks.map(t => t.money);
+  currentPlayer = roundFirstPlayer % tanks.length;
   newWind();
   updateUI();
   updateWeaponIndicator();
 
   // Set initial camera on first player
-  setCameraTarget(tanks[0]);
+  setCameraTarget(tanks[currentPlayer]);
   camera.x = camera.targetX;
 
   animId = requestAnimationFrame(gameLoop);  // start render loop so terrain is visible during shop
 
   runShopPhase(() => {
     startIntroSequence(() => {
-      currentPlayer = 0;
+      currentPlayer = roundFirstPlayer % tanks.length;
       const n = tanks.length;
       for (let i = 0; i < n; i++) {
         if (tanks[currentPlayer].health > 0) break;

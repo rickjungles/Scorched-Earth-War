@@ -1,0 +1,12 @@
+{
+  "name": "scorched-earth",
+  "version": "1.6.4",
+  "description": "Scorched Earth multiplayer server",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}

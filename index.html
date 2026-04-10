@@ -6,7 +6,15 @@
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { background: #000; overflow: hidden; font-family: 'Courier New', monospace; }
-canvas { display: block; }
+/* ── game viewport fills the browser window ────────────────────────────────── */
+#game-viewport {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
 #ui {
   position: fixed;
   top: 12px;
@@ -65,7 +73,8 @@ canvas { display: block; }
   border-radius: 6px;
   border: 1px solid rgba(255,255,255,0.12);
 }
-#vol span { color: rgba(255,255,255,0.65); font-size: 15px; user-select: none; }
+#vol span { color: rgba(255,255,255,0.65); font-size: 15px; user-select: none; cursor: pointer; }
+#vol span:hover { color: #fff; }
 #vol input[type=range] { width: 76px; cursor: pointer; accent-color: #5599ff; }
 /* ── DOS-era shop screen ──────────────────────────────────────────────────── */
 #shop {
@@ -380,6 +389,387 @@ canvas { display: block; }
   text-transform: uppercase;
 }
 .dos-panel-body { padding: 8px 12px; }
+#network-toggle-row {
+  text-align: center;
+  margin-bottom: 10px;
+}
+#btn-network-toggle {
+  background: #000080;
+  border: 2px solid #00AAAA;
+  color: #00AAAA;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  font-weight: bold;
+  letter-spacing: 3px;
+  padding: 6px 22px;
+  cursor: pointer;
+  text-transform: uppercase;
+}
+#btn-network-toggle:hover { background: #001a80; border-color: #00cccc; color: #00cccc; }
+#btn-network-toggle.net-on { border-color: #44dd44; color: #44dd44; }
+#btn-network-toggle.net-on:hover { border-color: #66ff66; color: #66ff66; }
+#network-placeholder {
+  padding: 10px 4px;
+  color: #00AAAA;
+  font-size: 13px;
+  letter-spacing: 1px;
+}
+#net-pre-buttons {
+  display: flex;
+  gap: 16px;
+  padding: 12px 4px;
+}
+#btn-host, #btn-join {
+  background: transparent;
+  border: 2px solid #00AAAA;
+  color: #00AAAA;
+  font-family: 'Courier New', monospace;
+  font-size: 14px;
+  font-weight: bold;
+  letter-spacing: 3px;
+  padding: 8px 28px;
+  cursor: pointer;
+  text-transform: uppercase;
+}
+#btn-host:hover { border-color: #00cccc; color: #00cccc; background: #001a80; }
+#btn-join:hover  { border-color: #00cccc; color: #00cccc; background: #001a80; }
+#net-join-form {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 4px;
+  flex-wrap: wrap;
+}
+#net-join-label {
+  color: #FFFF55;
+  font-size: 12px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+#net-join-code {
+  background: rgba(0,0,0,0.4);
+  border: 2px solid #00AAAA;
+  color: #FFFF55;
+  font-family: 'Courier New', monospace;
+  font-size: 18px;
+  font-weight: bold;
+  letter-spacing: 6px;
+  width: 120px;
+  padding: 4px 8px;
+  text-transform: uppercase;
+}
+#net-join-code:focus { outline: none; border-color: #FFFF55; }
+#btn-join-confirm, #btn-join-cancel, #net-disconnect-btn {
+  background: transparent;
+  border: 1px solid #00AAAA;
+  color: #00AAAA;
+  font-family: 'Courier New', monospace;
+  font-size: 11px;
+  font-weight: bold;
+  letter-spacing: 2px;
+  padding: 5px 14px;
+  cursor: pointer;
+  text-transform: uppercase;
+}
+#btn-join-confirm:hover { border-color: #44dd44; color: #44dd44; }
+#btn-join-cancel:hover, #net-disconnect-btn:hover { border-color: #FF5555; color: #FF5555; }
+#net-room-code-display {
+  color: #888;
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  padding: 8px 4px 2px;
+}
+#net-room-code-display span {
+  color: #FFFF55;
+  font-size: 22px;
+  font-weight: bold;
+  letter-spacing: 6px;
+  margin-left: 6px;
+}
+#net-player-count {
+  color: #00AAAA;
+  font-size: 12px;
+  letter-spacing: 2px;
+  padding: 2px 4px 8px;
+}
+#net-conn-info {
+  font-size: 11px;
+  color: #888;
+  padding: 2px 4px 8px;
+  line-height: 1.7;
+}
+#net-conn-info .net-ip { color: #44DD44; font-weight: bold; letter-spacing: 1px; }
+#net-conn-info .net-ip-note { color: #555; font-size: 10px; }
+#net-conn-info .net-unavail { color: #FF5555; }
+#net-conn-info .net-copy-row {
+  cursor: pointer;
+  border-radius: 3px;
+  padding: 1px 3px;
+  margin: 0 -3px;
+  transition: background 0.15s;
+  display: inline-block;
+}
+#net-conn-info .net-copy-row:hover { background: rgba(68,221,68,0.12); }
+#net-conn-info .net-copy-row:hover .net-ip { text-decoration: underline; }
+#net-copy-toast {
+  font-size: 10px;
+  color: #44DD44;
+  padding: 2px 0 0 3px;
+  min-height: 14px;
+}
+#btn-paste-clipboard {
+  background: transparent;
+  border: 1px solid #00AAAA;
+  color: #00AAAA;
+  font-family: inherit;
+  font-size: 10px;
+  letter-spacing: 1px;
+  padding: 3px 8px;
+  cursor: pointer;
+  text-transform: uppercase;
+}
+#btn-paste-clipboard:hover { border-color: #44DD44; color: #44DD44; }
+#net-lobby-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+#net-lobby-table th {
+  color: #FFFF55;
+  font-size: 11px;
+  letter-spacing: 2px;
+  padding: 2px 6px 5px;
+  text-align: left;
+  border-bottom: 1px solid #00AAAA;
+}
+.net-lobby-slot td { padding: 3px 6px; vertical-align: middle; }
+.net-lobby-waiting td { color: #444; font-style: italic; }
+.net-lobby-waiting .player-num { color: #333; }
+#net-lobby-footer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-top: 4px;
+}
+#net-status {
+  font-size: 11px;
+  letter-spacing: 1px;
+  min-height: 16px;
+  flex: 1;
+}
+#net-status.error { color: #FF5555; }
+#net-status.info  { color: #44dd44; }
+@keyframes net-blink { 0%,100%{opacity:1} 50%{opacity:0} }
+.net-blink { animation: net-blink 1s step-end infinite; display:inline-block; }
+/* ── in-game network HUD (top-left, below volume) ─────────────────────────── */
+#net-ingame-hud {
+  position: fixed; top: 52px; left: 12px;
+  display: none; flex-direction: column; align-items: flex-start; gap: 6px;
+  z-index: 800; pointer-events: none;
+}
+#net-conn-indicator {
+  display: flex; align-items: center; gap: 6px;
+  background: rgba(0,0,0,0.65); border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 6px; padding: 5px 10px;
+  font-family: 'Courier New', monospace; font-size: 12px; color: rgba(255,255,255,0.7);
+  pointer-events: none;
+}
+#net-conn-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: #44dd44; flex-shrink: 0;
+}
+#net-disconnect-ingame {
+  pointer-events: all;
+  background: transparent; border: 1px solid #555; color: #888;
+  font-family: 'Courier New', monospace; font-size: 11px; letter-spacing: 0.08em;
+  padding: 4px 10px; cursor: pointer; text-transform: uppercase;
+  transition: border-color 0.15s, color 0.15s;
+}
+#net-disconnect-ingame:hover { border-color: #FF5555; color: #FF5555; }
+/* ── in-game notifications (disconnects, timeouts) ────────────────────────── */
+#net-ingame-notify {
+  position: fixed; top: 60px; left: 50%; transform: translateX(-50%);
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  z-index: 800; pointer-events: none;
+}
+@keyframes net-notify-fade { 0%{opacity:1;transform:translateY(0)} 70%{opacity:1} 100%{opacity:0;transform:translateY(-8px)} }
+.net-notify-msg {
+  background: rgba(0,0,0,0.80); border: 1px solid #555;
+  border-left: 3px solid #888;
+  font-family: 'Courier New', monospace; font-size: 13px; color: #ccc;
+  padding: 5px 14px; white-space: nowrap;
+  animation: net-notify-fade 4s forwards;
+}
+/* ── in-game chat ─────────────────────────────────────────────────────────── */
+#net-chat-msgs {
+  position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
+  display: flex; flex-direction: column-reverse; align-items: center; gap: 4px;
+  z-index: 800; pointer-events: none; max-width: 480px;
+}
+@keyframes net-chat-fade { 0%{opacity:1} 75%{opacity:1} 100%{opacity:0} }
+.net-chat-msg {
+  background: rgba(0,0,0,0.72); border: 1px solid rgba(255,255,255,0.10);
+  font-family: 'Courier New', monospace; font-size: 13px; color: #ddd;
+  padding: 4px 12px; white-space: nowrap; max-width: 480px;
+  overflow: hidden; text-overflow: ellipsis;
+  animation: net-chat-fade 5s forwards;
+}
+#net-chat-wrap {
+  position: fixed; bottom: 44px; left: 50%; transform: translateX(-50%);
+  display: none; align-items: center; gap: 6px; z-index: 801;
+}
+#net-chat-input {
+  background: rgba(0,0,0,0.85); border: 1px solid #FFFF55; color: #fff;
+  font-family: 'Courier New', monospace; font-size: 13px;
+  padding: 5px 10px; width: 320px; outline: none;
+}
+#net-chat-hint {
+  font-family: 'Courier New', monospace; font-size: 11px; color: rgba(255,255,255,0.4);
+  pointer-events: none;
+}
+/* ── host-disconnected / network game-over overlay ────────────────────────── */
+#net-gameover-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.88);
+  display: none; align-items: center; justify-content: center;
+  z-index: 9998; font-family: 'Courier New', monospace;
+}
+#ngo-panel { background: #111; border: 2px solid #555; padding: 28px 40px; text-align: center; }
+#ngo-msg   { color: #FF5555; font-size: 16px; letter-spacing: 0.08em; margin-bottom: 12px; }
+#ngo-count { color: rgba(255,255,255,0.5); font-size: 13px; }
+/* ── shop waiting overlay ─────────────────────────────────────────────────── */
+#net-shop-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.88);
+  display: none; align-items: center; justify-content: center;
+  z-index: 9999; font-family: 'Courier New', monospace;
+}
+#nso-panel {
+  background: #111; border: 2px solid #555;
+  padding: 22px 32px; min-width: 260px;
+}
+#nso-title {
+  color: #FFFF55; font-size: 12px; letter-spacing: 0.12em;
+  text-align: center; margin-bottom: 14px; text-transform: uppercase;
+}
+.nso-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 6px 0; border-bottom: 1px solid #222;
+}
+.nso-row:last-child { border-bottom: none; }
+.nso-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.nso-name { flex: 1; font-size: 13px; }
+.nso-status { font-size: 15px; width: 24px; text-align: center; }
+.nso-check { color: #44dd44; }
+/* ── join form ────────────────────────────────────────────────────────────── */
+.net-form-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px 10px;
+  align-items: center;
+  padding: 10px 4px 6px;
+}
+.net-form-label {
+  color: #FFFF55;
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  text-align: right;
+  white-space: nowrap;
+}
+.net-form-input {
+  background: rgba(0,0,0,0.4);
+  border: 1px solid #00AAAA;
+  color: #fff;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  padding: 3px 6px;
+  width: 100%;
+  box-sizing: border-box;
+}
+.net-form-input:focus { outline: none; border-color: #FFFF55; }
+.net-form-input:disabled { color: #555; border-color: #333; }
+.net-form-input-short { max-width: 90px; }
+.net-form-input-code {
+  font-size: 16px;
+  font-weight: bold;
+  letter-spacing: 5px;
+  text-transform: uppercase;
+  max-width: 140px;
+}
+.net-form-color-row { display: flex; align-items: center; gap: 8px; }
+.net-join-color-swatch { width: 22px; height: 22px; border: 2px solid rgba(255,255,255,0.5); }
+.net-form-color-hint { color: #888; font-size: 11px; }
+.net-form-actions { display: flex; gap: 10px; padding: 4px 4px 6px; flex-wrap: wrap; }
+#btn-join-confirm, #btn-join-retry {
+  background: transparent;
+  border: 2px solid #00AAAA;
+  color: #00AAAA;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  font-weight: bold;
+  letter-spacing: 2px;
+  padding: 6px 20px;
+  cursor: pointer;
+  text-transform: uppercase;
+}
+#btn-join-confirm:hover, #btn-join-retry:hover { border-color: #00cccc; color: #00cccc; background: #001a80; }
+#btn-join-confirm:disabled { border-color: #333; color: #555; cursor: default; }
+#net-form-status {
+  font-size: 12px;
+  letter-spacing: 1px;
+  min-height: 18px;
+  padding: 2px 4px 8px;
+}
+#net-form-status.error { color: #FF5555; }
+#net-form-status.info  { color: #44dd44; }
+/* ── guest lobby ──────────────────────────────────────────────────────────── */
+#net-guest-status {
+  font-size: 13px;
+  letter-spacing: 1px;
+  padding: 8px 4px 6px;
+  font-weight: bold;
+}
+#net-guest-status.info  { color: #44dd44; }
+#net-guest-status.error { color: #FF5555; }
+.net-section { margin: 6px 0; }
+.net-section-title {
+  color: #FFFF55;
+  font-size: 10px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  border-bottom: 1px solid #00AAAA;
+  padding-bottom: 3px;
+  margin-bottom: 5px;
+}
+.net-settings-grid { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; padding: 0 2px; }
+.net-settings-row { display: contents; }
+.net-settings-label { color: #888; font-size: 12px; text-align: right; white-space: nowrap; }
+.net-settings-val { color: #fff; font-size: 12px; }
+.net-chip-section { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px; padding: 4px 2px; }
+.net-chip-section-label { color: #888; font-size: 10px; letter-spacing: 2px; text-transform: uppercase; margin-right: 4px; }
+.net-chip-ro {
+  background: rgba(0,80,80,0.4);
+  border: 1px solid #007777;
+  color: #00AAAA;
+  font-family: 'Courier New', monospace;
+  font-size: 10px;
+  padding: 1px 6px;
+  letter-spacing: 0.5px;
+}
+.net-settings-pending { color: #444; font-size: 12px; font-style: italic; padding: 6px 4px; }
+.net-guest-players { display: flex; flex-direction: column; gap: 3px; padding: 2px; }
+.net-guest-players .net-lobby-slot { display: flex; align-items: center; gap: 8px; }
+.net-guest-players .player-color-swatch { flex-shrink: 0; }
+.net-guest-name { font-size: 13px; color: #fff; }
+.net-host-badge {
+  font-size: 9px; letter-spacing: 1px; color: #FFFF55;
+  border: 1px solid #FFFF55; padding: 0 3px; margin-left: 5px; vertical-align: middle;
+}
+.net-me-badge {
+  font-size: 9px; letter-spacing: 1px; color: #44dd44;
+  border: 1px solid #44dd44; padding: 0 3px; margin-left: 5px; vertical-align: middle;
+}
 #setup-players-table {
   width: 100%;
   border-collapse: collapse;
@@ -551,6 +941,7 @@ canvas { display: block; }
 </style>
 </head>
 <body>
+<div id="game-viewport">
 <canvas id="c"></canvas>
 <div id="ui"></div>
 <div id="win"></div>
@@ -558,7 +949,7 @@ canvas { display: block; }
   <span>🔊</span>
   <input type="range" id="volSlider" min="0" max="1" step="0.05" value="0.6">
 </div>
-<div id="keys">← → angle &nbsp;|&nbsp; ↑ ↓ power &nbsp;|&nbsp; SPACE fire &nbsp;|&nbsp; Q/E weapon &nbsp;|&nbsp; hold SHIFT ×5 &nbsp;|&nbsp; ESC quit</div>
+<div id="keys">← → angle &nbsp;|&nbsp; ↑ ↓ power &nbsp;|&nbsp; SPACE fire &nbsp;|&nbsp; Q/E weapon &nbsp;|&nbsp; hold SHIFT ×5 &nbsp;|&nbsp; ESC quit<span id="keys-net-hint" style="display:none"> &nbsp;|&nbsp; T chat</span></div>
 <div id="shop">
   <div id="shop-inner">
     <div id="shop-hdr">
@@ -589,6 +980,21 @@ canvas { display: block; }
   </div>
 </div>
 <div id="weapon-indicator"></div>
+<!-- network in-game UI -->
+<div id="net-ingame-hud">
+  <div id="net-conn-indicator">
+    <div id="net-conn-dot"></div>
+    <span id="net-conn-label">Connected</span>
+  </div>
+  <button id="net-disconnect-ingame">Disconnect</button>
+</div>
+<div id="net-ingame-notify"></div>
+<div id="net-chat-msgs"></div>
+<div id="net-chat-wrap">
+  <input id="net-chat-input" type="text" maxlength="200" placeholder="Say something…" autocomplete="off">
+  <span id="net-chat-hint">Enter to send &middot; Esc to cancel</span>
+</div>
+<div id="net-gameover-overlay"></div>
 <div id="quit-confirm">
   <div id="quit-confirm-box">
     <h2>QUIT TO MENU?</h2>
@@ -619,9 +1025,16 @@ canvas { display: block; }
     <h1 id="setup-title">SCORCHED EARTH</h1>
     <div id="setup-subtitle">The Mother of All Games</div>
 
+    <div id="network-toggle-row">
+      <button id="btn-network-toggle">&#9632; NETWORK PLAY: OFF</button>
+    </div>
+
     <div class="dos-panel">
       <div class="dos-panel-title">Players</div>
       <div class="dos-panel-body">
+        <div id="network-placeholder" style="display:none">
+          <span id="network-placeholder-text">Network mode &mdash; HOST / JOIN coming next.</span>
+        </div>
         <table id="setup-players-table">
           <thead><tr>
             <th>#</th><th>Name</th><th>Color</th><th>Type</th>
@@ -631,19 +1044,19 @@ canvas { display: block; }
       </div>
     </div>
 
-    <div class="dos-panel">
+    <div class="dos-panel" id="panel-settings">
       <div class="dos-panel-title">Game Settings</div>
       <div class="dos-panel-body" id="setup-settings-body"></div>
     </div>
 
-    <div class="dos-panel">
+    <div class="dos-panel" id="panel-weapons">
       <div class="dos-panel-title">Weapons Loadout</div>
       <div class="dos-panel-body">
         <div class="chip-grid" id="setup-weapons-chips"></div>
       </div>
     </div>
 
-    <div class="dos-panel">
+    <div class="dos-panel" id="panel-defenses">
       <div class="dos-panel-title">Defenses</div>
       <div class="dos-panel-body">
         <div class="chip-grid" id="setup-defenses-chips"></div>
@@ -1216,8 +1629,21 @@ function soundPower(dir) {
   osc.start(now); osc.stop(now + dur);
 }
 
+let audioMuted = false;
+let preMuteVolume = masterVolume;
+
+document.querySelector('#vol span').addEventListener('click', () => {
+  ensureAudio();
+  audioMuted = !audioMuted;
+  document.querySelector('#vol span').textContent = audioMuted ? '🔇' : '🔊';
+  if (masterGain) masterGain.gain.setTargetAtTime(
+    audioMuted ? 0 : masterVolume, audioCtx ? audioCtx.currentTime : 0, 0.01
+  );
+});
+
 document.getElementById('volSlider').addEventListener('input', e => {
   masterVolume = parseFloat(e.target.value);
+  if (audioMuted) { audioMuted = false; document.querySelector('#vol span').textContent = '🔊'; }
   ensureAudio();
   if (masterGain) masterGain.gain.setTargetAtTime(masterVolume, audioCtx.currentTime, 0.01);
 });
@@ -1245,10 +1671,11 @@ let killEffectPending = false; // blocks nextTurn() while animations play
 let pendingTurnAction = null;  // deferred () => void, called when effects finish
 
 // ── intro sequence state ───────────────────────────────────────────────────
-let introPhase     = 'none';  // 'running' | 'none'
-let introTimer     = 0;
-let introTankDrops = [];      // [{y, vy, settled, startDelay, finalY}]
-let introFinishCb  = null;
+let introPhase       = 'none';  // 'running' | 'none'
+let introTimer       = 0;
+let introTankDrops   = [];      // [{y, vy, settled, startDelay, finalY}]
+let introFinishCb    = null;
+let roundInitialized = false;   // true once intro completes; resize uses this to skip re-animation
 let lastTerrainPick = '';
 
 // ── round / scoring state ──────────────────────────────────────────────────
@@ -1284,6 +1711,7 @@ let menuWeapons     = Object.fromEntries(MENU_WEAPONS.map(w=>[w,true]));
 let menuDefenses    = Object.fromEntries(MENU_DEFENSES.map(d=>[d,true]));
 
 // ── resize ─────────────────────────────────────────────────────────────────
+// Canvas always matches the browser window exactly — no letterboxing.
 function resize() {
   canvas.width  = window.innerWidth;
   canvas.height = window.innerHeight;
@@ -1391,6 +1819,13 @@ function _terrainFortress(w, h) {
 
 // ── terrain dispatcher ─────────────────────────────────────────────────────
 function generateTerrain() {
+  // In network play, the host's terrain is received and used directly
+  if (pendingNetworkTerrain) {
+    terrain    = pendingNetworkTerrain;
+    worldWidth = terrain.length; // must match so terrain[x] is never out of bounds
+    pendingNetworkTerrain = null;
+    return;
+  }
   const style = gameSettings.terrain || 'Random';
   const w = worldWidth, h = canvas.height;
   const STYLES = ['Plains','Plateaus','Mountains','Canyon','Fortress'];
@@ -1435,9 +1870,12 @@ function placeTanks() {
     const cfg      = playerConfigs[i];
     const segStart = margin + i * segWidth;
     const jitter   = segWidth * 0.15;
-    const tx = Math.max(0, Math.min(worldWidth - 1,
-      Math.floor(segStart + jitter + Math.random() * (segWidth - 2 * jitter))));
-    const groundY = terrain[tx];
+    // In network play, use host's authoritative positions instead of random
+    const tx = (pendingTankPositions && pendingTankPositions[i] !== undefined)
+      ? pendingTankPositions[i]
+      : Math.max(0, Math.min(worldWidth - 1,
+          Math.floor(segStart + jitter + Math.random() * (segWidth - 2 * jitter))));
+    const groundY = terrain[Math.max(0, Math.min(worldWidth - 1, tx))];
     const defaultAngle = tx < worldWidth / 2 ? 45 : 135;
 
     tanks.push({
@@ -1463,6 +1901,7 @@ function placeTanks() {
       selectedWeapon: 'Baby Missile',
     });
   }
+  pendingTankPositions = null; // consumed
 }
 
 // ── wind ───────────────────────────────────────────────────────────────────
@@ -2502,10 +2941,17 @@ function showScoreboard(isFinal) {
   document.getElementById('sb-footer-left').textContent =
     `Round ${currentRound} of ${totalRounds}`;
   const btn = document.getElementById('scoreboard-next');
-  btn.textContent = isFinal ? 'FINAL RESULTS \u00bb' : 'NEXT ROUND \u2192';
-  btn.disabled = true;
-  btn.onclick   = isFinal ? showFinalResults : startNextRound;
-  setTimeout(() => { if (scoreboardEl.style.display !== 'none') btn.disabled = false; }, 1000);
+  if (networkModeOn && !networkIsHost && !isFinal) {
+    // Guests wait for the host to click Next Round
+    btn.textContent = 'Waiting for host\u2026';
+    btn.disabled    = true;
+    btn.onclick     = null;
+  } else {
+    btn.textContent = isFinal ? 'FINAL RESULTS \u00bb' : 'NEXT ROUND \u2192';
+    btn.disabled = true;
+    btn.onclick  = isFinal ? showFinalResults : startNextRound;
+    setTimeout(() => { if (scoreboardEl.style.display !== 'none') btn.disabled = false; }, 1000);
+  }
 
   winEl.style.display = 'none';
   scoreboardEl.style.display = 'block';
@@ -2582,12 +3028,14 @@ function startNextRound() {
   introTimer        = 0;
   introTankDrops    = [];
   introFinishCb     = null;
+  roundInitialized  = false;
   cpuThinking       = false;
   cpuThinkTimer     = 0;
   camera.x = camera.targetX = 0;
   camera.y = camera.targetY = 0;
 
-  if (gameSettings.wallsOriginal === 'Random') {
+  if (gameSettings.wallsOriginal === 'Random' && !(networkModeOn && !networkIsHost)) {
+    // Guests skip random selection — they receive authoritative walls in round_start_data
     const concrete = ['None','Rubber','Wrap','Concrete','Absorb'];
     gameSettings.walls = concrete[Math.floor(Math.random() * concrete.length)];
   }
@@ -2617,6 +3065,21 @@ function startNextRound() {
 
   currentPlayer = roundFirstPlayer % tanks.length;
   newWind();
+  // Guests override with host's authoritative wind
+  if (pendingNetworkWind !== null) {
+    wind = pendingNetworkWind;
+    pendingNetworkWind = null;
+  }
+  // Host sends authoritative terrain, positions, wind, and wall type so guests stay in sync
+  if (networkModeOn && networkIsHost && networkWs && networkWs.readyState === WebSocket.OPEN) {
+    networkWs.send(JSON.stringify({
+      type:      'round_start_data',
+      terrain:   Array.from(terrain),
+      positions: tanks.map(t => t.x),
+      wind,
+      walls:     gameSettings.walls,
+    }));
+  }
   updateUI();
   updateWeaponIndicator();
   setCameraTarget(tanks[currentPlayer]);
@@ -2647,15 +3110,18 @@ function maybeNextTurn() {
 function nextTurn() {
   if (gameOver) return;
 
+  clearTurnTimeout();
+
   cpuThinking   = false;
   cpuThinkTimer = 0;
   turnCount++;
 
-  // Advance to next living player
+  // Advance to next living, non-disconnected player
   const n = tanks.length;
   for (let attempts = 0; attempts < n; attempts++) {
     currentPlayer = (currentPlayer + 1) % n;
-    if (tanks[currentPlayer].health > 0) break;
+    const t = tanks[currentPlayer];
+    if (t.health > 0 && !t.networkDisconnected) break;
   }
 
   updateUI();
@@ -2668,6 +3134,25 @@ function nextTurn() {
   if (tanks[currentPlayer].isAI) {
     setTimeout(startCpuTurn, 400);
   }
+
+  // Host pushes authoritative state to all clients after each turn
+  if (networkModeOn && networkIsHost && networkWs && networkWs.readyState === WebSocket.OPEN) {
+    networkWs.send(JSON.stringify({
+      type:          'state_sync',
+      healths:       tanks.map(t => t.health),
+      shieldHPs:     tanks.map(t => t.shieldHP),
+      moneys:        tanks.map(t => t.money),
+      currentPlayer,
+      wind,
+      terrainHash:   terrainHash(),
+    }));
+  }
+
+  // Start 120-second timeout when waiting for a remote player to fire
+  if (networkModeOn && networkMyPlayerIdx >= 0 && currentPlayer !== networkMyPlayerIdx
+      && tanks[currentPlayer].health > 0 && !tanks[currentPlayer].networkDisconnected) {
+    startTurnTimeout();
+  }
 }
 
 function setCameraTarget(tank) {
@@ -2678,8 +3163,14 @@ function setCameraTarget(tank) {
 
 function updateUI() {
   if (gameOver) return;
-  const t   = tanks[currentPlayer];
-  const inv = t.inventory[t.selectedWeapon];
+  const t = tanks[currentPlayer];
+  // In network mode, show "Waiting for..." when it's a remote player's turn
+  if (networkModeOn && networkMyPlayerIdx >= 0 && currentPlayer !== networkMyPlayerIdx) {
+    ui.innerHTML = `R${currentRound}/${totalRounds} &nbsp;|&nbsp; Waiting for <span style="color:${t.color}">${htmlEsc(t.name)}</span>&hellip; <span class="net-blink">&#x258C;</span>`;
+    ui.style.borderColor = t.color;
+    return;
+  }
+  const inv  = t.inventory[t.selectedWeapon];
   const ammo = inv === Infinity ? '∞' : String(inv);
   const tag  = t.isAI ? ' [CPU]' : '';
   ui.textContent = `R${currentRound}/${totalRounds}  |  ${t.name}${tag}  |  ${t.angle}°  |  Pwr ${t.power}  |  ${t.selectedWeapon} (${ammo})  |  $${t.money}`;
@@ -2927,6 +3418,11 @@ function cpuAutoBuy(playerIndex) {
 
 // ── shop phase (runs at game/round start, cycles all players) ──────────────
 function runShopPhase(onComplete) {
+  if (networkModeOn) {
+    runNetworkShopPhase(onComplete);
+    return;
+  }
+
   const playerList = tanks.map((_, i) => i);
   let pos = 0;
 
@@ -2945,6 +3441,107 @@ function runShopPhase(onComplete) {
   }
 
   shopNext();
+}
+
+// ── network shop phase: all clients shop simultaneously ─────────────────────
+function runNetworkShopPhase(onComplete) {
+  networkShopDone     = new Set();
+  networkShopCallback = onComplete;
+  // Count living players who need to shop (AI players on host buy instantly)
+  networkShopTotal    = tanks.filter(t => t.health > 0).length;
+
+  // AI players (only exist on host) buy instantly — no shop_done needed for them
+  // They're part of the host's inventory and don't require sync
+  if (networkIsHost) {
+    tanks.forEach((t, i) => {
+      if (t.isAI && t.health > 0) {
+        cpuAutoBuy(i);
+        networkShopTotal--; // AI doesn't send shop_done, reduce expected count
+      }
+    });
+  }
+
+  const myIdx  = networkMyPlayerIdx;
+  const myTank = myIdx >= 0 ? tanks[myIdx] : null;
+
+  if (!myTank || myTank.health <= 0) {
+    // Dead — skip shop and immediately mark done
+    _netShopLocalDone();
+    return;
+  }
+
+  // Open the shop for our own player
+  openShopForPlayer(myIdx, _netShopLocalDone);
+}
+
+function _netShopLocalDone() {
+  // Mark ourselves done in the local set
+  networkShopDone.add(networkMyId);
+
+  // Notify server (relayed to all others)
+  if (networkWs && networkWs.readyState === WebSocket.OPEN) {
+    networkWs.send(JSON.stringify({ type: 'shop_done' }));
+  }
+
+  // Show the waiting overlay
+  _showNetShopOverlay();
+
+  // Host checks immediately in case already all done
+  if (networkIsHost) _checkAllNetShopDone();
+  // Guests wait for 'round_begin' message which will fire networkShopCallback
+}
+
+function _showNetShopOverlay() {
+  let overlay = document.getElementById('net-shop-overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'net-shop-overlay';
+    document.body.appendChild(overlay);
+  }
+  overlay.style.display = 'flex';
+  _renderNetShopOverlay();
+}
+
+function _renderNetShopOverlay() {
+  const overlay = document.getElementById('net-shop-overlay');
+  if (!overlay || overlay.style.display === 'none') return;
+  const rows = networkPlayers.map((p, i) => {
+    const isDone = networkShopDone.has(p.id) ||
+                   (tanks[i] && tanks[i].health <= 0); // dead = skip
+    return `<div class="nso-row">` +
+      `<span class="nso-dot" style="background:${p.color}"></span>` +
+      `<span class="nso-name" style="color:${p.color}">${htmlEsc(p.name)}</span>` +
+      `<span class="nso-status">${isDone
+        ? '<span class="nso-check">&#x2713;</span>'
+        : '<span class="net-blink">&#x2022;&#x2022;&#x2022;</span>'
+      }</span>` +
+    `</div>`;
+  }).join('');
+  overlay.innerHTML = `<div id="nso-panel">` +
+    `<div id="nso-title">Waiting for players to finish shopping</div>` +
+    rows +
+  `</div>`;
+}
+
+function _dismissNetShopOverlay() {
+  const overlay = document.getElementById('net-shop-overlay');
+  if (overlay) overlay.style.display = 'none';
+}
+
+function _checkAllNetShopDone() {
+  // Only host calls this. Check that all living (non-AI) players are done.
+  const livingPlayerIds = networkPlayers
+    .filter((p, i) => tanks[i] && tanks[i].health > 0 && !tanks[i].isAI)
+    .map(p => p.id);
+  const allDone = livingPlayerIds.every(id => networkShopDone.has(id));
+  if (!allDone) return;
+
+  // Send round_begin to all guests
+  if (networkWs && networkWs.readyState === WebSocket.OPEN) {
+    networkWs.send(JSON.stringify({ type: 'round_begin' }));
+  }
+  _dismissNetShopOverlay();
+  if (networkShopCallback) { const cb = networkShopCallback; networkShopCallback = null; cb(); }
 }
 
 function openShopForPlayer(playerIndex, onDone) {
@@ -3085,9 +3682,10 @@ function fire() {
   if (projectiles.length > 0 || gameOver || shopOpen) return;
   const t   = tanks[currentPlayer];
   if (t.health <= 0) return;
-  const wep = WEAPONS[t.selectedWeapon];
+  const wep            = WEAPONS[t.selectedWeapon];
+  const firedWeaponName = t.selectedWeapon; // capture before inventory change may reset it
 
-  if (wep.cost > 0) {
+  if (!_simulatingRemote && wep.cost > 0) {
     if (t.inventory[t.selectedWeapon] <= 0) return;
     t.inventory[t.selectedWeapon]--;
     if (t.inventory[t.selectedWeapon] === 0) t.selectedWeapon = 'Baby Missile';
@@ -3095,7 +3693,8 @@ function fire() {
 
   let fireAngle = t.angle;
   let firePower = t.power;
-  if (wep.type === 'lazyboy') {
+  // Skip lazyboy auto-aim when simulating a received remote shot — use angles as-is
+  if (!_simulatingRemote && wep.type === 'lazyboy') {
     const tgt = cpuSelectTarget(currentPlayer);
     if (tgt >= 0) {
       const aim = cpuComputeAim(currentPlayer, tgt, { angleNoise: 0, powerNoise: 0 });
@@ -3118,6 +3717,18 @@ function fire() {
     owner: currentPlayer, mirvSplit: false,
   });
 
+  // Broadcast our shot to other clients
+  if (networkModeOn && !_simulatingRemote && networkWs && networkWs.readyState === WebSocket.OPEN) {
+    networkWs.send(JSON.stringify({
+      type:       'turn_action',
+      playerIdx:  currentPlayer,
+      weapon:     firedWeaponName,
+      angle:      fireAngle,
+      power:      firePower,
+      wind:       wind,
+    }));
+  }
+
   soundFire();
   startWhistle();
   updateUI();
@@ -3126,7 +3737,16 @@ function fire() {
 
 // ── intro sequence ─────────────────────────────────────────────────────────
 function startIntroSequence(cb) {
-  introFinishCb  = cb;
+  // Wrap callback to set the flag once the round is live
+  const wrapped = () => { roundInitialized = true; if (cb) cb(); };
+
+  // If the round is already running (e.g. called during a resize), skip animation
+  if (roundInitialized) {
+    wrapped();
+    return;
+  }
+
+  introFinishCb  = wrapped;
   introPhase     = 'running';
   introTimer     = 0;
   introTankDrops = tanks.map((t, i) => ({
@@ -3459,6 +4079,16 @@ document.getElementById('quit-btn-yes').addEventListener('click', () => {
   quitConfirmEl.classList.remove('visible');
   if (animId) { cancelAnimationFrame(animId); animId = null; }
   gameOver = true;
+  if (networkModeOn) { disconnectNetwork(); setNetworkMode(false); }
+  showSetup();
+});
+
+document.getElementById('net-disconnect-ingame').addEventListener('click', () => {
+  if (!confirm('Leave the network game and return to main menu?')) return;
+  if (animId) { cancelAnimationFrame(animId); animId = null; }
+  gameOver = true;
+  disconnectNetwork();
+  setNetworkMode(false);
   showSetup();
 });
 document.getElementById('quit-btn-no').addEventListener('click', () => {
@@ -3474,9 +4104,14 @@ function showQuitConfirm() {
 document.addEventListener('keydown', e => {
   ensureAudio();
 
-  // Escape: close any open overlay first
+  // Suppress shortcuts while the user is typing in an input or textarea
+  const activeTag = document.activeElement && document.activeElement.tagName;
+  if ((activeTag === 'INPUT' || activeTag === 'TEXTAREA') && e.key !== 'Escape') return;
+
+  // Escape: close chat first, then overlays, then show quit
   if (e.key === 'Escape') {
     e.preventDefault();
+    if (chatOpen) { closeChat(); return; }
     if (aboutOverlayEl.classList.contains('visible')) {
       aboutOverlayEl.classList.remove('visible'); return;
     }
@@ -3486,6 +4121,13 @@ document.addEventListener('keydown', e => {
     if (setupEl.style.display === 'none' && !shopOpen) {
       showQuitConfirm();
     }
+    return;
+  }
+
+  // T: open chat (network play only, while in-game)
+  if ((e.key === 't' || e.key === 'T') && networkModeOn && setupEl.style.display === 'none' && !shopOpen && !chatOpen) {
+    e.preventDefault();
+    openChat();
     return;
   }
 
@@ -3518,6 +4160,8 @@ document.addEventListener('keydown', e => {
   if (introPhase !== 'none') return;
   if (gameOver || projectiles.length > 0 || cpuThinking) return;
   if (!tanks || !tanks[currentPlayer] || tanks[currentPlayer].isAI) return;
+  // Block controls when waiting for a remote player's shot
+  if (networkModeOn && networkMyPlayerIdx >= 0 && currentPlayer !== networkMyPlayerIdx) return;
   const t    = tanks[currentPlayer];
   const step = e.shiftKey ? 5 : 1;
   switch (e.key) {
@@ -3538,8 +4182,19 @@ document.addEventListener('click', e => {
   if (gameOver && scoreboardEl.style.display === 'none') showSetup();
 });
 
+// Debounced resize — only fires once the user finishes dragging the window edge.
+// Never calls initGame(); just resizes the canvas. The already-running game loop
+// redraws at the new size on its next tick. roundInitialized guards intro animations.
+let _resizeTimer = null;
 window.addEventListener('resize', () => {
-  if (playerConfigs.length > 0) initGame();
+  clearTimeout(_resizeTimer);
+  _resizeTimer = setTimeout(() => {
+    resize();
+    // If the game loop stopped for any reason while we were in-game, restart it.
+    if (playerConfigs.length > 0 && setupEl.style.display === 'none' && !animId) {
+      animId = requestAnimationFrame(gameLoop);
+    }
+  }, 150);
 });
 
 // ── setup screen ───────────────────────────────────────────────────────────
@@ -3549,7 +4204,11 @@ function showSetup() {
   document.getElementById('keys').style.display          = 'none';
   document.getElementById('vol').style.display           = 'none';
   document.getElementById('weapon-indicator').style.display = 'none';
+  document.getElementById('net-ingame-hud').style.display     = 'none';
+  document.getElementById('keys-net-hint').style.display       = 'none';
   winEl.style.display = 'none';
+  closeChat();
+  clearTurnTimeout();
   renderMenuSetup();
 }
 
@@ -3559,6 +4218,11 @@ function hideSetup() {
   document.getElementById('keys').style.display          = '';
   document.getElementById('vol').style.display           = '';
   document.getElementById('weapon-indicator').style.display = '';
+  if (networkModeOn) {
+    document.getElementById('net-ingame-hud').style.display = 'flex';
+    document.getElementById('keys-net-hint').style.display  = '';
+    updateConnIndicator();
+  }
 }
 
 function htmlEsc(s) {
@@ -3656,6 +4320,7 @@ function stepSetting(si, dir) {
   renderSettingsPanel();
   const vals = document.querySelectorAll('.setting-value');
   if (vals[si]) vals[si].focus();
+  if (networkModeOn && networkIsHost) broadcastSettings();
 }
 
 function renderChips(containerId, items, stateObj) {
@@ -3668,6 +4333,7 @@ function renderChips(containerId, items, stateObj) {
     const toggle = () => {
       stateObj[item] = !stateObj[item];
       btn.className = 'dos-chip' + (stateObj[item] ? '' : ' off');
+      if (networkModeOn && networkIsHost) broadcastSettings();
     };
     btn.addEventListener('click', toggle);
     btn.addEventListener('keydown', e => {
@@ -3680,8 +4346,12 @@ function renderChips(containerId, items, stateObj) {
 function updateStartBtn() {
   const btn = document.getElementById('setup-start');
   if (!btn) return;
-  const active = menuPlayers.filter(p => PLAYER_TYPES[p.typeIdx] !== 'off').length;
-  btn.disabled = active < 2;
+  if (networkModeOn) {
+    btn.disabled = !(networkPhase === 'lobby' && networkIsHost && networkPlayers.length >= 2);
+  } else {
+    const active = menuPlayers.filter(p => PLAYER_TYPES[p.typeIdx] !== 'off').length;
+    btn.disabled = active < 2;
+  }
 }
 
 function renderMenuSetup() {
@@ -3692,21 +4362,1033 @@ function renderMenuSetup() {
   updateStartBtn();
 }
 
+// ── network play toggle ────────────────────────────────────────────────────
+let networkModeOn   = false;
+let networkWs       = null;
+let networkIsHost   = false;
+let networkRoomCode = null;
+let networkMyId     = null;
+let networkPlayers  = [];      // [{id, name, color, isHost}] from server
+let networkPhase    = 'idle';  // 'idle' | 'pre-connect' | 'join-form' | 'lobby'
+let networkPublicIp = null;   // fetched from ipify when hosting; null until known, false if unavailable
+
+// In-game network state
+let networkMyPlayerIdx    = -1;    // our index in tanks[] (-1 = not in-game)
+let _simulatingRemote     = false; // true while simulating a received turn_action
+let pendingNetworkTerrain = null;  // terrain array from host, used in generateTerrain()
+let pendingTankPositions  = null;  // tank x positions from host, applied in placeTanks()
+let pendingNetworkWind    = null;  // wind value from host, overrides newWind() result
+let networkShopDone       = new Set(); // playerIds who have sent shop_done this round
+let networkShopCallback   = null;  // fires when all players finish shopping (host sends round_begin)
+let networkShopTotal      = 0;     // living players expected to shop this round
+
+// Edge-case / resilience state
+let networkTurnTimeoutTimer = null;  // 120s handle: skip remote player's turn if no shot arrives
+let networkPingInterval     = null;  // 5s heartbeat setInterval handle
+let networkLastPong         = 0;     // timestamp of last pong received from server
+let networkDisconnectedIds  = new Set(); // playerIds who disconnected mid-game (turns skipped)
+let networkRemoveTimers     = new Map(); // playerId -> 60s removal setTimeout handle
+let pendingStateSyncs       = [];    // state_sync msgs queued while projectiles are in flight
+
+// Chat state
+let chatOpen = false;               // T-key chat input is visible
+
+// Join-form state (persists across re-renders and retries)
+let networkJoinAddr     = 'localhost';
+let networkJoinPort     = '3000';
+let networkJoinCode     = '';
+let networkJoinName     = '';
+let networkJoinColorIdx = 1;           // default to red (host defaults to blue)
+let networkJoinState    = 'idle';      // 'idle' | 'connecting' | 'failed'
+let networkJoinError    = '';
+let networkJoinSettings = null;        // game_settings snapshot received from host
+
+// Hide editable panels for guests — they can't change settings
+function _applyGuestPanelVisibility() {
+  // Guest in lobby: only the Players panel should be visible
+  const hideEditable = networkModeOn && !networkIsHost && networkPhase === 'lobby';
+  const display = hideEditable ? 'none' : '';
+  document.getElementById('panel-settings').style.display  = display;
+  document.getElementById('panel-weapons').style.display   = display;
+  document.getElementById('panel-defenses').style.display  = display;
+}
+
+function setNetworkMode(on) {
+  networkModeOn = on;
+  const btn         = document.getElementById('btn-network-toggle');
+  const placeholder = document.getElementById('network-placeholder');
+  const table       = document.getElementById('setup-players-table');
+  if (on) {
+    btn.textContent = '\u25A0 NETWORK PLAY: ON';
+    btn.classList.add('net-on');
+    placeholder.style.display = 'block';
+    table.style.display       = 'none';
+    networkPhase = 'pre-connect';
+    renderNetworkPanel();
+  } else {
+    disconnectNetwork();
+    btn.textContent = '\u25A0 NETWORK PLAY: OFF';
+    btn.classList.remove('net-on');
+    placeholder.style.display = 'none';
+    table.style.display       = '';
+    // Restore editable panels when network mode is turned off
+    document.getElementById('panel-settings').style.display  = '';
+    document.getElementById('panel-weapons').style.display   = '';
+    document.getElementById('panel-defenses').style.display  = '';
+  }
+  updateStartBtn();
+}
+
+function renderNetworkPanel() {
+  const el = document.getElementById('network-placeholder');
+  el.innerHTML = '';
+
+  if (networkPhase === 'pre-connect') {
+    const div = document.createElement('div');
+    div.id = 'net-pre-buttons';
+    div.innerHTML = `<button id="btn-host">&#9654; HOST</button><button id="btn-join">&#9670; JOIN</button>`;
+    el.appendChild(div);
+    div.querySelector('#btn-host').addEventListener('click', hostGame);
+    div.querySelector('#btn-join').addEventListener('click', showJoinForm);
+    const st = document.createElement('div');
+    st.id = 'net-status';
+    el.appendChild(st);
+
+  } else if (networkPhase === 'join-form') {
+    const isConnecting = networkJoinState === 'connecting';
+    const isFailed     = networkJoinState === 'failed';
+    const dis          = isConnecting ? 'disabled' : '';
+
+    const div = document.createElement('div');
+    div.id = 'net-join-form';
+    div.innerHTML = `
+      <div class="net-form-grid">
+        <label class="net-form-label" for="net-join-addr">Host Address</label>
+        <input class="net-form-input" id="net-join-addr" type="text" value="${htmlEsc(networkJoinAddr)}" placeholder="localhost" maxlength="64" autocomplete="off" ${dis}>
+        <label class="net-form-label" for="net-join-port">Port</label>
+        <input class="net-form-input net-form-input-short" id="net-join-port" type="text" value="${htmlEsc(networkJoinPort)}" placeholder="3000" maxlength="5" autocomplete="off" ${dis}>
+        <label class="net-form-label" for="net-join-code">Room Code</label>
+        <input class="net-form-input net-form-input-code" id="net-join-code" type="text" value="${htmlEsc(networkJoinCode)}" placeholder="XXXXXX" maxlength="6" autocomplete="off" spellcheck="false" ${dis}>
+        <label class="net-form-label" for="net-join-name">Your Name</label>
+        <input class="net-form-input" id="net-join-name" type="text" value="${htmlEsc(networkJoinName || menuPlayers[0].name)}" placeholder="Player" maxlength="12" autocomplete="off" ${dis}>
+        <label class="net-form-label">Color</label>
+        <div class="net-form-color-row">
+          <span id="net-join-color-swatch" class="player-color-swatch net-join-color-swatch" style="background:${PLAYER_COLORS[networkJoinColorIdx]}" tabindex="${isConnecting ? -1 : 0}" title="Click to cycle color"></span>
+          <span class="net-form-color-hint">${PLAYER_COLORS[networkJoinColorIdx]}</span>
+        </div>
+      </div>
+      <div class="net-form-actions">
+        <button id="btn-join-confirm" ${dis}>${isConnecting ? 'Connecting\u2026' : 'CONNECT'}</button>
+        ${isFailed ? '<button id="btn-join-retry">RETRY</button>' : ''}
+        <button id="btn-join-cancel" ${dis}>BACK</button>
+        <button id="btn-paste-clipboard" ${dis} title="Paste address and room code from clipboard">&#128203; PASTE</button>
+      </div>
+      <div id="net-form-status" class="${isFailed ? 'error' : isConnecting ? 'info' : ''}">${
+        isFailed     ? networkJoinError :
+        isConnecting ? 'Connecting\u2026' : ''
+      }</div>
+    `;
+    el.appendChild(div);
+
+    const codeEl = div.querySelector('#net-join-code');
+    codeEl.addEventListener('input', () => { codeEl.value = codeEl.value.toUpperCase(); });
+    codeEl.addEventListener('keydown', e => { if (e.key === 'Enter') doJoin(); });
+
+    const swatch = div.querySelector('#net-join-color-swatch');
+    swatch.addEventListener('click', cycleJoinColor);
+    swatch.addEventListener('keydown', e => {
+      if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); cycleJoinColor(); }
+    });
+
+    div.querySelector('#btn-join-confirm').addEventListener('click', doJoin);
+    if (isFailed) div.querySelector('#btn-join-retry').addEventListener('click', doJoin);
+    div.querySelector('#btn-join-cancel').addEventListener('click', () => {
+      networkJoinState = 'idle';
+      networkPhase     = 'pre-connect';
+      renderNetworkPanel();
+    });
+
+    div.querySelector('#btn-paste-clipboard').addEventListener('click', () => {
+      navigator.clipboard.readText().then(text => {
+        // Expected format: "192.168.1.50:3000 Room: ABCDEF"
+        // Also handle just "192.168.1.50:3000" or "192.168.1.50 ABCDEF" etc.
+        text = text.trim();
+        const addrEl = div.querySelector('#net-join-addr');
+        const portEl = div.querySelector('#net-join-port');
+        const codeEl = div.querySelector('#net-join-code');
+
+        // Extract room code: 6 uppercase alphanumeric chars
+        const codeMatch = text.match(/\b([A-Z0-9]{6})\b/);
+        if (codeMatch) codeEl.value = codeMatch[1];
+
+        // Extract host:port or just host
+        const addrMatch = text.match(/([A-Za-z0-9._-]+):(\d+)/);
+        if (addrMatch) {
+          addrEl.value = addrMatch[1];
+          portEl.value = addrMatch[2];
+        } else {
+          // Try plain hostname/IP before any space or "Room:"
+          const hostMatch = text.match(/^([A-Za-z0-9._-]+)/);
+          if (hostMatch) addrEl.value = hostMatch[1];
+        }
+
+        // Sync backing vars so doJoin() sees them
+        networkJoinAddr = addrEl.value;
+        networkJoinPort = portEl.value;
+        networkJoinCode = codeEl.value;
+
+        const statusEl = div.querySelector('#net-form-status');
+        if (statusEl) { statusEl.textContent = 'Pasted!'; statusEl.className = 'info'; }
+      }).catch(() => {
+        const statusEl = div.querySelector('#net-form-status');
+        if (statusEl) { statusEl.textContent = 'Clipboard read failed — try manually.'; statusEl.className = 'error'; }
+      });
+    });
+
+    if (!isConnecting) codeEl.focus();
+
+  } else if (networkPhase === 'lobby') {
+    if (networkIsHost) {
+      // ── Host lobby ─────────────────────────────────────────────────────────
+      const rc = document.createElement('div');
+      rc.id = 'net-room-code-display';
+      rc.innerHTML = `ROOM CODE: <span>${networkRoomCode}</span>`;
+      el.appendChild(rc);
+
+      // ── Connection info ────────────────────────────────────────────────────
+      const ci = document.createElement('div');
+      ci.id = 'net-conn-info';
+      const info = _cachedServerInfo;
+      let localLines = '';
+      if (!info) {
+        localLines = '<div>Local: <em>detecting…</em></div>';
+      } else {
+        const ips   = info.localIPs && info.localIPs.length ? info.localIPs : [];
+        const host  = info.hostname || null;
+        if (ips.length) {
+          ips.forEach(ip => {
+            localLines += `<div><span class="net-copy-row" data-copy="${ip}:3000">Local IP: <span class="net-ip">${ip}:3000</span> <span class="net-ip-note">(same network — click to copy)</span></span></div>`;
+          });
+        }
+        if (host) {
+          localLines += `<div><span class="net-copy-row" data-copy="${host}:3000">Computer: <span class="net-ip">${host}:3000</span> <span class="net-ip-note">(same network — click to copy)</span></span></div>`;
+        }
+        if (!localLines) localLines = '<div>Local: <em>unavailable</em></div>';
+      }
+      const pubLine = networkPublicIp === null
+        ? 'Public: <em>fetching…</em>'
+        : networkPublicIp === false
+          ? 'Public: <span class="net-unavail">unavailable</span>'
+          : `Public: <span class="net-copy-row" data-copy="${networkPublicIp}:3000">Public: <span class="net-ip">${networkPublicIp}:3000</span> <span class="net-ip-note">(outside your network — click to copy)</span></span>`;
+      ci.innerHTML = localLines + `<div>${pubLine}</div><div id="net-copy-toast"></div>`;
+      el.appendChild(ci);
+
+      // Wire up click-to-copy on each address row
+      ci.querySelectorAll('.net-copy-row').forEach(row => {
+        row.addEventListener('click', () => {
+          const addr = row.dataset.copy;
+          const text = `${addr} Room: ${networkRoomCode}`;
+          navigator.clipboard.writeText(text).then(() => {
+            const toast = document.getElementById('net-copy-toast');
+            if (toast) {
+              toast.textContent = `Copied: ${text}`;
+              clearTimeout(toast._t);
+              toast._t = setTimeout(() => { if (toast) toast.textContent = ''; }, 2500);
+            }
+          }).catch(() => {});
+        });
+      });
+
+      const pc = document.createElement('div');
+      pc.id = 'net-player-count';
+      pc.textContent = `Players: ${networkPlayers.length}/5`;
+      el.appendChild(pc);
+
+      const table = document.createElement('table');
+      table.id = 'net-lobby-table';
+      table.innerHTML = `<thead><tr><th>#</th><th>Name</th><th>Color</th></tr></thead>`;
+      const tbody = document.createElement('tbody');
+
+      for (let i = 0; i < 5; i++) {
+        const player = networkPlayers[i];
+        const tr = document.createElement('tr');
+
+        if (i === 0) {
+          // Editable host slot
+          const color = PLAYER_COLORS[menuPlayers[0].colorIdx];
+          tr.className = 'net-lobby-slot';
+          tr.innerHTML = `
+            <td class="player-num">1</td>
+            <td><input class="player-name-input" type="text" value="${htmlEsc(menuPlayers[0].name)}" maxlength="12"></td>
+            <td><span class="player-color-swatch" style="background:${color}" tabindex="0" title="Click to cycle color"></span></td>
+          `;
+          tr.querySelector('.player-name-input').addEventListener('input', e => {
+            menuPlayers[0].name = e.target.value || 'Player 1';
+            broadcastSettingsDebounced();
+          });
+          const swatch = tr.querySelector('.player-color-swatch');
+          swatch.addEventListener('click', () => { cyclePlayerColor(0); broadcastSettings(); renderNetworkPanel(); });
+          swatch.addEventListener('keydown', e => {
+            if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); cyclePlayerColor(0); broadcastSettings(); renderNetworkPanel(); }
+          });
+        } else if (player) {
+          tr.className = 'net-lobby-slot';
+          tr.innerHTML = `
+            <td class="player-num">${i+1}</td>
+            <td>${htmlEsc(player.name)}</td>
+            <td><span class="player-color-swatch" style="background:${player.color};cursor:default;opacity:0.9"></span></td>
+          `;
+        } else {
+          tr.className = 'net-lobby-slot net-lobby-waiting';
+          tr.innerHTML = `
+            <td class="player-num">${i+1}</td>
+            <td colspan="2">Waiting for player\u2026</td>
+          `;
+        }
+        tbody.appendChild(tr);
+      }
+      table.appendChild(tbody);
+      el.appendChild(table);
+
+      const footer = document.createElement('div');
+      footer.id = 'net-lobby-footer';
+      footer.innerHTML = `<div id="net-status"></div><button id="net-disconnect-btn">DISCONNECT</button>`;
+      el.appendChild(footer);
+      footer.querySelector('#net-disconnect-btn').addEventListener('click', resetNetwork);
+
+    } else {
+      // ── Guest lobby ────────────────────────────────────────────────────────
+      const isStarting = el.dataset.starting === '1';
+
+      const statusDiv = document.createElement('div');
+      statusDiv.id = 'net-guest-status';
+      statusDiv.className = 'info';
+      statusDiv.textContent = isStarting
+        ? 'Game is starting\u2026'
+        : 'Connected! Waiting for host to start\u2026';
+      el.appendChild(statusDiv);
+
+      // Settings section
+      if (networkJoinSettings) {
+        const settSec = document.createElement('div');
+        settSec.className = 'net-section';
+        settSec.innerHTML = '<div class="net-section-title">Game Settings</div>';
+
+        const grid = document.createElement('div');
+        grid.className = 'net-settings-grid';
+        SETTING_DEFS.forEach(def => {
+          const val = networkJoinSettings[def.key];
+          if (val === undefined) return;
+          const row = document.createElement('div');
+          row.className = 'net-settings-row';
+          row.innerHTML = `<span class="net-settings-label">${def.label}</span><span class="net-settings-val">${htmlEsc(def.fmt(val))}</span>`;
+          grid.appendChild(row);
+        });
+        settSec.appendChild(grid);
+
+        const weapons = networkJoinSettings.enabledWeapons;
+        if (weapons && weapons.length) {
+          const wRow = document.createElement('div');
+          wRow.className = 'net-chip-section';
+          wRow.innerHTML = '<span class="net-chip-section-label">Weapons</span>';
+          weapons.forEach(w => {
+            const c = document.createElement('span');
+            c.className = 'net-chip-ro';
+            c.textContent = w;
+            wRow.appendChild(c);
+          });
+          settSec.appendChild(wRow);
+        }
+
+        const defenses = networkJoinSettings.enabledDefenses;
+        if (defenses && defenses.length) {
+          const dRow = document.createElement('div');
+          dRow.className = 'net-chip-section';
+          dRow.innerHTML = '<span class="net-chip-section-label">Defenses</span>';
+          defenses.forEach(d => {
+            const c = document.createElement('span');
+            c.className = 'net-chip-ro';
+            c.textContent = d;
+            dRow.appendChild(c);
+          });
+          settSec.appendChild(dRow);
+        }
+
+        el.appendChild(settSec);
+      } else {
+        const waiting = document.createElement('div');
+        waiting.className = 'net-settings-pending';
+        waiting.textContent = 'Waiting for host to share settings\u2026';
+        el.appendChild(waiting);
+      }
+
+      // Players section
+      const playerSec = document.createElement('div');
+      playerSec.className = 'net-section';
+      playerSec.innerHTML = '<div class="net-section-title">Players</div>';
+      const playerList = document.createElement('div');
+      playerList.className = 'net-guest-players';
+      networkPlayers.forEach((p, i) => {
+        const row = document.createElement('div');
+        row.className = 'net-lobby-slot';
+        const badge = p.isHost ? ' <span class="net-host-badge">HOST</span>' : '';
+        const isMe  = p.id === networkMyId ? ' <span class="net-me-badge">YOU</span>' : '';
+        row.innerHTML = `<span class="player-num">${i+1}</span><span class="player-color-swatch" style="background:${p.color};cursor:default"></span><span class="net-guest-name">${htmlEsc(p.name)}${badge}${isMe}</span>`;
+        playerList.appendChild(row);
+      });
+      playerSec.appendChild(playerList);
+      el.appendChild(playerSec);
+
+      const footer = document.createElement('div');
+      footer.id = 'net-lobby-footer';
+      footer.innerHTML = `<button id="net-disconnect-btn">DISCONNECT</button>`;
+      el.appendChild(footer);
+      footer.querySelector('#net-disconnect-btn').addEventListener('click', resetNetwork);
+    }
+  }
+  _applyGuestPanelVisibility();
+}
+
+function netStatus(msg, isError) {
+  const el = document.getElementById('net-status');
+  if (!el) return;
+  el.textContent = msg;
+  el.className = isError ? 'error' : 'info';
+}
+
+function connectWs(url, onOpen) {
+  if (networkWs && networkWs.readyState <= 1) networkWs.close();
+  networkWs = new WebSocket(url);
+  networkWs.onopen = () => { startPingLoop(); onOpen(); updateConnIndicator(); };
+  networkWs.onmessage = e => handleWsMessage(JSON.parse(e.data));
+  networkWs.onclose = () => { updateConnIndicator(); handleWsDisconnect(); };
+  networkWs.onerror = () => {
+    if (!networkIsHost && networkPhase === 'join-form') {
+      networkJoinState = 'failed';
+      networkJoinError = 'Connection failed \u2014 check address and try again.';
+      renderNetworkPanel();
+    } else {
+      netStatus('Connection error.', true);
+    }
+  };
+}
+
+// Cache for server-reported local info { hostname, localIPs }
+let _cachedServerInfo = null;
+function _ensureServerInfo() {
+  if (_cachedServerInfo) return;
+  fetch('http://localhost:3000/info')
+    .then(r => r.json())
+    .then(info => {
+      _cachedServerInfo = info;
+      if (networkPhase === 'lobby' && networkIsHost) renderNetworkPanel();
+    })
+    .catch(() => {
+      _cachedServerInfo = { hostname: null, localIPs: [] };
+      if (networkPhase === 'lobby' && networkIsHost) renderNetworkPanel();
+    });
+}
+
+function hostGame() {
+  netStatus('Connecting\u2026', false);
+  networkPublicIp  = null;   // reset; will be filled once fetched
+  _cachedServerInfo = null;  // re-fetch each host session
+  _ensureServerInfo();
+  const name  = menuPlayers[0].name || 'Player 1';
+  const color = PLAYER_COLORS[menuPlayers[0].colorIdx];
+  connectWs('ws://localhost:3000', () => networkWs.send(JSON.stringify({ type: 'create_room', name, color })));
+  // Fetch public IP in parallel — update lobby once it resolves
+  fetch('https://api.ipify.org?format=text')
+    .then(r => r.text())
+    .then(ip => {
+      networkPublicIp = ip.trim();
+      if (networkPhase === 'lobby' && networkIsHost) renderNetworkPanel();
+    })
+    .catch(() => {
+      networkPublicIp = false;  // unavailable
+      if (networkPhase === 'lobby' && networkIsHost) renderNetworkPanel();
+    });
+}
+
+function showJoinForm() {
+  networkJoinName  = networkJoinName || menuPlayers[0].name || 'Player';
+  networkJoinState = 'idle';
+  networkPhase     = 'join-form';
+  renderNetworkPanel();
+}
+
+function doJoin() {
+  const addrEl = document.getElementById('net-join-addr');
+  const portEl = document.getElementById('net-join-port');
+  const codeEl = document.getElementById('net-join-code');
+  const nameEl = document.getElementById('net-join-name');
+
+  const addr = (addrEl ? addrEl.value.trim() : networkJoinAddr) || 'localhost';
+  const port = (portEl ? portEl.value.trim() : networkJoinPort) || '3000';
+  const code = (codeEl ? codeEl.value.trim() : networkJoinCode).toUpperCase();
+  const name = (nameEl ? nameEl.value.trim() : networkJoinName) || menuPlayers[0].name || 'Player';
+
+  if (!code) {
+    networkJoinState = 'failed';
+    networkJoinError = 'Enter a room code.';
+    renderNetworkPanel();
+    return;
+  }
+
+  networkJoinAddr  = addr;
+  networkJoinPort  = port;
+  networkJoinCode  = code;
+  networkJoinName  = name;
+  networkJoinState = 'connecting';
+  networkJoinError = '';
+  renderNetworkPanel();
+  joinGame();
+}
+
+function joinGame() {
+  const url   = `ws://${networkJoinAddr}:${networkJoinPort}`;
+  const color = PLAYER_COLORS[networkJoinColorIdx];
+  connectWs(url, () => networkWs.send(JSON.stringify({
+    type: 'join_room', roomCode: networkJoinCode, name: networkJoinName, color,
+  })));
+}
+
+function cycleJoinColor() {
+  networkJoinColorIdx = (networkJoinColorIdx + 1) % PLAYER_COLORS.length;
+  const color = PLAYER_COLORS[networkJoinColorIdx];
+  const swatch = document.getElementById('net-join-color-swatch');
+  if (swatch) {
+    swatch.style.background = color;
+    const hint = swatch.parentElement && swatch.parentElement.querySelector('.net-form-color-hint');
+    if (hint) hint.textContent = color;
+  }
+}
+
+// ── heartbeat ──────────────────────────────────────────────────────────────
+function startPingLoop() {
+  stopPingLoop();
+  networkLastPong = Date.now();
+  networkPingInterval = setInterval(() => {
+    if (!networkWs || networkWs.readyState !== WebSocket.OPEN) return;
+    if (Date.now() - networkLastPong > 3600000) {
+      console.warn('[net] pong timeout — closing dead connection');
+      networkWs.close();
+      return;
+    }
+    networkWs.send(JSON.stringify({ type: 'ping' }));
+  }, 5000);
+}
+
+function stopPingLoop() {
+  if (networkPingInterval) { clearInterval(networkPingInterval); networkPingInterval = null; }
+}
+
+// ── turn timeout ────────────────────────────────────────────────────────────
+function startTurnTimeout() {
+  clearTurnTimeout();
+  networkTurnTimeoutTimer = setTimeout(() => {
+    if (gameOver || !tanks || !tanks[currentPlayer]) return;
+    const t = tanks[currentPlayer];
+    showIngameNotif(`${t.name} timed out — skipping turn.`, t.color);
+    console.warn('[net] turn timeout for', t.name);
+    maybeNextTurn();
+  }, 120000);
+}
+
+function clearTurnTimeout() {
+  if (networkTurnTimeoutTimer) { clearTimeout(networkTurnTimeoutTimer); networkTurnTimeoutTimer = null; }
+}
+
+// ── connection status indicator ─────────────────────────────────────────────
+function updateConnIndicator() {
+  const dot = document.getElementById('net-conn-dot');
+  const lbl = document.getElementById('net-conn-label');
+  if (!dot || !lbl) return;
+  const ok = networkWs && networkWs.readyState === WebSocket.OPEN;
+  dot.style.background = ok ? '#44dd44' : '#FF5555';
+  lbl.textContent      = ok ? 'Connected' : 'Disconnected';
+}
+
+// ── in-game notifications ───────────────────────────────────────────────────
+function showIngameNotif(text, accentColor) {
+  const container = document.getElementById('net-ingame-notify');
+  if (!container) return;
+  const div = document.createElement('div');
+  div.className = 'net-notify-msg';
+  if (accentColor) div.style.borderLeftColor = accentColor;
+  div.textContent = text;
+  container.appendChild(div);
+  setTimeout(() => { if (div.parentNode) div.parentNode.removeChild(div); }, 4000);
+}
+
+// ── chat ────────────────────────────────────────────────────────────────────
+function openChat() {
+  if (!networkModeOn || chatOpen) return;
+  chatOpen = true;
+  const wrap = document.getElementById('net-chat-wrap');
+  if (wrap) { wrap.style.display = 'flex'; }
+  const inp = document.getElementById('net-chat-input');
+  if (inp) { inp.value = ''; inp.focus(); }
+}
+
+function closeChat() {
+  chatOpen = false;
+  const wrap = document.getElementById('net-chat-wrap');
+  if (wrap) wrap.style.display = 'none';
+}
+
+function sendChat() {
+  const inp = document.getElementById('net-chat-input');
+  if (!inp) { closeChat(); return; }
+  const text = inp.value.trim().slice(0, 200);
+  closeChat();
+  if (!text) return;
+  if (networkWs && networkWs.readyState === WebSocket.OPEN) {
+    networkWs.send(JSON.stringify({ type: 'chat', text }));
+  }
+  // Display locally (server only relays to others)
+  const me = networkPlayers.find(p => p.id === networkMyId);
+  addChatMessage(me ? me.name : 'Me', me ? me.color : '#fff', text);
+}
+
+function addChatMessage(name, color, text) {
+  const msgs = document.getElementById('net-chat-msgs');
+  if (!msgs) return;
+  const div = document.createElement('div');
+  div.className = 'net-chat-msg';
+  div.innerHTML = `<span style="color:${color}">${htmlEsc(name)}:</span> ${htmlEsc(text)}`;
+  msgs.insertBefore(div, msgs.firstChild);
+  setTimeout(() => { if (div.parentNode) div.parentNode.removeChild(div); }, 5000);
+}
+
+// ── player disconnect mid-game ──────────────────────────────────────────────
+function handlePlayerDisconnectIngame(id, name, tankIdx) {
+  if (networkDisconnectedIds.has(id)) return; // already handled
+  networkDisconnectedIds.add(id);
+
+  const color = (tankIdx >= 0 && tanks[tankIdx]) ? tanks[tankIdx].color : null;
+  showIngameNotif(`${name} disconnected.`, color);
+
+  // Mark tank so turns are auto-skipped
+  if (tankIdx >= 0 && tanks[tankIdx]) {
+    tanks[tankIdx].networkDisconnected = true;
+  }
+
+  // If they were expected to send shop_done, mark them done immediately
+  if (networkShopCallback) {
+    networkShopDone.add(id);
+    _renderNetShopOverlay();
+    if (networkIsHost) _checkAllNetShopDone();
+  }
+
+  // If it's currently their turn, skip it
+  if (networkModeOn && tanks && tankIdx >= 0 && currentPlayer === tankIdx) {
+    clearTurnTimeout();
+    showIngameNotif(`Skipping ${name}'s turn.`, color);
+    setTimeout(maybeNextTurn, 1200);
+  }
+
+  // 60-second removal timer
+  const removeTimer = setTimeout(() => {
+    networkRemoveTimers.delete(id);
+    if (!tanks || tankIdx < 0 || !tanks[tankIdx]) return;
+    const t = tanks[tankIdx];
+    if (t.health > 0) {
+      t.health = 0;
+      showIngameNotif(`${name} removed from game.`, t.color);
+    }
+  }, 60000);
+  networkRemoveTimers.set(id, removeTimer);
+}
+
+// ── host-disconnected / network game over ───────────────────────────────────
+function networkGameOver(message) {
+  if (animId) { cancelAnimationFrame(animId); animId = null; }
+  gameOver = true;
+  clearTurnTimeout();
+
+  const overlay = document.getElementById('net-gameover-overlay');
+  if (!overlay) { disconnectNetwork(); setNetworkMode(false); showSetup(); return; }
+
+  let t = 5;
+  const render = () => {
+    overlay.innerHTML =
+      `<div id="ngo-panel"><div id="ngo-msg">${htmlEsc(message)}</div>` +
+      `<div id="ngo-count">Returning to menu in ${t}\u2026</div></div>`;
+    overlay.style.display = 'flex';
+  };
+  render();
+  const tick = setInterval(() => {
+    t--;
+    if (t <= 0) {
+      clearInterval(tick);
+      overlay.style.display = 'none';
+      disconnectNetwork();
+      setNetworkMode(false);
+      showSetup();
+    } else {
+      render();
+    }
+  }, 1000);
+}
+
+// ── in-game network helpers ────────────────────────────────────────────────
+function terrainHash() {
+  if (!terrain) return 0;
+  let h = 5381;
+  for (let i = 0; i < terrain.length; i++) {
+    h = ((h * 33) ^ Math.round(terrain[i])) & 0x7fffffff;
+  }
+  return h;
+}
+
+function simulateRemoteShot(msg) {
+  if (!tanks || gameOver) return;
+  clearTurnTimeout();
+  // Correct currentPlayer if host says otherwise
+  if (currentPlayer !== msg.playerIdx) {
+    console.warn('[net] playerIdx mismatch — correcting', currentPlayer, '->', msg.playerIdx);
+    currentPlayer = msg.playerIdx;
+  }
+  const t = tanks[currentPlayer];
+  if (!t || t.health <= 0) return;
+  t.angle          = msg.angle;
+  t.power          = msg.power;
+  t.selectedWeapon = msg.weapon;
+  wind             = msg.wind;
+  _simulatingRemote = true;
+  fire();
+  _simulatingRemote = false;
+  updateUI();
+  updateWeaponIndicator();
+}
+
+function applyStateSync(msg) {
+  if (!tanks) return;
+  if (msg.healths) {
+    msg.healths.forEach((h, i) => {
+      if (!tanks[i]) return;
+      const wasAlive = tanks[i].health > 0;
+      tanks[i].health = h;
+      // If this sync reveals a kill that our local simulation missed, play the death effect
+      if (wasAlive && h <= 0 && !killEffects.some(e => e.tank === tanks[i])) {
+        triggerKillEffect(tanks[i]);
+      }
+    });
+  }
+  if (msg.shieldHPs) {
+    msg.shieldHPs.forEach((s, i) => { if (tanks[i]) tanks[i].shieldHP = s; });
+  }
+  if (msg.moneys) {
+    msg.moneys.forEach((m, i) => { if (tanks[i]) tanks[i].money = m; });
+  }
+  // Correct currentPlayer index if host disagrees (resolves any ordering edge cases)
+  if (msg.currentPlayer !== undefined && msg.currentPlayer !== currentPlayer && projectiles.length === 0) {
+    currentPlayer = msg.currentPlayer;
+  }
+  if (msg.wind !== undefined) wind = msg.wind;
+  if (msg.terrainHash !== undefined) {
+    const local = terrainHash();
+    if (local !== msg.terrainHash) {
+      console.warn('[net] terrain hash mismatch: local', local, 'host', msg.terrainHash);
+    }
+  }
+  updateUI();
+  updateWeaponIndicator();
+}
+
+let _settingsBroadcastTimer = null;
+function broadcastSettings() {
+  if (!networkWs || networkWs.readyState !== WebSocket.OPEN) return;
+  const settings = {};
+  SETTING_DEFS.forEach(def => { settings[def.key] = def.opts[menuSettingsIdx[def.key]]; });
+  settings.enabledWeapons  = MENU_WEAPONS.filter(w => menuWeapons[w]);
+  settings.enabledDefenses = MENU_DEFENSES.filter(d => menuDefenses[d]);
+  settings.hostName        = menuPlayers[0].name || 'Player 1';
+  settings.hostColor       = PLAYER_COLORS[menuPlayers[0].colorIdx];
+  networkWs.send(JSON.stringify({ type: 'game_settings', settings }));
+}
+
+// Debounced version for high-frequency inputs (name typing)
+function broadcastSettingsDebounced() {
+  clearTimeout(_settingsBroadcastTimer);
+  _settingsBroadcastTimer = setTimeout(broadcastSettings, 300);
+}
+
+function handleWsMessage(msg) {
+  switch (msg.type) {
+    case 'room_created':
+      networkRoomCode = msg.roomCode;
+      networkMyId     = msg.playerId;
+      networkPlayers  = msg.players;
+      networkIsHost   = true;
+      networkPhase    = 'lobby';
+      renderNetworkPanel();
+      updateStartBtn();
+      break;
+
+    case 'room_joined':
+      networkRoomCode     = msg.roomCode;
+      networkMyId         = msg.playerId;
+      networkPlayers      = msg.players;
+      networkIsHost       = false;
+      networkPhase        = 'lobby';
+      networkJoinState    = 'idle';
+      networkJoinSettings = null;
+      renderNetworkPanel();
+      updateStartBtn();
+      break;
+
+    case 'player_joined':
+      networkPlayers = msg.players;
+      if (networkIsHost) broadcastSettings();
+      renderNetworkPanel();
+      updateStartBtn();
+      break;
+
+    case 'player_left': {
+      const inGame = setupEl.style.display === 'none';
+      if (inGame && tanks && tanks.length > 0) {
+        // Find the disconnecting player in our current list before updating it
+        const oldIdx  = networkPlayers.findIndex(p => p.id === msg.id);
+        const oldName = msg.name || (oldIdx >= 0 ? networkPlayers[oldIdx].name : msg.id);
+        networkPlayers = msg.players;
+        handlePlayerDisconnectIngame(msg.id, oldName, oldIdx);
+      } else {
+        networkPlayers = msg.players;
+        if (networkIsHost) broadcastSettings();
+        renderNetworkPanel();
+        updateStartBtn();
+      }
+      break;
+    }
+
+    case 'turn_action':
+      // Simulate a shot fired by a remote player
+      if (!networkIsHost || msg.from !== networkMyId) {
+        simulateRemoteShot(msg);
+      }
+      break;
+
+    case 'state_sync':
+      // Apply authoritative health/money/shields immediately — never queue these.
+      // applyStateSync already guards currentPlayer behind projectiles.length === 0,
+      // so calling it during flight is safe and keeps health in sync at all times.
+      if (!networkIsHost) {
+        applyStateSync(msg);
+      }
+      break;
+
+    case 'game_settings':
+      networkJoinSettings = msg.settings;
+      // Keep host's name/color in sync in our local player list
+      if (!networkIsHost && networkPlayers.length > 0 && msg.settings) {
+        if (msg.settings.hostName || msg.settings.hostColor) {
+          networkPlayers = networkPlayers.map((p, i) => i !== 0 ? p : {
+            ...p,
+            name:  msg.settings.hostName  || p.name,
+            color: msg.settings.hostColor || p.color,
+          });
+        }
+      }
+      if (networkPhase === 'lobby' && !networkIsHost) renderNetworkPanel();
+      break;
+
+    case 'host_disconnected': {
+      const inGame = setupEl.style.display === 'none';
+      if (inGame && tanks && tanks.length > 0) {
+        networkGameOver('Host disconnected \u2014 game over.');
+      } else {
+        resetNetwork();
+        const st = document.getElementById('net-status') || document.getElementById('net-form-status');
+        if (st) { st.textContent = 'Host disconnected.'; st.className = 'error'; }
+      }
+      break;
+    }
+
+    case 'start_game':
+      if (!networkIsHost) {
+        const s  = msg.settings || networkJoinSettings;
+        const pl = msg.players  || networkPlayers;
+        if (s && pl && pl.length) {
+          const settingsOut = {
+            rounds:   s.rounds,
+            cash:     s.cash,
+            interest: s.interest,
+            terrain:  s.terrain,
+            walls:    s.walls,
+            wind:     s.wind,
+            gravity:  s.gravity,
+          };
+          settingsOut.wallsOriginal = settingsOut.walls;
+          const activePlayers = pl.map(p => ({
+            name: p.name, color: p.color, type: 'human', difficulty: 'medium',
+          }));
+          const config = {
+            players:         activePlayers,
+            settings:        settingsOut,
+            enabledWeapons:  s.enabledWeapons  || [],
+            enabledDefenses: s.enabledDefenses || [],
+          };
+          document.dispatchEvent(new CustomEvent('scorched-earth-start', { detail: config }));
+          playerConfigs   = activePlayers;
+          totalRounds     = settingsOut.rounds;
+          gameSettings    = settingsOut;
+          enabledWeapons  = config.enabledWeapons;
+          enabledDefenses = config.enabledDefenses;
+
+          // Load host terrain+positions so all clients start with identical ground
+          if (msg.terrain && msg.terrain.length) {
+            pendingNetworkTerrain = msg.terrain;
+          }
+          if (msg.positions && msg.positions.length) {
+            pendingTankPositions = msg.positions;
+          }
+
+          // Set our player index
+          networkMyPlayerIdx = networkPlayers.findIndex(p => p.id === networkMyId);
+
+          hideSetup();
+          initGame(); // uses pendingNetworkTerrain/pendingTankPositions if set
+
+          // Override wind with host's value after initGame()
+          if (msg.wind !== undefined) wind = msg.wind;
+        } else {
+          // Settings not yet received — show "starting" status
+          networkJoinSettings = s || networkJoinSettings;
+          networkPlayers      = pl || networkPlayers;
+          const lobby = document.getElementById('network-placeholder');
+          if (lobby) lobby.dataset.starting = '1';
+          renderNetworkPanel();
+        }
+      }
+      break;
+
+    case 'pong':
+      networkLastPong = Date.now();
+      break;
+
+    case 'chat':
+      addChatMessage(msg.fromName || 'Player', msg.color || '#fff', msg.text || '');
+      break;
+
+    case 'shop_done':
+      // Another player finished shopping — update the waiting overlay
+      networkShopDone.add(msg.from);
+      _renderNetShopOverlay();
+      if (networkIsHost) _checkAllNetShopDone();
+      break;
+
+    case 'round_start_data':
+      // Guest: host has set up the next round — load terrain/positions/wind/walls and start round
+      if (!networkIsHost) {
+        pendingNetworkTerrain = msg.terrain;
+        pendingTankPositions  = msg.positions;
+        pendingNetworkWind    = msg.wind;
+        if (msg.walls) gameSettings.walls = msg.walls; // sync random wall type
+        startNextRound();
+      }
+      break;
+
+    case 'round_begin':
+      // All players are done shopping — fire the intro sequence
+      if (!networkIsHost) {
+        _dismissNetShopOverlay();
+        if (networkShopCallback) { const cb = networkShopCallback; networkShopCallback = null; cb(); }
+      }
+      break;
+
+    case 'error':
+      if (!networkIsHost && networkPhase === 'join-form') {
+        networkJoinState = 'failed';
+        networkJoinError = msg.message || 'Server error.';
+        renderNetworkPanel();
+      } else {
+        netStatus(msg.message || 'Server error.', true);
+      }
+      break;
+  }
+}
+
+function handleWsDisconnect() {
+  updateConnIndicator();
+  const inGame = setupEl.style.display === 'none';
+  if (networkPhase === 'join-form') {
+    if (networkJoinState === 'connecting') {
+      networkJoinState = 'failed';
+      networkJoinError = 'Connection failed \u2014 check address and try again.';
+      renderNetworkPanel();
+    }
+  } else if (inGame && tanks && tanks.length > 0) {
+    // Lost server connection during a game
+    networkGameOver('Lost connection to server.');
+  } else if (networkPhase === 'lobby') {
+    netStatus('Disconnected from server.', true);
+    resetNetwork();
+  }
+}
+
+function _clearAllNetTimers() {
+  stopPingLoop();
+  clearTurnTimeout();
+  networkRemoveTimers.forEach(t => clearTimeout(t));
+  networkRemoveTimers.clear();
+  networkDisconnectedIds.clear();
+  pendingStateSyncs.length = 0;
+}
+
+function resetNetwork() {
+  if (networkWs) { try { networkWs.close(); } catch(e) {} networkWs = null; }
+  _clearAllNetTimers();
+  networkIsHost         = false;
+  networkRoomCode       = null;
+  networkMyId           = null;
+  networkPlayers        = [];
+  networkJoinSettings   = null;
+  networkJoinState      = 'idle';
+  networkMyPlayerIdx    = -1;
+  networkShopDone       = new Set();
+  networkShopCallback   = null;
+  networkShopTotal      = 0;
+  networkPublicIp       = null;
+  _dismissNetShopOverlay();
+  closeChat();
+  document.getElementById('net-ingame-hud').style.display = 'none';
+  networkPhase          = 'pre-connect';
+  const lobby = document.getElementById('network-placeholder');
+  if (lobby) delete lobby.dataset.starting;
+  renderNetworkPanel();
+  updateStartBtn();
+}
+
+function disconnectNetwork() {
+  if (networkWs) { try { networkWs.close(); } catch(e) {} networkWs = null; }
+  _clearAllNetTimers();
+  networkIsHost         = false;
+  networkRoomCode       = null;
+  networkMyId           = null;
+  networkPlayers        = [];
+  networkJoinSettings   = null;
+  networkJoinState      = 'idle';
+  networkMyPlayerIdx    = -1;
+  networkShopDone       = new Set();
+  networkShopCallback   = null;
+  networkShopTotal      = 0;
+  networkPublicIp       = null;
+  _dismissNetShopOverlay();
+  closeChat();
+  document.getElementById('net-ingame-hud').style.display = 'none';
+  networkPhase          = 'idle';
+  const lobby = document.getElementById('network-placeholder');
+  if (lobby) delete lobby.dataset.starting;
+}
+
 function initSetupListeners() {
+  document.getElementById('btn-network-toggle').addEventListener('click', () => {
+    setNetworkMode(!networkModeOn);
+  });
   renderMenuSetup();
   document.getElementById('setup-start').addEventListener('click', () => {
-    const activePlayers = menuPlayers
-      .filter(p => PLAYER_TYPES[p.typeIdx] !== 'off')
-      .map((p, i) => {
-        const type    = PLAYER_TYPES[p.typeIdx];
-        const isHuman = type === 'human';
-        return {
-          name:       p.name.trim() || `Player ${i+1}`,
-          color:      PLAYER_COLORS[p.colorIdx],
-          type:       isHuman ? 'human' : 'cpu',
-          difficulty: isHuman ? 'medium' : type.replace('cpu-',''),
-        };
-      });
     const settingsOut = {};
     SETTING_DEFS.forEach(def => { settingsOut[def.key] = def.opts[menuSettingsIdx[def.key]]; });
     settingsOut.wallsOriginal = settingsOut.walls;
@@ -3714,6 +5396,31 @@ function initSetupListeners() {
       const concrete = ['None','Rubber','Wrap','Concrete','Absorb'];
       settingsOut.walls = concrete[Math.floor(Math.random() * concrete.length)];
     }
+
+    let activePlayers;
+    if (networkModeOn && networkIsHost) {
+      // Build final player list with up-to-date host name/color in slot 0
+      activePlayers = networkPlayers.map((p, i) => ({
+        name:       (i === 0 ? (menuPlayers[0].name.trim() || 'Player 1') : p.name),
+        color:      (i === 0 ? PLAYER_COLORS[menuPlayers[0].colorIdx] : p.color),
+        type:       'human',
+        difficulty: 'medium',
+      }));
+    } else {
+      activePlayers = menuPlayers
+        .filter(p => PLAYER_TYPES[p.typeIdx] !== 'off')
+        .map((p, i) => {
+          const type    = PLAYER_TYPES[p.typeIdx];
+          const isHuman = type === 'human';
+          return {
+            name:       p.name.trim() || `Player ${i+1}`,
+            color:      PLAYER_COLORS[p.colorIdx],
+            type:       isHuman ? 'human' : 'cpu',
+            difficulty: isHuman ? 'medium' : type.replace('cpu-',''),
+          };
+        });
+    }
+
     const config = {
       players:         activePlayers,
       settings:        settingsOut,
@@ -3726,8 +5433,37 @@ function initSetupListeners() {
     gameSettings    = settingsOut;
     enabledWeapons  = config.enabledWeapons;
     enabledDefenses = config.enabledDefenses;
+
+    // Set our player index before initGame so updateUI/input guards work immediately
+    if (networkModeOn) {
+      networkMyPlayerIdx = networkIsHost ? 0 : networkPlayers.findIndex(p => p.id === networkMyId);
+    }
+
     hideSetup();
-    initGame();
+    initGame(); // generates terrain and wind
+
+    // After initGame, host sends complete start_game including the generated terrain
+    if (networkModeOn && networkIsHost && networkWs && networkWs.readyState === WebSocket.OPEN) {
+      const startPlayers = networkPlayers.map((p, i) => ({
+        id:     p.id,
+        isHost: p.isHost,
+        name:   i === 0 ? (menuPlayers[0].name.trim() || 'Player 1') : p.name,
+        color:  i === 0 ? PLAYER_COLORS[menuPlayers[0].colorIdx]     : p.color,
+      }));
+      networkWs.send(JSON.stringify({
+        type:     'start_game',
+        settings: {
+          ...settingsOut,
+          enabledWeapons:  config.enabledWeapons,
+          enabledDefenses: config.enabledDefenses,
+        },
+        players:   startPlayers,
+        terrain:   Array.from(terrain),
+        positions: tanks.map(t => t.x),
+        worldWidth,
+        wind,
+      }));
+    }
   });
 }
 
@@ -3754,6 +5490,7 @@ function initGame() {
   introTimer        = 0;
   introTankDrops    = [];
   introFinishCb     = null;
+  roundInitialized  = false;
   lastTerrainPick   = '';
   cpuThinking       = false;
   cpuThinkTimer     = 0;
@@ -3809,9 +5546,18 @@ function initGame() {
   });
 }
 
+// ── chat input wiring ──────────────────────────────────────────────────────
+document.getElementById('net-chat-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); sendChat(); }
+  if (e.key === 'Escape') { e.preventDefault(); closeChat(); }
+  e.stopPropagation(); // don't pass to game controls
+});
+
 // ── entry point ────────────────────────────────────────────────────────────
+resize();            // position viewport and set canvas dims before first paint
 initSetupListeners();
 showSetup();
 </script>
+</div><!-- #game-viewport -->
 </body>
 </html>

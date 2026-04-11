@@ -6,7 +6,7 @@ const { WebSocketServer, WebSocket } = require('ws');
 
 const PORT             = process.env.PORT || 3000;
 const MAX_CONN_PER_IP  = 10;   // simultaneous WS connections per IP
-const MSG_RATE_LIMIT   = 20;   // messages per second before disconnect
+const MSG_RATE_LIMIT   = 60;   // messages per second before disconnect
 const MSG_RATE_WINDOW  = 1000; // ms window for rate limiting
 const MAX_MSG_BYTES    = 262144; // 256 KB hard limit per message
 
@@ -15,7 +15,7 @@ const VALID_TYPES = new Set([
   'create_room', 'join_room',
   'game_settings', 'start_game', 'turn_action', 'state_sync',
   'shop_done', 'round_start_data', 'round_begin',
-  'chat', 'ping',
+  'aim_update', 'chat', 'ping',
 ]);
 
 // ── local network info ────────────────────────────────────────────────────────
@@ -294,6 +294,16 @@ wss.on('connection', (ws, req) => {
         break;
       }
 
+      case 'aim_update': {
+        broadcast(room, {
+          type:      'aim_update',
+          playerIdx: msg.playerIdx,
+          angle:     msg.angle,
+          power:     msg.power,
+        }, ws);
+        break;
+      }
+
       case 'turn_action': {
         broadcast(room, {
           type:      'turn_action',
@@ -310,19 +320,29 @@ wss.on('connection', (ws, req) => {
       case 'state_sync': {
         if (!isHost) return;
         broadcast(room, {
-          type:          'state_sync',
-          healths:       msg.healths,
-          shieldHPs:     msg.shieldHPs,
-          moneys:        msg.moneys,
-          currentPlayer: msg.currentPlayer,
-          wind:          msg.wind,
-          terrainHash:   msg.terrainHash,
+          type:            'state_sync',
+          healths:         msg.healths,
+          shieldHPs:       msg.shieldHPs,
+          moneys:          msg.moneys,
+          inventories:     msg.inventories     || null,
+          selectedWeapons: msg.selectedWeapons || null,
+          killedBy:        msg.killedBy        || null,
+          damageDealt:     msg.damageDealt     || null,
+          currentPlayer:   msg.currentPlayer,
+          wind:            msg.wind,
+          terrainHash:     msg.terrainHash,
+          gameOver:        msg.gameOver        || false,
         }, ws);
         break;
       }
 
       case 'shop_done': {
-        broadcast(room, { type: 'shop_done', from: playerId }, ws);
+        broadcast(room, {
+          type:           'shop_done',
+          from:           playerId,
+          inventory:      msg.inventory      || null,
+          selectedWeapon: msg.selectedWeapon || null,
+        }, ws);
         break;
       }
 

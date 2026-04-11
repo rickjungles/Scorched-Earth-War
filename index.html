@@ -5,7 +5,12 @@
 <title>Scorched Earth</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
-body { background: #000; overflow: hidden; font-family: 'Courier New', monospace; }
+html, body {
+  width: 100%; height: 100%;
+  overflow: hidden;
+  background: #000;
+  font-family: 'Courier New', monospace;
+}
 /* ── game viewport fills the browser window ────────────────────────────────── */
 #game-viewport {
   position: fixed;
@@ -14,7 +19,7 @@ body { background: #000; overflow: hidden; font-family: 'Courier New', monospace
   height: 100%;
   overflow: hidden;
 }
-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+canvas { position: absolute; image-rendering: pixelated; }
 #ui {
   position: fixed;
   top: 12px;
@@ -53,7 +58,7 @@ canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
 }
 #keys {
   position: fixed;
-  bottom: 12px;
+  top: 90vh;
   left: 50%;
   transform: translateX(-50%);
   color: rgba(255,255,255,0.4);
@@ -938,9 +943,25 @@ canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
 }
 #scoreboard-next:hover:not(:disabled) { background: #00AA00; color: #000; }
 #scoreboard-next:disabled { background: #333; color: #666; border-color: #555; cursor: not-allowed; }
+/* ── tank health tooltip ──────────────────────────────────────────────────── */
+#tank-tooltip {
+  position: fixed;
+  pointer-events: none;
+  display: none;
+  background: rgba(0,0,0,0.82);
+  border: 1px solid rgba(255,255,255,0.25);
+  color: #fff;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  padding: 5px 10px;
+  white-space: nowrap;
+  z-index: 9000;
+  line-height: 1.5;
+}
 </style>
 </head>
 <body>
+<div id="tank-tooltip"></div>
 <div id="game-viewport">
 <canvas id="c"></canvas>
 <div id="ui"></div>
@@ -1064,7 +1085,7 @@ canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
     </div>
 
     <div id="setup-footer">
-      <div id="setup-kbd-hints">Tab/Arrows: navigate &nbsp;|&nbsp; Space/Enter: toggle &nbsp;|&nbsp; C: cycle color &nbsp;|&nbsp; A: about</div>
+      <div id="setup-kbd-hints">Tab/Arrows: navigate &nbsp;|&nbsp; Space/Enter: toggle &nbsp;|&nbsp; A: about</div>
       <div id="setup-start-row"><button id="setup-start">&#9654; START GAME</button></div>
     </div>
   </div>
@@ -1100,6 +1121,10 @@ const winEl   = document.getElementById('win');
 const shopEl       = document.getElementById('shop');
 const setupEl      = document.getElementById('setup');
 const scoreboardEl = document.getElementById('scoreboard');
+
+// ── fixed game resolution ──────────────────────────────────────────────────
+const VWIDTH  = 1920;
+const VHEIGHT = 1080;
 
 // ── constants ──────────────────────────────────────────────────────────────
 const GRAVITY    = 260;   // px/s²
@@ -1711,10 +1736,27 @@ let menuWeapons     = Object.fromEntries(MENU_WEAPONS.map(w=>[w,true]));
 let menuDefenses    = Object.fromEntries(MENU_DEFENSES.map(d=>[d,true]));
 
 // ── resize ─────────────────────────────────────────────────────────────────
-// Canvas always matches the browser window exactly — no letterboxing.
-function resize() {
-  canvas.width  = window.innerWidth;
-  canvas.height = window.innerHeight;
+// The canvas buffer is always 1920×1080. Only CSS display size changes.
+function resizeCanvas() {
+  const dpr     = window.devicePixelRatio || 1;
+  const windowW = window.innerWidth;
+  const windowH = window.innerHeight;
+
+  // CSS size fills the viewport exactly
+  canvas.style.width    = windowW + 'px';
+  canvas.style.height   = windowH + 'px';
+  canvas.style.position = 'absolute';
+  canvas.style.left     = '0px';
+  canvas.style.top      = '0px';
+
+  // Physical buffer accounts for device pixel ratio
+  canvas.width  = Math.round(windowW * dpr);
+  canvas.height = Math.round(windowH * dpr);
+
+  // Changing canvas.width/height resets the context transform; re-apply so
+  // anything drawn between resize and the next gameLoop frame is still correct.
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.scale(canvas.width / VWIDTH, canvas.height / VHEIGHT);
 }
 
 // ── terrain style functions ────────────────────────────────────────────────
@@ -1827,9 +1869,9 @@ function generateTerrain() {
     return;
   }
   const style = gameSettings.terrain || 'Random';
-  const w = worldWidth, h = canvas.height;
-  const STYLES = ['Plains','Plateaus','Mountains','Canyon','Fortress'];
-  // For Random/Mixed: pick from styles excluding the last one used
+  const w = worldWidth, h = VHEIGHT;
+  const STYLES = ['Plains','Plateaus','Mountains','Mountains','Mountains','Canyon','Fortress'];
+  // For Random/Mixed: pick from weighted pool excluding the last style used
   const pool = STYLES.filter(s => s !== lastTerrainPick);
   const pick = pool[Math.floor(Math.random() * pool.length)];
   const chosen = (style === 'Random' || style === 'Mixed') ? pick : style;
@@ -1847,11 +1889,11 @@ function generateTerrain() {
 // ── stars ──────────────────────────────────────────────────────────────────
 function generateStars() {
   stars = [];
-  const count = Math.round(120 * (worldWidth / canvas.width));
+  const count = Math.round(120 * (worldWidth / VWIDTH));
   for (let i = 0; i < count; i++) {
     stars.push({
       x: Math.random() * worldWidth,
-      y: Math.random() * canvas.height * 0.70,
+      y: Math.random() * VHEIGHT * 0.70,
       r: Math.random() < 0.15 ? 1.5 : 1,
       a: 0.4 + Math.random() * 0.6,
     });
@@ -1860,8 +1902,8 @@ function generateStars() {
 
 // ── tanks ──────────────────────────────────────────────────────────────────
 function placeTanks() {
-  const margin   = worldWidth * 0.08;
-  const usable   = worldWidth * 0.84;
+  const margin   = worldWidth * 0.017;  // reduced from 0.08 to spread tanks ~15% further apart
+  const usable   = worldWidth * 0.966;
   const n        = playerConfigs.length;
   const segWidth = usable / n;
 
@@ -1871,10 +1913,16 @@ function placeTanks() {
     const segStart = margin + i * segWidth;
     const jitter   = segWidth * 0.15;
     // In network play, use host's authoritative positions instead of random
-    const tx = (pendingTankPositions && pendingTankPositions[i] !== undefined)
+    let tx = (pendingTankPositions && pendingTankPositions[i] !== undefined)
       ? pendingTankPositions[i]
       : Math.max(0, Math.min(worldWidth - 1,
           Math.floor(segStart + jitter + Math.random() * (segWidth - 2 * jitter))));
+    // 2-player only: clamp each tank to the outer 60% of its segment so they
+    // can never spawn too close to the centre boundary between them.
+    if (n === 2 && !(pendingTankPositions && pendingTankPositions[i] !== undefined)) {
+      if (i === 0) tx = Math.min(tx, Math.floor(margin + segWidth * 0.60));
+      else         tx = Math.max(tx, Math.ceil (margin + segWidth * 1.40));
+    }
     const groundY = terrain[Math.max(0, Math.min(worldWidth - 1, tx))];
     const defaultAngle = tx < worldWidth / 2 ? 45 : 135;
 
@@ -1937,7 +1985,7 @@ function restoreCamera() {
 
 // ── draw: background + terrain ─────────────────────────────────────────────
 function drawScene() {
-  const w = worldWidth, h = canvas.height;
+  const w = worldWidth, h = VHEIGHT;
 
   // sky — spans full world width so stars and background are correct under camera
   const sky = ctx.createLinearGradient(0, 0, 0, h * 0.75);
@@ -2175,7 +2223,7 @@ function drawNapalm() {
 function drawWindIndicator() {
   const PAD = 12;
   const bw  = 185, bh = 38;
-  const bx  = canvas.width - bw - PAD;
+  const bx  = VWIDTH - bw - PAD;
   const by  = PAD;
   const cy  = by + bh / 2;
   const mph = Math.round(Math.abs(wind) * 5);
@@ -2269,7 +2317,7 @@ function drawWallBorder() {
   };
   const color = WALL_COLORS[mode];
   if (!color) return;
-  const W = canvas.width, H = canvas.height, T = 5;
+  const W = VWIDTH, H = VHEIGHT, T = 5;
   ctx.fillStyle = color;
   ctx.fillRect(0, 0, T, H);         // left
   ctx.fillRect(W - T, 0, T, H);     // right
@@ -2295,7 +2343,7 @@ function drawWallFlashes() {
 
 // ── terrain destruction ─────────────────────────────────────────────────────
 function blastTerrain(cx, cy, r = BLAST_R) {
-  const w = worldWidth, h = canvas.height;
+  const w = worldWidth, h = VHEIGHT;
   const x0 = Math.max(0,     Math.floor(cx - r));
   const x1 = Math.min(w - 1, Math.ceil (cx + r));
   for (let x = x0; x <= x1; x++) {
@@ -2805,10 +2853,30 @@ function drawKillEffects() {
 // ── round end / win check ─────────────────────────────────────────────────
 function checkWin() {
   if (gameOver) return true;
+  // In network play, only the host decides when the round ends.
+  // Guests return false so local simulation divergence never triggers a premature endRound.
+  // The host broadcasts gameOver:true via state_sync when it detects the win condition.
+  if (networkModeOn && !networkIsHost) return false;
   const living = tanks.filter(t => t.health > 0);
   if (living.length <= 1) {
     gameOver = true;
     setTimeout(endRound, 1900);
+    // Notify guests the round is over so they don't stay stuck waiting.
+    // Include killedBy and damageDealt so endRound() stats are accurate on guests.
+    if (networkModeOn && networkIsHost && networkWs && networkWs.readyState === WebSocket.OPEN) {
+      networkWs.send(JSON.stringify({
+        type:        'state_sync',
+        healths:     tanks.map(t => t.health),
+        shieldHPs:   tanks.map(t => t.shieldHP),
+        moneys:      tanks.map(t => t.money),
+        killedBy:    tanks.map(t => t.killedBy),
+        damageDealt: tanks.map(t => t.damageDealt),
+        currentPlayer,
+        wind,
+        terrainHash: terrainHash(),
+        gameOver:    true,
+      }));
+    }
     return true;
   }
   return false;
@@ -3008,7 +3076,6 @@ function startNextRound() {
   const savedMoney       = tanks.map(t => t.money);
   const savedInventory   = tanks.map(t => ({ ...t.inventory }));
   const savedDefInv      = tanks.map(t => ({ ...t.defInventory }));
-  const savedWeapon      = tanks.map(t => t.selectedWeapon);
 
   gameOver          = false;
   projectiles       = [];
@@ -3044,11 +3111,10 @@ function startNextRound() {
   generateStars();
   placeTanks();
   tanks.forEach((t, i) => {
-    t.money       = savedMoney[i];
-    t.inventory   = savedInventory[i];
-    t.defInventory = savedDefInv[i];
-    const sw = savedWeapon[i];
-    t.selectedWeapon = (t.inventory[sw] === Infinity || t.inventory[sw] > 0) ? sw : 'Baby Missile';
+    t.money          = savedMoney[i];
+    t.inventory      = savedInventory[i];
+    t.defInventory   = savedDefInv[i];
+    t.selectedWeapon = 'Baby Missile'; // always reset to default at round start
     // Apply interest on carried-over cash
     const rate = (gameSettings.interest || 0) / 100;
     let bonus = 0;
@@ -3086,6 +3152,8 @@ function startNextRound() {
   camera.x = camera.targetX;
 
   runShopPhase(() => {
+    // Reset weapon selection to Baby Missile after shop closes, regardless of shop auto-select
+    tanks.forEach(t => { if (t.health > 0) t.selectedWeapon = 'Baby Missile'; });
     startIntroSequence(() => {
       currentPlayer = roundFirstPlayer % tanks.length;
       const n = tanks.length;
@@ -3138,13 +3206,15 @@ function nextTurn() {
   // Host pushes authoritative state to all clients after each turn
   if (networkModeOn && networkIsHost && networkWs && networkWs.readyState === WebSocket.OPEN) {
     networkWs.send(JSON.stringify({
-      type:          'state_sync',
-      healths:       tanks.map(t => t.health),
-      shieldHPs:     tanks.map(t => t.shieldHP),
-      moneys:        tanks.map(t => t.money),
+      type:            'state_sync',
+      healths:         tanks.map(t => t.health),
+      shieldHPs:       tanks.map(t => t.shieldHP),
+      moneys:          tanks.map(t => t.money),
+      inventories:     tanks.map(t => ({ ...t.inventory })),
+      selectedWeapons: tanks.map(t => t.selectedWeapon),
       currentPlayer,
       wind,
-      terrainHash:   terrainHash(),
+      terrainHash:     terrainHash(),
     }));
   }
 
@@ -3156,8 +3226,8 @@ function nextTurn() {
 }
 
 function setCameraTarget(tank) {
-  const maxCamX  = Math.max(0, worldWidth - canvas.width);
-  camera.targetX = Math.max(0, Math.min(maxCamX, tank.x - canvas.width / 2));
+  const maxCamX  = Math.max(0, worldWidth - VWIDTH);
+  camera.targetX = Math.max(0, Math.min(maxCamX, tank.x - VWIDTH / 2));
   camera.targetY = 0;
 }
 
@@ -3166,7 +3236,7 @@ function updateUI() {
   const t = tanks[currentPlayer];
   // In network mode, show "Waiting for..." when it's a remote player's turn
   if (networkModeOn && networkMyPlayerIdx >= 0 && currentPlayer !== networkMyPlayerIdx) {
-    ui.innerHTML = `R${currentRound}/${totalRounds} &nbsp;|&nbsp; Waiting for <span style="color:${t.color}">${htmlEsc(t.name)}</span>&hellip; <span class="net-blink">&#x258C;</span>`;
+    ui.innerHTML = `R${currentRound}/${totalRounds} &nbsp;|&nbsp; <span style="color:${t.color}">${htmlEsc(t.name)}</span> &nbsp;|&nbsp; ${t.angle}&deg; &nbsp;|&nbsp; Pwr ${t.power} <span class="net-blink">&#x258C;</span>`;
     ui.style.borderColor = t.color;
     return;
   }
@@ -3478,9 +3548,14 @@ function _netShopLocalDone() {
   // Mark ourselves done in the local set
   networkShopDone.add(networkMyId);
 
-  // Notify server (relayed to all others)
-  if (networkWs && networkWs.readyState === WebSocket.OPEN) {
-    networkWs.send(JSON.stringify({ type: 'shop_done' }));
+  // Notify server with our post-shop inventory so the host can sync all machines
+  const myIdx = networkMyPlayerIdx >= 0 ? networkMyPlayerIdx : 0;
+  if (networkWs && networkWs.readyState === WebSocket.OPEN && tanks && tanks[myIdx]) {
+    networkWs.send(JSON.stringify({
+      type:           'shop_done',
+      inventory:      { ...tanks[myIdx].inventory },
+      selectedWeapon: tanks[myIdx].selectedWeapon,
+    }));
   }
 
   // Show the waiting overlay
@@ -3599,7 +3674,7 @@ function cpuSimulateLanding(shooter, angleDeg, power) {
     vy += GRAVITY * AI_SIM_DT;
     x  += vx      * AI_SIM_DT;
     y  += vy      * AI_SIM_DT;
-    if (x < 0 || x >= worldWidth || y > canvas.height + 100) return x;
+    if (x < 0 || x >= worldWidth || y > VHEIGHT + 100) return x;
     const xi = Math.round(x);
     if (xi >= 0 && xi < worldWidth && y >= terrain[xi]) return x;
   }
@@ -3685,10 +3760,14 @@ function fire() {
   const wep            = WEAPONS[t.selectedWeapon];
   const firedWeaponName = t.selectedWeapon; // capture before inventory change may reset it
 
-  if (!_simulatingRemote && wep.cost > 0) {
-    if (t.inventory[t.selectedWeapon] <= 0) return;
-    t.inventory[t.selectedWeapon]--;
-    if (t.inventory[t.selectedWeapon] === 0) t.selectedWeapon = 'Baby Missile';
+  if (wep.cost > 0) {
+    if (!_simulatingRemote && t.inventory[t.selectedWeapon] <= 0) return;
+    // Always track inventory so host's copy of remote tanks stays accurate
+    if (t.inventory[t.selectedWeapon] > 0) {
+      t.inventory[t.selectedWeapon]--;
+      // Only auto-reset selection on the local player's machine
+      if (!_simulatingRemote && t.inventory[t.selectedWeapon] === 0) t.selectedWeapon = 'Baby Missile';
+    }
   }
 
   let fireAngle = t.angle;
@@ -3801,7 +3880,7 @@ function drawIntroSweep() {
   grd.addColorStop(0.5, 'rgba(120,220,255,0.40)');
   grd.addColorStop(1,   'rgba(200,240,255,0.12)');
   ctx.fillStyle = grd;
-  ctx.fillRect(sx - 50, 0, 74, canvas.height);
+  ctx.fillRect(sx - 50, 0, 74, VHEIGHT);
 }
 
 function drawIntroBanner() {
@@ -3811,7 +3890,7 @@ function drawIntroBanner() {
   else if (t < 1.8)   alpha = 1.0;
   else if (t < 2.2)   alpha = (2.2 - t) / 0.4;
   if (alpha <= 0) return;
-  const cx = canvas.width / 2, cy = canvas.height / 2;
+  const cx = VWIDTH / 2, cy = VHEIGHT / 2;
   ctx.save();
   ctx.globalAlpha = alpha;
   ctx.fillStyle   = 'rgba(0,0,0,0.72)';
@@ -3833,6 +3912,12 @@ function gameLoop(ts) {
   const dt = Math.min((ts - lastTime) / 1000, 0.05);
   lastTime = ts;
 
+  // Apply DPI + game-coordinate scale for this frame. Every applyCamera/
+  // restoreCamera save/restore pair operates on top of this base transform.
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.scale(canvas.width / VWIDTH, canvas.height / VHEIGHT);
+
   // ── intro sequence ─────────────────────────────────────────────────────
   if (introPhase !== 'none') {
     introTimer += dt;
@@ -3849,6 +3934,7 @@ function gameLoop(ts) {
     restoreCamera();
     drawWallBorder();
     drawIntroBanner();
+    ctx.restore();
     animId = requestAnimationFrame(gameLoop);
     return;
   }
@@ -3924,7 +4010,7 @@ function gameLoop(ts) {
       proj.burrowDist = (proj.burrowDist || 0) + spd * dt;
       proj.y += spd * dt;
       const dpx = Math.max(0, Math.min(worldWidth - 1, Math.round(proj.x)));
-      if (proj.burrowDist >= (proj.weapon.maxBurrow || 150) || proj.y > canvas.height + 20) {
+      if (proj.burrowDist >= (proj.weapon.maxBurrow || 150) || proj.y > VHEIGHT + 20) {
         onImpact(proj, dpx, Math.round(proj.y)); continue;
       }
       for (let j = 0; j < tanks.length; j++) {
@@ -3954,7 +4040,7 @@ function gameLoop(ts) {
 
     const px = Math.round(proj.x);
     const py = proj.y;
-    const w  = worldWidth, h = canvas.height;
+    const w  = worldWidth, h = VHEIGHT;
 
     // Bottom boundary — always remove
     if (py > h + 60) {
@@ -4000,9 +4086,12 @@ function gameLoop(ts) {
           onImpact(proj, ex, Math.round(proj.y));
         }
       } else {
-        // None — disappear
-        projectiles.splice(i, 1);
-        if (projectiles.length === 0 && !napalmTurnPending) { stopWhistle(); if (!checkWin()) maybeNextTurn(); }
+        // None — sides remove the shot; ceiling is open (shot arcs back down freely)
+        if (hitLeft || hitRight) {
+          projectiles.splice(i, 1);
+          if (projectiles.length === 0 && !napalmTurnPending) { stopWhistle(); if (!checkWin()) maybeNextTurn(); }
+        }
+        // hitTop with no walls: do nothing, let gravity bring it back
       }
       continue;
     }
@@ -4064,6 +4153,7 @@ function gameLoop(ts) {
   drawWallBorder();
   drawWindIndicator();
 
+  ctx.restore();
   animId = requestAnimationFrame(gameLoop);
 }
 
@@ -4164,16 +4254,26 @@ document.addEventListener('keydown', e => {
   if (networkModeOn && networkMyPlayerIdx >= 0 && currentPlayer !== networkMyPlayerIdx) return;
   const t    = tanks[currentPlayer];
   const step = e.shiftKey ? 5 : 1;
+  let aimChanged = false;
   switch (e.key) {
-    case 'ArrowLeft':  e.preventDefault(); t.angle = Math.min(180, t.angle + step); soundAngle(); break;
-    case 'ArrowRight': e.preventDefault(); t.angle = Math.max(0,   t.angle - step); soundAngle(); break;
-    case 'ArrowUp':    e.preventDefault(); t.power = Math.min(MAX_POWER, t.power + step); soundPower(+1); break;
-    case 'ArrowDown':  e.preventDefault(); t.power = Math.max(1,         t.power - step); soundPower(-1); break;
+    case 'ArrowLeft':  e.preventDefault(); t.angle = Math.min(180, t.angle + step); soundAngle(); aimChanged = true; break;
+    case 'ArrowRight': e.preventDefault(); t.angle = Math.max(0,   t.angle - step); soundAngle(); aimChanged = true; break;
+    case 'ArrowUp':    e.preventDefault(); t.power = Math.min(MAX_POWER, t.power + step); soundPower(+1); aimChanged = true; break;
+    case 'ArrowDown':  e.preventDefault(); t.power = Math.max(1,         t.power - step); soundPower(-1); aimChanged = true; break;
     case ' ':          e.preventDefault(); fire(); return;
     case 'q': case 'Q': if (!e.ctrlKey) { e.preventDefault(); cycleWeapon(-1); } return;
     case 'e': case 'E': e.preventDefault(); cycleWeapon(+1); return;
   }
   updateUI();
+  // Broadcast aim state on every key press — keyboard repeat is ~30/s, well under server limit
+  if (aimChanged && networkModeOn && networkWs && networkWs.readyState === WebSocket.OPEN) {
+    networkWs.send(JSON.stringify({
+      type:      'aim_update',
+      playerIdx: currentPlayer,
+      angle:     t.angle,
+      power:     t.power,
+    }));
+  }
 });
 
 document.addEventListener('click', e => {
@@ -4182,19 +4282,11 @@ document.addEventListener('click', e => {
   if (gameOver && scoreboardEl.style.display === 'none') showSetup();
 });
 
-// Debounced resize — only fires once the user finishes dragging the window edge.
-// Never calls initGame(); just resizes the canvas. The already-running game loop
-// redraws at the new size on its next tick. roundInitialized guards intro animations.
+// Debounced resize — only updates CSS display size, never touches canvas buffer.
 let _resizeTimer = null;
 window.addEventListener('resize', () => {
   clearTimeout(_resizeTimer);
-  _resizeTimer = setTimeout(() => {
-    resize();
-    // If the game loop stopped for any reason while we were in-game, restart it.
-    if (playerConfigs.length > 0 && setupEl.style.display === 'none' && !animId) {
-      animId = requestAnimationFrame(gameLoop);
-    }
-  }, 150);
+  _resizeTimer = setTimeout(resizeCanvas, 150);
 });
 
 // ── setup screen ───────────────────────────────────────────────────────────
@@ -4240,7 +4332,7 @@ function renderPlayerRows() {
     tr.className = 'player-row' + (isOff ? ' off-row' : '');
     tr.innerHTML = `
       <td class="player-num">${i+1}</td>
-      <td><input class="player-name-input" type="text" value="${htmlEsc(p.name)}" maxlength="12"></td>
+      <td><input class="player-name-input" type="text" name="player-name-${i+1}" autocomplete="off" value="${htmlEsc(p.name)}" maxlength="12"></td>
       <td><span class="player-color-swatch" style="background:${color}" tabindex="0" title="Click to cycle color"></span></td>
       <td><button class="player-type-btn">${PLAYER_TYPE_LABELS[type]}</button></td>
     `;
@@ -4619,7 +4711,7 @@ function renderNetworkPanel() {
           tr.className = 'net-lobby-slot';
           tr.innerHTML = `
             <td class="player-num">1</td>
-            <td><input class="player-name-input" type="text" value="${htmlEsc(menuPlayers[0].name)}" maxlength="12"></td>
+            <td><input class="player-name-input" type="text" name="player-name-1" autocomplete="off" value="${htmlEsc(menuPlayers[0].name)}" maxlength="12"></td>
             <td><span class="player-color-swatch" style="background:${color}" tabindex="0" title="Click to cycle color"></span></td>
           `;
           tr.querySelector('.player-name-input').addEventListener('input', e => {
@@ -4767,6 +4859,8 @@ function connectWs(url, onOpen) {
       networkJoinState = 'failed';
       networkJoinError = 'Connection failed \u2014 check address and try again.';
       renderNetworkPanel();
+    } else if (networkPhase === 'pre-connect') {
+      netStatus('Server not running \u2014 run start-server.bat first.', true);
     } else {
       netStatus('Connection error.', true);
     }
@@ -4811,7 +4905,7 @@ function hostGame() {
 }
 
 function showJoinForm() {
-  networkJoinName  = networkJoinName || menuPlayers[0].name || 'Player';
+  networkJoinName  = networkJoinName || 'Player 2';
   networkJoinState = 'idle';
   networkPhase     = 'join-form';
   renderNetworkPanel();
@@ -4854,7 +4948,13 @@ function joinGame() {
 }
 
 function cycleJoinColor() {
-  networkJoinColorIdx = (networkJoinColorIdx + 1) % PLAYER_COLORS.length;
+  const taken = new Set(networkPlayers.map(p => p.color));
+  let next = (networkJoinColorIdx + 1) % PLAYER_COLORS.length;
+  for (let i = 0; i < PLAYER_COLORS.length; i++) {
+    if (!taken.has(PLAYER_COLORS[next])) break;
+    next = (next + 1) % PLAYER_COLORS.length;
+  }
+  networkJoinColorIdx = next;
   const color = PLAYER_COLORS[networkJoinColorIdx];
   const swatch = document.getElementById('net-join-color-swatch');
   if (swatch) {
@@ -5070,9 +5170,14 @@ function applyStateSync(msg) {
       if (!tanks[i]) return;
       const wasAlive = tanks[i].health > 0;
       tanks[i].health = h;
-      // If this sync reveals a kill that our local simulation missed, play the death effect
       if (wasAlive && h <= 0 && !killEffects.some(e => e.tank === tanks[i])) {
+        // Host confirms kill that our local simulation missed — play death effect
         triggerKillEffect(tanks[i]);
+      } else if (!wasAlive && h > 0) {
+        // Host says tank is alive but our local simulation killed it — undo stale kill effects
+        killEffects = killEffects.filter(e => e.tank !== tanks[i]);
+        killEffectPending = killEffects.length > 0;
+        tanks[i].tombstone = false;
       }
     });
   }
@@ -5081,6 +5186,21 @@ function applyStateSync(msg) {
   }
   if (msg.moneys) {
     msg.moneys.forEach((m, i) => { if (tanks[i]) tanks[i].money = m; });
+  }
+  // Sync inventories and weapon selection for remote tanks only (local player owns their own state)
+  if (msg.inventories) {
+    msg.inventories.forEach((inv, i) => {
+      if (tanks[i] && i !== networkMyPlayerIdx) {
+        tanks[i].inventory = { ...inv };
+        // JSON can't encode Infinity — restore free weapons (cost===0) which are always unlimited
+        Object.entries(WEAPONS).forEach(([n, w]) => { if (w.cost === 0) tanks[i].inventory[n] = Infinity; });
+      }
+    });
+  }
+  if (msg.selectedWeapons) {
+    msg.selectedWeapons.forEach((sw, i) => {
+      if (tanks[i] && i !== networkMyPlayerIdx) tanks[i].selectedWeapon = sw;
+    });
   }
   // Correct currentPlayer index if host disagrees (resolves any ordering edge cases)
   if (msg.currentPlayer !== undefined && msg.currentPlayer !== currentPlayer && projectiles.length === 0) {
@@ -5092,6 +5212,20 @@ function applyStateSync(msg) {
     if (local !== msg.terrainHash) {
       console.warn('[net] terrain hash mismatch: local', local, 'host', msg.terrainHash);
     }
+  }
+  // Host signalled round over — apply authoritative kill/damage stats then trigger end sequence
+  if (msg.gameOver) {
+    if (msg.killedBy) {
+      msg.killedBy.forEach((kb, i) => { if (tanks[i] && kb >= 0) tanks[i].killedBy = kb; });
+    }
+    if (msg.damageDealt) {
+      msg.damageDealt.forEach((dd, i) => { if (tanks[i]) tanks[i].damageDealt = dd; });
+    }
+    if (!gameOver) {
+      gameOver = true;
+      setTimeout(endRound, 1900);
+    }
+    return;
   }
   updateUI();
   updateWeaponIndicator();
@@ -5135,6 +5269,14 @@ function handleWsMessage(msg) {
       networkPhase        = 'lobby';
       networkJoinState    = 'idle';
       networkJoinSettings = null;
+      // Auto-advance color if it clashes with any player already in the room
+      { const taken = new Set(msg.players.map(p => p.color));
+        let ci = networkJoinColorIdx;
+        for (let i = 0; i < PLAYER_COLORS.length; i++) {
+          if (!taken.has(PLAYER_COLORS[ci])) break;
+          ci = (ci + 1) % PLAYER_COLORS.length;
+        }
+        networkJoinColorIdx = ci; }
       renderNetworkPanel();
       updateStartBtn();
       break;
@@ -5162,6 +5304,16 @@ function handleWsMessage(msg) {
       }
       break;
     }
+
+    case 'aim_update':
+      // Remote player is adjusting their aim — update their cannon in real time
+      if (tanks && tanks[msg.playerIdx] && msg.playerIdx !== networkMyPlayerIdx) {
+        tanks[msg.playerIdx].angle = msg.angle;
+        tanks[msg.playerIdx].power = msg.power;
+        updateUI();
+        updateWeaponIndicator();
+      }
+      break;
 
     case 'turn_action':
       // Simulate a shot fired by a remote player
@@ -5276,6 +5428,16 @@ function handleWsMessage(msg) {
       // Another player finished shopping — update the waiting overlay
       networkShopDone.add(msg.from);
       _renderNetShopOverlay();
+      // Host: apply the sender's post-shop inventory so host's model stays accurate
+      if (networkIsHost && msg.inventory && tanks) {
+        const senderIdx = networkPlayers.findIndex(p => p.id === msg.from);
+        if (senderIdx >= 0 && senderIdx !== networkMyPlayerIdx && tanks[senderIdx]) {
+          tanks[senderIdx].inventory = { ...msg.inventory };
+          // JSON can't encode Infinity — restore free weapons which are always unlimited
+          Object.entries(WEAPONS).forEach(([n, w]) => { if (w.cost === 0) tanks[senderIdx].inventory[n] = Infinity; });
+          tanks[senderIdx].selectedWeapon = msg.selectedWeapon || tanks[senderIdx].selectedWeapon;
+        }
+      }
       if (networkIsHost) _checkAllNetShopDone();
       break;
 
@@ -5509,11 +5671,11 @@ function initGame() {
     kills: 0, damageDealt: 0, cashEarned: 0, roundWins: 0, score: 0,
   }));
 
-  resize();
+  resizeCanvas();
 
   // Scale world width with player count: 2p=1.0×, 4p=1.5×, 6p=2.0×, 8p=2.5×, 10p=3.0×
   const n = playerConfigs.length;
-  worldWidth = Math.round(canvas.width * (0.5 + n * 0.25));
+  worldWidth = Math.round(VWIDTH * (0.5 + n * 0.25));
 
   generateTerrain();
   generateStars();
@@ -5531,6 +5693,8 @@ function initGame() {
   animId = requestAnimationFrame(gameLoop);  // start render loop so terrain is visible during shop
 
   runShopPhase(() => {
+    // Reset weapon selection to Baby Missile after shop closes, regardless of shop auto-select
+    tanks.forEach(t => { if (t.health > 0) t.selectedWeapon = 'Baby Missile'; });
     startIntroSequence(() => {
       currentPlayer = roundFirstPlayer % tanks.length;
       const n = tanks.length;
@@ -5553,8 +5717,57 @@ document.getElementById('net-chat-input').addEventListener('keydown', e => {
   e.stopPropagation(); // don't pass to game controls
 });
 
+// ── tank health tooltip ────────────────────────────────────────────────────
+(function () {
+  const tip = document.getElementById('tank-tooltip');
+  const HOVER_R = 30; // game-space radius to trigger tooltip
+
+  canvas.addEventListener('mousemove', e => {
+    if (!tanks || gameOver || shopOpen) { tip.style.display = 'none'; return; }
+
+    // Convert CSS mouse pos → game world coordinates
+    const cssW  = canvas.offsetWidth;
+    const cssH  = canvas.offsetHeight;
+    const gameX = (e.clientX / cssW) * VWIDTH  + camera.x;
+    const gameY = (e.clientY / cssH) * VHEIGHT;
+
+    let hit = null;
+    for (const t of tanks) {
+      if (t.health <= 0) continue;
+      if (Math.hypot(gameX - t.x, gameY - (t.y - 9)) <= HOVER_R) { hit = t; break; }
+    }
+
+    if (!hit) { tip.style.display = 'none'; return; }
+
+    const barColor = hit.health > 60 ? '#44dd44' : hit.health > 30 ? '#ddcc22' : '#dd2222';
+    tip.innerHTML =
+      `<span style="color:${hit.color}">${htmlEsc(hit.name)}</span> &nbsp;` +
+      `<span style="color:${barColor}">${hit.health} HP</span>`;
+
+    // Position tooltip near cursor, keeping it on-screen
+    const pad = 12;
+    let tx = e.clientX + pad;
+    let ty = e.clientY - 36;
+    const tw = tip.offsetWidth  || 120;
+    const th = tip.offsetHeight || 32;
+    if (tx + tw > window.innerWidth)  tx = e.clientX - tw - pad;
+    if (ty < 0)                        ty = e.clientY + pad;
+    if (ty + th > window.innerHeight)  ty = window.innerHeight - th - pad;
+    tip.style.left    = tx + 'px';
+    tip.style.top     = ty + 'px';
+    tip.style.display = 'block';
+  });
+
+  canvas.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
+})();
+
 // ── entry point ────────────────────────────────────────────────────────────
-resize();            // position viewport and set canvas dims before first paint
+resizeCanvas();
+console.log(
+  `[canvas] DPR=${window.devicePixelRatio} ` +
+  `innerW=${window.innerWidth} innerH=${window.innerHeight} ` +
+  `canvas=${canvas.width}×${canvas.height}`
+);
 initSetupListeners();
 showSetup();
 </script>

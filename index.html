@@ -1206,7 +1206,7 @@ const scoreboardEl = document.getElementById('scoreboard');
 const VWIDTH  = 1920;
 const VHEIGHT = 1080;
 
-const GAME_VERSION = '1.6.3'; // bump whenever index.html is updated
+const GAME_VERSION = '1.6.4'; // bump whenever index.html is updated
 
 // ── constants ──────────────────────────────────────────────────────────────
 const GRAVITY    = 260;   // px/s²
@@ -4752,9 +4752,7 @@ function renderNetworkPanel() {
         </div>
       </div>
       <div class="net-form-actions">
-        <button id="btn-join-confirm" ${dis}>${isConnecting ? 'Connecting\u2026' : 'CONNECT'}</button>
         ${isFailed ? '<button id="btn-join-retry">RETRY</button>' : ''}
-        <button id="btn-join-cancel" ${dis}>BACK</button>
         <button id="btn-paste-clipboard" ${dis} title="Paste address and room code from clipboard">&#128203; PASTE FROM CLIPBOARD</button>
       </div>
       <div id="net-form-status" class="${isFailed ? 'error' : isConnecting ? 'info' : ''}">${
@@ -4774,15 +4772,7 @@ function renderNetworkPanel() {
       if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); cycleJoinColor(); }
     });
 
-    div.querySelector('#btn-join-confirm').addEventListener('click', doJoin);
     if (isFailed) div.querySelector('#btn-join-retry').addEventListener('click', doJoin);
-    div.querySelector('#btn-join-cancel').addEventListener('click', () => {
-      networkJoinState = 'idle';
-      networkPhase     = 'pre-connect';
-      renderNetworkPanel();
-      _applyGuestPanelVisibility();
-      updateStartBtn();
-    });
 
     div.querySelector('#btn-paste-clipboard').addEventListener('click', () => {
       navigator.clipboard.readText().then(text => {

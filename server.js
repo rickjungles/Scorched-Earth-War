@@ -328,6 +328,8 @@ wss.on('connection', (ws, req) => {
           selectedWeapons: msg.selectedWeapons || null,
           killedBy:        msg.killedBy        || null,
           damageDealt:     msg.damageDealt     || null,
+          cashPreShop:     msg.cashPreShop     || null,
+          cashPostShop:    msg.cashPostShop    || null,
           currentPlayer:   msg.currentPlayer,
           wind:            msg.wind,
           terrainHash:     msg.terrainHash,
@@ -363,7 +365,7 @@ wss.on('connection', (ws, req) => {
 
       case 'round_begin': {
         if (!isHost) return;
-        broadcast(room, { type: 'round_begin', moneys: msg.moneys || null }, ws);
+        broadcast(room, { type: 'round_begin', moneys: msg.moneys || null, cashPreShop: msg.cashPreShop || null }, ws);
         break;
       }
 

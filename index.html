@@ -1180,6 +1180,7 @@ canvas { position: absolute; image-rendering: pixelated; }
             <th>PLAYER</th>
             <th>STARTING MONEY</th>
             <th>INTEREST</th>
+            <th>SHOP SPENT</th>
             <th>ROUND WINNINGS</th>
             <th>TOTAL</th>
           </tr>
@@ -1206,7 +1207,7 @@ const scoreboardEl = document.getElementById('scoreboard');
 const VWIDTH  = 1920;
 const VHEIGHT = 1080;
 
-const GAME_VERSION = '1.6.7'; // bump whenever index.html is updated
+const GAME_VERSION = '1.6.8'; // bump whenever index.html is updated
 
 // ── constants ──────────────────────────────────────────────────────────────
 const GRAVITY    = 260;   // px/s²
@@ -1789,10 +1790,11 @@ let lastTerrainPick = '';
 let totalRounds      = 5;
 let currentRound     = 1;
 let roundFirstPlayer = 0;  // rotates each round to determine who shoots first
-let playerStats      = [];  // [{ name, color, kills, damageDealt, cashEarned, roundWins, score }]
-let cashAtRoundStart = [];  // tank.money snapshot at round start
-let lastRoundData    = [];  // per-round snapshot: [{ kills, damage, cash }]
-let prevRankings     = [];  // sorted player indices before this round's score update
+let playerStats          = [];  // [{ name, color, kills, damageDealt, cashEarned, roundWins, score }]
+let cashPreShopSnapshot  = [];  // tank.money BEFORE shop opens each round (post-interest, pre-spending)
+let cashAtRoundStart     = [];  // tank.money AFTER shop closes each round (combat baseline)
+let lastRoundData        = [];  // per-round snapshot: [{ kills, damage, cash }]
+let prevRankings         = [];  // sorted player indices before this round's score update
 
 // camera (world-space x/y offset; only x is used)
 let camera = { x: 0, y: 0, targetX: 0, targetY: 0 };
@@ -2969,16 +2971,18 @@ function checkWin() {
     // Include killedBy and damageDealt so endRound() stats are accurate on guests.
     if (networkModeOn && networkIsHost && networkWs && networkWs.readyState === WebSocket.OPEN) {
       networkWs.send(JSON.stringify({
-        type:        'state_sync',
-        healths:     tanks.map(t => t.health),
-        shieldHPs:   tanks.map(t => t.shieldHP),
-        moneys:      tanks.map(t => t.money),
-        killedBy:    tanks.map(t => t.killedBy),
-        damageDealt: tanks.map(t => t.damageDealt),
+        type:         'state_sync',
+        healths:      tanks.map(t => t.health),
+        shieldHPs:    tanks.map(t => t.shieldHP),
+        moneys:       tanks.map(t => t.money),
+        killedBy:     tanks.map(t => t.killedBy),
+        damageDealt:  tanks.map(t => t.damageDealt),
+        cashPreShop:  cashPreShopSnapshot,
+        cashPostShop: cashAtRoundStart,
         currentPlayer,
         wind,
-        terrainHash: terrainHash(),
-        gameOver:    true,
+        terrainHash:  terrainHash(),
+        gameOver:     true,
       }));
     }
     return true;
@@ -2987,6 +2991,14 @@ function checkWin() {
 }
 
 function endRound() {
+  console.log('[money] endRound –', tanks.map((t, i) => ({
+    name:     t.name,
+    preShop:  cashPreShopSnapshot[i],
+    postShop: cashAtRoundStart[i],
+    final:    t.money,
+    spent:    (cashPreShopSnapshot[i] || 0) - (cashAtRoundStart[i] || 0),
+    earned:   Math.max(0, t.money - (cashAtRoundStart[i] || 0)),
+  })));
   // Compute per-round kills before accumulating
   const roundKills = new Array(tanks.length).fill(0);
   tanks.forEach(t => { if (t.health <= 0 && t.killedBy >= 0) roundKills[t.killedBy]++; });
@@ -3090,23 +3102,34 @@ function showScoreboard(isFinal) {
   document.getElementById('sb-cash-section').style.display = '';
   const rate = (gameSettings.interest || 0) / 100;
   tanks.forEach((t, i) => {
-    const s        = playerStats[i];
-    // Interest was applied at START of this round on previous savings.
-    // prev = what they carried into this round before interest was added.
+    const s = playerStats[i];
+    // Per spec:
+    //   Starting Money  = balance BEFORE shop opened (post-interest, pre-spending) = cashPreShopSnapshot[i]
+    //   Interest        = interest applied at round start (already baked into Starting Money)
+    //   Shop Spent      = Starting Money - post-shop balance
+    //   Round Winnings  = combat earnings this round
+    //   Total           = t.money
+    //   Formula check:  Starting Money - Shop Spent + Round Winnings = Total  ✓
+    const preShop  = cashPreShopSnapshot[i] ?? t.money;
+    const postShop = cashAtRoundStart[i]    ?? t.money;
     const interest = t.interestThisRound || 0;
-    const prev     = cashAtRoundStart[i] - interest;
-    const earned   = Math.max(0, t.money - cashAtRoundStart[i]);
+    const spent    = Math.max(0, preShop - postShop);
+    const earned   = Math.max(0, t.money - postShop);
     const newBal   = t.money;
     const batBonus = 0.20 * ((t.defInventory || {})['Battery'] || 0);
     const intPct   = Math.round((rate + batBonus) * 100);
     const intCell  = interest > 0
       ? `<span class="sb-cash-interest">$${interest.toLocaleString()}</span> <span style="color:rgba(255,255,255,0.4)">(${intPct}%)</span>`
       : `<span style="color:rgba(255,255,255,0.3)">—</span>`;
+    const spentCell = spent > 0
+      ? `<span style="color:#ff8855">-$${spent.toLocaleString()}</span>`
+      : `<span style="color:rgba(255,255,255,0.3)">—</span>`;
     const tr = document.createElement('tr');
     tr.innerHTML =
       `<td style="color:${s.color}">${htmlEsc(s.name)}</td>` +
-      `<td>$${prev.toLocaleString()}</td>` +
+      `<td>$${preShop.toLocaleString()}</td>` +
       `<td>${intCell}</td>` +
+      `<td>${spentCell}</td>` +
       `<td>$${earned.toLocaleString()}</td>` +
       `<td class="sb-cash-total">$${newBal.toLocaleString()}</td>`;
     cashRows.appendChild(tr);
@@ -3256,9 +3279,14 @@ function startNextRound() {
   setCameraTarget(tanks[currentPlayer]);
   camera.x = camera.targetX;
 
+  // Snapshot balances BEFORE shop opens (post-interest, pre-spending)
+  cashPreShopSnapshot = tanks.map(t => t.money);
+  console.log('[money] round', currentRound, 'start – pre-shop balances:', tanks.map(t => t.name + ': $' + t.money).join(', '));
+
   runShopPhase(() => {
-    // Baseline money snapshot AFTER shop so RND CASH only reflects combat earnings
+    // Snapshot balances AFTER shop closes — combat earnings are measured against this
     cashAtRoundStart = tanks.map(t => t.money);
+    console.log('[money] shop closed (round', currentRound, ') – post-shop balances:', tanks.map(t => t.name + ': $' + t.money).join(', '));
     // Reset weapon selection to Baby Missile after shop closes, regardless of shop auto-select
     tanks.forEach(t => { if (t.health > 0) t.selectedWeapon = 'Baby Missile'; });
     startIntroSequence(() => {
@@ -3432,12 +3460,14 @@ function shopBuyItem(playerIndex, isDefense, name) {
     t.money -= def.cost;
     t.defInventory[name] = (t.defInventory[name] || 0) + 1;
     applyDefenses(t);
+    console.log('[money] buy (defense)', name, '-$' + def.cost, '→', t.name, 'balance: $' + t.money);
   } else {
     const wep = WEAPONS[name];
     if (!wep || wep.cost === 0 || t.money < wep.cost) return;
     t.money -= wep.cost;
     t.inventory[name]++;
     if (t.selectedWeapon === 'Baby Missile') t.selectedWeapon = name;
+    console.log('[money] buy', name, '-$' + wep.cost, '→', t.name, 'balance: $' + t.money);
   }
   renderShop(playerIndex);
 }
@@ -3448,16 +3478,20 @@ function shopSellItem(playerIndex, isDefense, name) {
     const def = DEFENSES[name];
     if (!def || (t.defInventory[name] || 0) <= 0) return;
     t.defInventory[name]--;
-    t.money += Math.floor(def.cost * 0.8);
+    const refund = Math.floor(def.cost * 0.8);
+    t.money += refund;
     applyDefenses(t);
+    console.log('[money] sell (defense)', name, '+$' + refund, '→', t.name, 'balance: $' + t.money);
   } else {
     const wep = WEAPONS[name];
     if (!wep || wep.cost === 0) return;
     const owned = t.inventory[name];
     if (!owned || owned <= 0 || owned === Infinity) return;
     t.inventory[name]--;
-    t.money += Math.floor(wep.cost * 0.8);
+    const refund = Math.floor(wep.cost * 0.8);
+    t.money += refund;
     if (t.inventory[name] === 0 && t.selectedWeapon === name) t.selectedWeapon = 'Baby Missile';
+    console.log('[money] sell', name, '+$' + refund, '→', t.name, 'balance: $' + t.money);
   }
   renderShop(playerIndex);
 }
@@ -3656,9 +3690,10 @@ function _netShopLocalDone() {
   // Mark ourselves done in the local set
   networkShopDone.add(networkMyId);
 
-  // Notify server with our post-shop inventory so the host can sync all machines
+  // Notify server with our post-shop state so the host can sync all machines
   const myIdx = networkMyPlayerIdx >= 0 ? networkMyPlayerIdx : 0;
   if (networkWs && networkWs.readyState === WebSocket.OPEN && tanks && tanks[myIdx]) {
+    console.log('[money] shop_done SEND –', tanks[myIdx].name, 'money: $' + tanks[myIdx].money);
     networkWs.send(JSON.stringify({
       type:           'shop_done',
       inventory:      { ...tanks[myIdx].inventory },
@@ -3722,11 +3757,13 @@ function _checkAllNetShopDone() {
   const allDone = livingPlayerIds.every(id => networkShopDone.has(id));
   if (!allDone) return;
 
-  // Send round_begin to all guests, including authoritative post-shop balances
+  // Send round_begin with authoritative post-shop balances and pre-shop snapshots
   if (networkWs && networkWs.readyState === WebSocket.OPEN) {
+    console.log('[money] round_begin SEND – post-shop:', tanks.map(t => t.name + ': $' + t.money).join(', '));
     networkWs.send(JSON.stringify({
-      type:   'round_begin',
-      moneys: tanks.map(t => t.money),
+      type:        'round_begin',
+      moneys:      tanks.map(t => t.money),
+      cashPreShop: cashPreShopSnapshot,
     }));
   }
   _dismissNetShopOverlay();
@@ -3745,6 +3782,7 @@ function openShopForPlayer(playerIndex, onDone) {
   document.getElementById('shop-round').textContent =
     `Round ${currentRound} of ${totalRounds}`;
 
+  console.log('[money] shop open –', t.name, 'balance: $' + t.money);
   renderShop(playerIndex);
   shopEl.style.display = 'block';
 
@@ -3753,6 +3791,7 @@ function openShopForPlayer(playerIndex, onDone) {
     btn.removeEventListener('click', handler);
     shopEl.style.display = 'none';
     shopOpen = false;
+    console.log('[money] shop close –', t.name, 'balance: $' + t.money, '(spent: $' + Math.max(0, shopMoneyAtOpen - t.money) + ')');
     updateUI();
     updateWeaponIndicator();
     onDone();
@@ -5427,7 +5466,7 @@ function applyStateSync(msg) {
       console.warn('[net] terrain hash mismatch: local', local, 'host', msg.terrainHash);
     }
   }
-  // Host signalled round over — apply authoritative kill/damage stats then trigger end sequence
+  // Host signalled round over — apply authoritative stats then trigger end sequence
   if (msg.gameOver) {
     if (msg.killedBy) {
       msg.killedBy.forEach((kb, i) => { if (tanks[i] && kb >= 0) tanks[i].killedBy = kb; });
@@ -5435,6 +5474,11 @@ function applyStateSync(msg) {
     if (msg.damageDealt) {
       msg.damageDealt.forEach((dd, i) => { if (tanks[i]) tanks[i].damageDealt = dd; });
     }
+    // Apply host's authoritative money snapshots so scoreboard is identical on all clients
+    if (msg.cashPreShop)  cashPreShopSnapshot = msg.cashPreShop.slice();
+    if (msg.cashPostShop) cashAtRoundStart    = msg.cashPostShop.slice();
+    if (msg.moneys) msg.moneys.forEach((m, i) => { if (tanks[i] && m != null) tanks[i].money = m; });
+    console.log('[money] gameOver RECV – cashPreShop:', cashPreShopSnapshot, 'cashPostShop:', cashAtRoundStart, 'final moneys:', tanks.map(t => t.name + ': $' + t.money).join(', '));
     if (!gameOver) {
       gameOver = true;
       setTimeout(endRound, 1900);
@@ -5653,8 +5697,7 @@ function handleWsMessage(msg) {
         const senderName = (networkPlayers.find(p => p.id === msg.from) || {}).name || 'Guest';
         _showVersionWarning(`VERSION MISMATCH: ${senderName} has v${msg.version}, you have v${GAME_VERSION}. Both should use the same file to avoid bugs.`);
       }
-      // Apply the sender's post-shop inventory on both host and guest so all clients
-      // have accurate inventories before the first shot is fired.
+      // Apply the sender's post-shop state on both host and guest
       if (msg.inventory && tanks) {
         const senderIdx = networkPlayers.findIndex(p => p.id === msg.from);
         if (senderIdx >= 0 && senderIdx !== networkMyPlayerIdx && tanks[senderIdx]) {
@@ -5663,7 +5706,8 @@ function handleWsMessage(msg) {
           Object.entries(WEAPONS).forEach(([n, w]) => { if (w.cost === 0) tanks[senderIdx].inventory[n] = Infinity; });
           if (msg.defInventory) tanks[senderIdx].defInventory = { ...msg.defInventory };
           tanks[senderIdx].selectedWeapon = msg.selectedWeapon || tanks[senderIdx].selectedWeapon;
-          if (msg.money !== undefined) tanks[senderIdx].money = msg.money;
+          if (msg.money != null) tanks[senderIdx].money = msg.money;
+          console.log('[money] shop_done RECV from', tanks[senderIdx].name, '– money: $' + tanks[senderIdx].money);
         }
       }
       if (networkIsHost) _checkAllNetShopDone();
@@ -5684,10 +5728,15 @@ function handleWsMessage(msg) {
       // All players are done shopping — fire the intro sequence
       if (!networkIsHost) {
         _dismissNetShopOverlay();
+        // Apply host's authoritative pre-shop snapshot so our scoreboard uses the same baseline
+        if (msg.cashPreShop && tanks) {
+          msg.cashPreShop.forEach((m, i) => { if (tanks[i] && m != null) cashPreShopSnapshot[i] = m; });
+        }
         // Apply host's authoritative post-shop balances before cashAtRoundStart is captured
         if (msg.moneys && tanks) {
           msg.moneys.forEach((m, i) => { if (tanks[i] && m != null) tanks[i].money = m; });
         }
+        console.log('[money] round_begin RECV – cashPreShop:', msg.cashPreShop, 'postShop:', msg.moneys);
         if (networkShopCallback) { const cb = networkShopCallback; networkShopCallback = null; cb(); }
       }
       break;
@@ -5928,9 +5977,14 @@ function initGame() {
 
   animId = requestAnimationFrame(gameLoop);  // start render loop so terrain is visible during shop
 
+  // Snapshot balances BEFORE shop opens (post-interest, pre-spending)
+  cashPreShopSnapshot = tanks.map(t => t.money);
+  console.log('[money] game start – pre-shop balances:', tanks.map(t => t.name + ': $' + t.money).join(', '));
+
   runShopPhase(() => {
-    // Baseline money snapshot AFTER shop so RND CASH only reflects combat earnings
+    // Snapshot balances AFTER shop closes — combat earnings are measured against this
     cashAtRoundStart = tanks.map(t => t.money);
+    console.log('[money] shop closed (round 1) – post-shop balances:', tanks.map(t => t.name + ': $' + t.money).join(', '));
     // Reset weapon selection to Baby Missile after shop closes, regardless of shop auto-select
     tanks.forEach(t => { if (t.health > 0) t.selectedWeapon = 'Baby Missile'; });
     startIntroSequence(() => {

@@ -287,7 +287,17 @@ canvas { position: absolute; image-rendering: pixelated; }
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
-.ctrl-row { display: flex; gap: 4px; }
+.ctrl-row { display: flex; gap: 4px; align-items: center; }
+.ctrl-value {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  font-size: 12px;
+  color: #ffe050;
+  font-family: 'Courier New', monospace;
+  letter-spacing: 0.05em;
+}
 .ctrl-btn {
   background: #111;
   color: #fff;
@@ -306,7 +316,7 @@ canvas { position: absolute; image-rendering: pixelated; }
 .ctrl-btn:hover { background: #222; border-color: #ffe050; color: #ffe050; }
 .ctrl-btn:active { background: #333; }
 #ctrl-fire {
-  width: 92px;
+  width: 100%;
   background: #440000;
   border-color: #cc2200;
   color: #ff6644;
@@ -1071,15 +1081,17 @@ canvas { position: absolute; image-rendering: pixelated; }
 <div id="weapon-indicator"></div>
 <div id="ctrl-panel">
   <div id="ctrl-drag-handle" title="Drag to move">&#xB7;&#xB7;&#xB7;</div>
+  <div class="ctrl-label">Power</div>
+  <div class="ctrl-row">
+    <button class="ctrl-btn" id="ctrl-power-down" title="Power Down (↓)">&#9660;</button>
+    <span class="ctrl-value" id="ctrl-power-val">50</span>
+    <button class="ctrl-btn" id="ctrl-power-up"   title="Power Up (↑)">&#9650;</button>
+  </div>
   <div class="ctrl-label">Angle</div>
   <div class="ctrl-row">
     <button class="ctrl-btn" id="ctrl-angle-left"  title="Angle Left (←)">&#9668;</button>
+    <span class="ctrl-value" id="ctrl-angle-val">45&deg;</span>
     <button class="ctrl-btn" id="ctrl-angle-right" title="Angle Right (→)">&#9658;</button>
-  </div>
-  <div class="ctrl-label">Power</div>
-  <div class="ctrl-row">
-    <button class="ctrl-btn" id="ctrl-power-up"   title="Power Up (↑)">&#9650;</button>
-    <button class="ctrl-btn" id="ctrl-power-down" title="Power Down (↓)">&#9660;</button>
   </div>
   <button class="ctrl-btn" id="ctrl-fire" title="Fire (SPACE)">FIRE</button>
 </div>
@@ -1219,7 +1231,7 @@ const scoreboardEl = document.getElementById('scoreboard');
 const VWIDTH  = 1920;
 const VHEIGHT = 1080;
 
-const GAME_VERSION = '1.7.5'; // bump whenever index.html is updated
+const GAME_VERSION = '1.7.6'; // bump whenever index.html is updated
 
 // ── constants ──────────────────────────────────────────────────────────────
 const GRAVITY    = 260;   // px/s²
@@ -3426,6 +3438,9 @@ function updateUI() {
   const t = tanks[currentPlayer];
   // Show/hide the ctrl-panel based on whose turn it is
   document.getElementById('ctrl-panel').style.display = _isMyTurn() ? 'flex' : 'none';
+  // Update live angle/power readouts in the ctrl-panel
+  const _apv = document.getElementById('ctrl-angle-val'); if (_apv) _apv.textContent = t.angle + '\u00b0';
+  const _ppv = document.getElementById('ctrl-power-val'); if (_ppv) _ppv.textContent = String(t.power);
   // In network mode, show "Waiting for..." when it's a remote player's turn
   if (networkModeOn && networkMyPlayerIdx >= 0 && currentPlayer !== networkMyPlayerIdx) {
     ui.innerHTML = `R${currentRound}/${totalRounds} &nbsp;|&nbsp; <span style="color:${t.color}">${htmlEsc(t.name)}</span> &nbsp;|&nbsp; ${t.angle}&deg; &nbsp;|&nbsp; Pwr ${t.power} <span class="net-blink">&#x258C;</span>`;

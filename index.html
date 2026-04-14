@@ -213,7 +213,6 @@ canvas { position: absolute; image-rendering: pixelated; }
   font-size: 12px;
   font-family: 'Courier New', monospace;
   border: 1px solid rgba(255,255,255,0.15);
-  pointer-events: none;
   text-align: right;
   line-height: 1.6;
   max-height: calc(100vh - 130px);
@@ -250,6 +249,60 @@ canvas { position: absolute; image-rendering: pixelated; }
   border-top: 1px solid rgba(255,255,255,0.08);
   padding-top: 4px;
 }
+#weapon-indicator .wi-row.wi-weapon { cursor: pointer; }
+#weapon-indicator .wi-row.wi-weapon:hover { color: #ffe050; }
+/* ── mouse control panel (left side) ─────────────────────────────────────── */
+#ctrl-panel {
+  position: fixed;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(0,0,0,0.75);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 8px;
+  padding: 10px 8px;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  z-index: 50;
+  font-family: 'Courier New', monospace;
+  user-select: none;
+}
+.ctrl-label {
+  font-size: 9px;
+  color: rgba(255,255,255,0.45);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.ctrl-row { display: flex; gap: 4px; }
+.ctrl-btn {
+  background: #111;
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.25);
+  border-radius: 4px;
+  font-family: 'Courier New', monospace;
+  font-size: 16px;
+  width: 42px;
+  height: 38px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+.ctrl-btn:hover { background: #222; border-color: #ffe050; color: #ffe050; }
+.ctrl-btn:active { background: #333; }
+#ctrl-fire {
+  width: 92px;
+  background: #440000;
+  border-color: #cc2200;
+  color: #ff6644;
+  font-size: 13px;
+  letter-spacing: 2px;
+  margin-top: 4px;
+}
+#ctrl-fire:hover { background: #660000; color: #ffaa88; }
 /* ── quit confirm overlay ──────────────────────────────────────────────────── */
 #quit-confirm {
   display: none;
@@ -1001,6 +1054,19 @@ canvas { position: absolute; image-rendering: pixelated; }
   </div>
 </div>
 <div id="weapon-indicator"></div>
+<div id="ctrl-panel">
+  <div class="ctrl-label">Angle</div>
+  <div class="ctrl-row">
+    <button class="ctrl-btn" id="ctrl-angle-left"  title="Angle Left (←)">&#9668;</button>
+    <button class="ctrl-btn" id="ctrl-angle-right" title="Angle Right (→)">&#9658;</button>
+  </div>
+  <div class="ctrl-label">Power</div>
+  <div class="ctrl-row">
+    <button class="ctrl-btn" id="ctrl-power-up"   title="Power Up (↑)">&#9650;</button>
+    <button class="ctrl-btn" id="ctrl-power-down" title="Power Down (↓)">&#9660;</button>
+  </div>
+  <button class="ctrl-btn" id="ctrl-fire" title="Fire (SPACE)">FIRE</button>
+</div>
 <!-- network in-game UI -->
 <div id="net-ingame-hud">
   <div id="net-conn-indicator">
@@ -1936,9 +2002,10 @@ function placeTanks() {
       power:    50,
       health:      100,
       money:       gameSettings.cash ?? 5000,
-      damageDealt: 0,
-      killedBy:    -1,
-      tombstone:   false,
+      damageDealt:  0,
+      killedBy:     -1,
+      lastAttacker: -1,
+      tombstone:    false,
       inventory: Object.fromEntries(
         Object.entries(WEAPONS).map(([n, w]) => [n, w.cost === 0 ? Infinity : 0])
       ),
@@ -2350,7 +2417,7 @@ function blastTerrain(cx, cy, r = BLAST_R) {
     const dx   = x - cx;
     const dy   = Math.sqrt(r * r - dx * dx);
     const newY = cy + dy;
-    if (terrain[x] < newY) terrain[x] = Math.min(h, newY);
+    if (terrain[x] < newY) terrain[x] = Math.min(h, Math.round(newY));
   }
 }
 
@@ -2363,7 +2430,7 @@ function raiseTerrain(cx, cy, r) {
     const dx   = x - cx;
     const dy   = Math.sqrt(r * r - dx * dx);
     const newY = cy - dy;
-    if (terrain[x] > newY) terrain[x] = Math.max(0, newY);
+    if (terrain[x] > newY) terrain[x] = Math.max(0, Math.round(newY));
   }
 }
 
@@ -2400,13 +2467,21 @@ function updateTankPhysics(dt) {
         const fallDist = t.y - t.fallStartY;
         const fallDmg  = Math.max(0, Math.round((fallDist - 20) * 0.45));
         if (fallDmg > 0) {
-          const prevHpFall = t.health;
-          t.health = Math.max(0, t.health - fallDmg);
-          if (prevHpFall > 0 && t.health <= 0 && t.killedBy < 0) {
-            t.killedBy = -1;
-            triggerKillEffect(t);
+          // Guest never modifies health locally — all HP changes come from the host via state_sync.
+          if (!networkModeOn || networkIsHost) {
+            const prevHpFall = t.health;
+            t.health = Math.max(0, t.health - fallDmg);
+            const fallEffDmg = prevHpFall - t.health;
+            if (fallEffDmg > 0 && t.lastAttacker >= 0) {
+              tanks[t.lastAttacker].damageDealt += fallEffDmg;
+              tanks[t.lastAttacker].money += fallEffDmg * MONEY_PER_DAMAGE;
+            }
+            if (prevHpFall > 0 && t.health <= 0 && t.killedBy < 0) {
+              t.killedBy = t.lastAttacker; // credit whoever last shot this tank (or -1 if nobody)
+              triggerKillEffect(t);
+            }
+            if (!gameOver) checkWin();
           }
-          if (!gameOver) checkWin();
         }
         t.falling = false;
       }
@@ -2450,19 +2525,25 @@ function onImpact(proj, px, py) {
         const frac = Math.max(0, 1 - dist / (wep.blastR + TANK_HIT_R));
         let dmg    = Math.round(wep.hitDamage * Math.pow(frac, 1.4));
         if (dmg > 0) {
-          if (t.shieldHP > 0) {
-            const absorbed = Math.min(t.shieldHP, dmg);
-            t.shieldHP = Math.max(0, t.shieldHP - absorbed);
-            dmg        = Math.max(0, dmg - absorbed);
+          // Guest never modifies health locally — all HP changes come from the host via state_sync.
+          // Still track shield absorption for visuals, but skip health/money/kills on guest.
+          if (!networkModeOn || networkIsHost) {
+            if (t.shieldHP > 0) {
+              const absorbed = Math.min(t.shieldHP, dmg);
+              t.shieldHP = Math.max(0, t.shieldHP - absorbed);
+              dmg        = Math.max(0, dmg - absorbed);
+            }
+            if (dmg > 0) {
+              const prevHealth = t.health;
+              t.health = Math.max(0, t.health - dmg);
+              const effectiveDmg = prevHealth - t.health; // cap at actual HP lost, no overkill credit
+              tanks[proj.owner].money += effectiveDmg * MONEY_PER_DAMAGE;
+              tanks[proj.owner].damageDealt += effectiveDmg;
+              t.lastAttacker = proj.owner;
+              if (prevHealth > 0 && t.health <= 0) { t.killedBy = proj.owner; triggerKillEffect(t); }
+            }
           }
-          if (dmg > 0) {
-            const prevHealth = t.health;
-            t.health = Math.max(0, t.health - dmg);
-            tanks[proj.owner].money += dmg * MONEY_PER_DAMAGE;
-            tanks[proj.owner].damageDealt += dmg;
-            if (prevHealth > 0 && t.health <= 0) { t.killedBy = proj.owner; triggerKillEffect(t); }
-            anyTankDamaged = true;
-          }
+          anyTankDamaged = true;
         }
       }
     }
@@ -2478,6 +2559,7 @@ function onImpact(proj, px, py) {
 
   if (projectiles.length === 0 && !napalmTurnPending) {
     stopWhistle();
+    netHealthSync(); // push authoritative health to guests before kill animation delay
     if (!checkWin()) maybeNextTurn();
   }
 }
@@ -2548,12 +2630,17 @@ function updateNapalm(dt) {
         if (t.health <= 0) continue;
         const dist = Math.hypot(p.x - t.x, groundY - t.y);
         if (dist < 8 + TANK_HIT_R) {
-          const prevHp = t.health;
-          t.health = Math.max(0, t.health - 8);
-          tanks[p.owner].money += 8 * MONEY_PER_DAMAGE;
-          tanks[p.owner].damageDealt += 8;
-          if (prevHp > 0 && t.health <= 0 && t.killedBy < 0) { t.killedBy = p.owner; triggerKillEffect(t); }
-          if (!gameOver) checkWin();
+          // Guest never modifies health locally — all HP changes come from the host via state_sync.
+          if (!networkModeOn || networkIsHost) {
+            const prevHp = t.health;
+            t.health = Math.max(0, t.health - 8);
+            const napEffDmg = prevHp - t.health; // cap at actual HP lost
+            tanks[p.owner].money += napEffDmg * MONEY_PER_DAMAGE;
+            tanks[p.owner].damageDealt += napEffDmg;
+            t.lastAttacker = p.owner;
+            if (prevHp > 0 && t.health <= 0 && t.killedBy < 0) { t.killedBy = p.owner; triggerKillEffect(t); }
+            if (!gameOver) checkWin();
+          }
         }
       }
     }
@@ -2561,6 +2648,7 @@ function updateNapalm(dt) {
   if (napalmParticles.length === 0 && napalmTurnPending) {
     napalmTurnPending = false;
     stopWhistle();
+    netHealthSync(); // push authoritative health to guests before kill animation delay
     if (!checkWin()) maybeNextTurn();
   }
 }
@@ -2987,20 +3075,23 @@ function showScoreboard(isFinal) {
   const rate = (gameSettings.interest || 0) / 100;
   tanks.forEach((t, i) => {
     const s        = playerStats[i];
-    const prev     = cashAtRoundStart[i];
+    // Interest was already applied at the START of this round on previous savings.
+    // Show that baked-in interest, then combat earnings, then the true ending balance.
+    const interest = t.interestThisRound || 0;
+    const prev     = cashAtRoundStart[i] - interest; // net savings (post-shop, pre-interest component)
     const earned   = Math.max(0, t.money - cashAtRoundStart[i]);
+    const newBal   = t.money; // no preview of future interest — that applies at next round start
     const batBonus = 0.20 * ((t.defInventory || {})['Battery'] || 0);
-    const interest = rate > 0 ? Math.floor(t.money * (rate + batBonus)) : 0;
-    const newBal   = t.money + interest;
     const intPct   = Math.round((rate + batBonus) * 100);
-    const intPart  = rate > 0
+    // Only show interest column if interest was actually earned this round
+    const intPart  = interest > 0
       ? ` + <span style="color:#55ff55">$${interest.toLocaleString()}</span><span class="sb-cash-math"> (${intPct}%)</span>`
       : '';
     const div = document.createElement('div');
     div.className = 'sb-cash-row';
     div.innerHTML =
       `<span class="sb-cash-name" style="color:${s.color}">${htmlEsc(s.name)}</span>` +
-      `<span class="sb-cash-math">$${prev.toLocaleString()} + $${earned.toLocaleString()}${intPart} = </span>` +
+      `<span class="sb-cash-math">$${prev.toLocaleString()}${intPart} + $${earned.toLocaleString()} = </span>` +
       `<span class="sb-cash-total">$${newBal.toLocaleString()}</span>`;
     cashRows.appendChild(div);
   });
@@ -3127,8 +3218,6 @@ function startNextRound() {
     applyDefenses(t);
   });
 
-  cashAtRoundStart = tanks.map(t => t.money);
-
   currentPlayer = roundFirstPlayer % tanks.length;
   newWind();
   // Guests override with host's authoritative wind
@@ -3152,6 +3241,8 @@ function startNextRound() {
   camera.x = camera.targetX;
 
   runShopPhase(() => {
+    // Baseline money snapshot AFTER shop so RND CASH only reflects combat earnings
+    cashAtRoundStart = tanks.map(t => t.money);
     // Reset weapon selection to Baby Missile after shop closes, regardless of shop auto-select
     tanks.forEach(t => { if (t.health > 0) t.selectedWeapon = 'Baby Missile'; });
     startIntroSequence(() => {
@@ -3210,6 +3301,7 @@ function nextTurn() {
       healths:         tanks.map(t => t.health),
       shieldHPs:       tanks.map(t => t.shieldHP),
       moneys:          tanks.map(t => t.money),
+      damageDealt:     tanks.map(t => t.damageDealt),
       inventories:     tanks.map(t => ({ ...t.inventory })),
       selectedWeapons: tanks.map(t => t.selectedWeapon),
       currentPlayer,
@@ -3260,7 +3352,7 @@ function updateWeaponIndicator() {
       const ammo = qty === Infinity ? '∞' : qty;
       const sel  = name === t.selectedWeapon;
       const mark = sel ? '&#9658; ' : '&nbsp;&nbsp;';
-      return `<div class="wi-row${sel ? ' wi-selected' : ''}">${mark}${name} <span class="wi-ammo">(${ammo})</span></div>`;
+      return `<div class="wi-row wi-weapon${sel ? ' wi-selected' : ''}" data-weapon="${name}">${mark}${name} <span class="wi-ammo">(${ammo})</span></div>`;
     });
   html += weaponRows.join('');
 
@@ -3554,7 +3646,9 @@ function _netShopLocalDone() {
     networkWs.send(JSON.stringify({
       type:           'shop_done',
       inventory:      { ...tanks[myIdx].inventory },
+      defInventory:   { ...tanks[myIdx].defInventory },
       selectedWeapon: tanks[myIdx].selectedWeapon,
+      money:          tanks[myIdx].money,
     }));
   }
 
@@ -4190,6 +4284,68 @@ function showQuitConfirm() {
   quitConfirmEl.classList.add('visible');
 }
 
+// ── shared aim action (keyboard + mouse panel) ─────────────────────────────
+function canAct() {
+  if (shopOpen) return false;
+  if (introPhase !== 'none') return false;
+  if (gameOver || projectiles.length > 0 || cpuThinking) return false;
+  if (!tanks || !tanks[currentPlayer] || tanks[currentPlayer].isAI) return false;
+  if (networkModeOn && networkMyPlayerIdx >= 0 && currentPlayer !== networkMyPlayerIdx) return false;
+  return true;
+}
+
+function handleAimAction(action) {
+  if (!canAct()) return;
+  const t = tanks[currentPlayer];
+  let aimChanged = false;
+  if (action === 'angleLeft')  { t.angle = Math.min(180, t.angle + 1); soundAngle(); aimChanged = true; }
+  if (action === 'angleRight') { t.angle = Math.max(0,   t.angle - 1); soundAngle(); aimChanged = true; }
+  if (action === 'powerUp')    { t.power = Math.min(MAX_POWER, t.power + 1); soundPower(+1); aimChanged = true; }
+  if (action === 'powerDown')  { t.power = Math.max(1, t.power - 1); soundPower(-1); aimChanged = true; }
+  if (action === 'fire')       { fire(); return; }
+  if (aimChanged) {
+    updateUI();
+    if (networkModeOn && networkWs && networkWs.readyState === WebSocket.OPEN) {
+      networkWs.send(JSON.stringify({ type: 'aim_update', playerIdx: currentPlayer, angle: t.angle, power: t.power }));
+    }
+  }
+}
+
+// ── mouse control panel wiring ─────────────────────────────────────────────
+(function wireCtrlPanel() {
+  function wireHold(id, action) {
+    const btn = document.getElementById(id);
+    let timer = null;
+    const start = () => { handleAimAction(action); timer = setInterval(() => handleAimAction(action), 80); };
+    const stop  = () => { clearInterval(timer); timer = null; };
+    btn.addEventListener('mousedown',   e => { e.preventDefault(); ensureAudio(); start(); });
+    btn.addEventListener('touchstart',  e => { e.preventDefault(); ensureAudio(); start(); }, { passive: false });
+    btn.addEventListener('mouseup',     stop);
+    btn.addEventListener('mouseleave',  stop);
+    btn.addEventListener('touchend',    stop);
+    btn.addEventListener('touchcancel', stop);
+  }
+  wireHold('ctrl-angle-left',  'angleLeft');
+  wireHold('ctrl-angle-right', 'angleRight');
+  wireHold('ctrl-power-up',    'powerUp');
+  wireHold('ctrl-power-down',  'powerDown');
+  document.getElementById('ctrl-fire').addEventListener('click', e => { e.preventDefault(); ensureAudio(); handleAimAction('fire'); });
+})();
+
+// ── weapon indicator click-to-select ───────────────────────────────────────
+document.getElementById('weapon-indicator').addEventListener('click', e => {
+  const row = e.target.closest('.wi-weapon');
+  if (!row) return;
+  if (!canAct()) return;
+  const name = row.dataset.weapon;
+  const t = tanks[currentPlayer];
+  if (name && (t.inventory[name] === Infinity || t.inventory[name] > 0)) {
+    t.selectedWeapon = name;
+    updateUI();
+    updateWeaponIndicator();
+  }
+});
+
 // ── keyboard ───────────────────────────────────────────────────────────────
 document.addEventListener('keydown', e => {
   ensureAudio();
@@ -4247,11 +4403,7 @@ document.addEventListener('keydown', e => {
   }
 
   if (shopOpen) { handleShopKey(e); return; }
-  if (introPhase !== 'none') return;
-  if (gameOver || projectiles.length > 0 || cpuThinking) return;
-  if (!tanks || !tanks[currentPlayer] || tanks[currentPlayer].isAI) return;
-  // Block controls when waiting for a remote player's shot
-  if (networkModeOn && networkMyPlayerIdx >= 0 && currentPlayer !== networkMyPlayerIdx) return;
+  if (!canAct()) return;
   const t    = tanks[currentPlayer];
   const step = e.shiftKey ? 5 : 1;
   let aimChanged = false;
@@ -4296,6 +4448,7 @@ function showSetup() {
   document.getElementById('keys').style.display          = 'none';
   document.getElementById('vol').style.display           = 'none';
   document.getElementById('weapon-indicator').style.display = 'none';
+  document.getElementById('ctrl-panel').style.display       = 'none';
   document.getElementById('net-ingame-hud').style.display     = 'none';
   document.getElementById('keys-net-hint').style.display       = 'none';
   winEl.style.display = 'none';
@@ -4310,6 +4463,7 @@ function hideSetup() {
   document.getElementById('keys').style.display          = '';
   document.getElementById('vol').style.display           = '';
   document.getElementById('weapon-indicator').style.display = '';
+  document.getElementById('ctrl-panel').style.display       = 'flex';
   if (networkModeOn) {
     document.getElementById('net-ingame-hud').style.display = 'flex';
     document.getElementById('keys-net-hint').style.display  = '';
@@ -4992,7 +5146,7 @@ function startTurnTimeout() {
     showIngameNotif(`${t.name} timed out — skipping turn.`, t.color);
     console.warn('[net] turn timeout for', t.name);
     maybeNextTurn();
-  }, 120000);
+  }, 600000);
 }
 
 function clearTurnTimeout() {
@@ -5133,6 +5287,21 @@ function networkGameOver(message) {
 }
 
 // ── in-game network helpers ────────────────────────────────────────────────
+
+// Send an immediate, lightweight health/shield/money snapshot to all clients.
+// Called right when the last projectile (or napalm) lands so guests see the
+// authoritative health before the kill animation delay adds latency.
+function netHealthSync() {
+  if (!networkModeOn || !networkIsHost || !networkWs || networkWs.readyState !== WebSocket.OPEN) return;
+  networkWs.send(JSON.stringify({
+    type:     'state_sync',
+    healths:  tanks.map(t => t.health),
+    shieldHPs: tanks.map(t => t.shieldHP),
+    moneys:   tanks.map(t => t.money),
+    wind,
+  }));
+}
+
 function terrainHash() {
   if (!terrain) return 0;
   let h = 5381;
@@ -5178,6 +5347,7 @@ function applyStateSync(msg) {
         killEffects = killEffects.filter(e => e.tank !== tanks[i]);
         killEffectPending = killEffects.length > 0;
         tanks[i].tombstone = false;
+        if (!killEffectPending) pendingTurnAction = null; // clear stale turn callback
       }
     });
   }
@@ -5207,6 +5377,10 @@ function applyStateSync(msg) {
     currentPlayer = msg.currentPlayer;
   }
   if (msg.wind !== undefined) wind = msg.wind;
+  // Keep damageDealt in sync every turn so mid-round displays are accurate
+  if (msg.damageDealt && !msg.gameOver) {
+    msg.damageDealt.forEach((dd, i) => { if (tanks[i]) tanks[i].damageDealt = dd; });
+  }
   if (msg.terrainHash !== undefined) {
     const local = terrainHash();
     if (local !== msg.terrainHash) {
@@ -5428,14 +5602,17 @@ function handleWsMessage(msg) {
       // Another player finished shopping — update the waiting overlay
       networkShopDone.add(msg.from);
       _renderNetShopOverlay();
-      // Host: apply the sender's post-shop inventory so host's model stays accurate
-      if (networkIsHost && msg.inventory && tanks) {
+      // Apply the sender's post-shop inventory on both host and guest so all clients
+      // have accurate inventories before the first shot is fired.
+      if (msg.inventory && tanks) {
         const senderIdx = networkPlayers.findIndex(p => p.id === msg.from);
         if (senderIdx >= 0 && senderIdx !== networkMyPlayerIdx && tanks[senderIdx]) {
           tanks[senderIdx].inventory = { ...msg.inventory };
           // JSON can't encode Infinity — restore free weapons which are always unlimited
           Object.entries(WEAPONS).forEach(([n, w]) => { if (w.cost === 0) tanks[senderIdx].inventory[n] = Infinity; });
+          if (msg.defInventory) tanks[senderIdx].defInventory = { ...msg.defInventory };
           tanks[senderIdx].selectedWeapon = msg.selectedWeapon || tanks[senderIdx].selectedWeapon;
+          if (msg.money !== undefined) tanks[senderIdx].money = msg.money;
         }
       }
       if (networkIsHost) _checkAllNetShopDone();
@@ -5680,7 +5857,6 @@ function initGame() {
   generateTerrain();
   generateStars();
   placeTanks();
-  cashAtRoundStart = tanks.map(t => t.money);
   currentPlayer = roundFirstPlayer % tanks.length;
   newWind();
   updateUI();
@@ -5693,6 +5869,8 @@ function initGame() {
   animId = requestAnimationFrame(gameLoop);  // start render loop so terrain is visible during shop
 
   runShopPhase(() => {
+    // Baseline money snapshot AFTER shop so RND CASH only reflects combat earnings
+    cashAtRoundStart = tanks.map(t => t.money);
     // Reset weapon selection to Baby Missile after shop closes, regardless of shop auto-select
     tanks.forEach(t => { if (t.health > 0) t.selectedWeapon = 'Baby Missile'; });
     startIntroSequence(() => {

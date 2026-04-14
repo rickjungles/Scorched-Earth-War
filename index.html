@@ -256,7 +256,6 @@ canvas { position: absolute; image-rendering: pixelated; }
   position: fixed;
   left: 10px;
   top: 50%;
-  transform: translateY(-50%);
   background: rgba(0,0,0,0.75);
   border: 1px solid rgba(255,255,255,0.2);
   border-radius: 8px;
@@ -269,6 +268,19 @@ canvas { position: absolute; image-rendering: pixelated; }
   font-family: 'Courier New', monospace;
   user-select: none;
 }
+#ctrl-drag-handle {
+  cursor: grab;
+  color: rgba(255,255,255,0.30);
+  font-size: 13px;
+  letter-spacing: 3px;
+  width: 100%;
+  text-align: center;
+  padding-bottom: 2px;
+  border-bottom: 1px solid rgba(255,255,255,0.10);
+  margin-bottom: 2px;
+}
+#ctrl-drag-handle:hover { color: rgba(255,255,255,0.6); }
+#ctrl-drag-handle.dragging { cursor: grabbing; }
 .ctrl-label {
   font-size: 9px;
   color: rgba(255,255,255,0.45);
@@ -1058,6 +1070,7 @@ canvas { position: absolute; image-rendering: pixelated; }
 </div>
 <div id="weapon-indicator"></div>
 <div id="ctrl-panel">
+  <div id="ctrl-drag-handle" title="Drag to move">&#xB7;&#xB7;&#xB7;</div>
   <div class="ctrl-label">Angle</div>
   <div class="ctrl-row">
     <button class="ctrl-btn" id="ctrl-angle-left"  title="Angle Left (←)">&#9668;</button>
@@ -1178,10 +1191,9 @@ canvas { position: absolute; image-rendering: pixelated; }
         <thead>
           <tr>
             <th>PLAYER</th>
-            <th>STARTING MONEY</th>
-            <th>INTEREST</th>
-            <th>SHOP SPENT</th>
+            <th>BANK</th>
             <th>ROUND WINNINGS</th>
+            <th>INTEREST</th>
             <th>TOTAL</th>
           </tr>
         </thead>
@@ -1207,7 +1219,7 @@ const scoreboardEl = document.getElementById('scoreboard');
 const VWIDTH  = 1920;
 const VHEIGHT = 1080;
 
-const GAME_VERSION = '1.6.8'; // bump whenever index.html is updated
+const GAME_VERSION = '1.7.3'; // bump whenever index.html is updated
 
 // ── constants ──────────────────────────────────────────────────────────────
 const GRAVITY    = 260;   // px/s²
@@ -2019,7 +2031,7 @@ function placeTanks() {
       angle:    defaultAngle,
       power:    50,
       health:      100,
-      money:       gameSettings.cash ?? 5000,
+      money:       0,
       damageDealt:  0,
       killedBy:     -1,
       lastAttacker: -1,
@@ -2640,10 +2652,10 @@ function updateNapalm(dt) {
     p.x += p.vx * dt;
     const xi = Math.round(Math.max(0, Math.min(w - 1, p.x)));
     const groundY = terrain[xi];
-    blastTerrain(p.x, groundY, 8);
     p.damageTick += dt;
     if (p.damageTick >= 0.3) {
       p.damageTick = 0;
+      blastTerrain(p.x, groundY, 3);
       for (const t of tanks) {
         if (t.health <= 0) continue;
         const dist = Math.hypot(p.x - t.x, groundY - t.y);
@@ -3102,36 +3114,26 @@ function showScoreboard(isFinal) {
   document.getElementById('sb-cash-section').style.display = '';
   const rate = (gameSettings.interest || 0) / 100;
   tanks.forEach((t, i) => {
-    const s = playerStats[i];
-    // Per spec:
-    //   Starting Money  = balance BEFORE shop opened (post-interest, pre-spending) = cashPreShopSnapshot[i]
-    //   Interest        = interest applied at round start (already baked into Starting Money)
-    //   Shop Spent      = Starting Money - post-shop balance
-    //   Round Winnings  = combat earnings this round
-    //   Total           = t.money
-    //   Formula check:  Starting Money - Shop Spent + Round Winnings = Total  ✓
-    const preShop  = cashPreShopSnapshot[i] ?? t.money;
-    const postShop = cashAtRoundStart[i]    ?? t.money;
-    const interest = t.interestThisRound || 0;
-    const spent    = Math.max(0, preShop - postShop);
-    const earned   = Math.max(0, t.money - postShop);
-    const newBal   = t.money;
+    const s        = playerStats[i];
+    const bank     = cashAtRoundStart[i] ?? t.money;           // what was left after purchases
+    const won      = Math.max(0, t.money - bank);              // combat earnings this round
     const batBonus = 0.20 * ((t.defInventory || {})['Battery'] || 0);
+    const interest = Math.floor(bank * (rate + batBonus));     // interest on the bank balance
+    const total    = bank + interest + won;                    // what they have to shop with next
     const intPct   = Math.round((rate + batBonus) * 100);
-    const intCell  = interest > 0
-      ? `<span class="sb-cash-interest">$${interest.toLocaleString()}</span> <span style="color:rgba(255,255,255,0.4)">(${intPct}%)</span>`
+    const wonCell  = won > 0
+      ? `<span style="color:#55ff55">+$${won.toLocaleString()}</span>`
       : `<span style="color:rgba(255,255,255,0.3)">—</span>`;
-    const spentCell = spent > 0
-      ? `<span style="color:#ff8855">-$${spent.toLocaleString()}</span>`
+    const intCell  = interest > 0
+      ? `<span class="sb-cash-interest">+$${interest.toLocaleString()}</span> <span style="color:rgba(255,255,255,0.4)">(${intPct}%)</span>`
       : `<span style="color:rgba(255,255,255,0.3)">—</span>`;
     const tr = document.createElement('tr');
     tr.innerHTML =
       `<td style="color:${s.color}">${htmlEsc(s.name)}</td>` +
-      `<td>$${preShop.toLocaleString()}</td>` +
+      `<td>$${bank.toLocaleString()}</td>` +
+      `<td>${wonCell}</td>` +
       `<td>${intCell}</td>` +
-      `<td>${spentCell}</td>` +
-      `<td>$${earned.toLocaleString()}</td>` +
-      `<td class="sb-cash-total">$${newBal.toLocaleString()}</td>`;
+      `<td class="sb-cash-total">$${total.toLocaleString()}</td>`;
     cashRows.appendChild(tr);
   });
 
@@ -3204,6 +3206,7 @@ function startNextRound() {
   roundFirstPlayer = (roundFirstPlayer + 1) % playerConfigs.length;
 
   const savedMoney       = tanks.map(t => t.money);
+  const savedPostShop    = cashAtRoundStart.slice();       // post-shop balance from the round just ended
   const savedInventory   = tanks.map(t => ({ ...t.inventory }));
   const savedDefInv      = tanks.map(t => ({ ...t.defInventory }));
 
@@ -3245,12 +3248,13 @@ function startNextRound() {
     t.inventory      = savedInventory[i];
     t.defInventory   = savedDefInv[i];
     t.selectedWeapon = 'Baby Missile'; // always reset to default at round start
-    // Apply interest on carried-over cash
-    const rate = (gameSettings.interest || 0) / 100;
+    // Apply interest on the post-shop bank balance (not on combat winnings)
+    const rate     = (gameSettings.interest || 0) / 100;
+    const bankBal  = savedPostShop[i] ?? t.money;  // what they had after shopping last round
     let bonus = 0;
     if (rate > 0) {
       const batteryBonus = 0.20 * (t.defInventory['Battery'] || 0);
-      bonus = Math.floor(t.money * (rate + batteryBonus));
+      bonus = Math.floor(bankBal * (rate + batteryBonus));
       t.money += bonus;
     }
     t.interestThisRound = bonus;
@@ -3370,6 +3374,8 @@ function setCameraTarget(tank) {
 function updateUI() {
   if (gameOver) return;
   const t = tanks[currentPlayer];
+  // Show/hide the ctrl-panel based on whose turn it is
+  document.getElementById('ctrl-panel').style.display = _isMyTurn() ? 'flex' : 'none';
   // In network mode, show "Waiting for..." when it's a remote player's turn
   if (networkModeOn && networkMyPlayerIdx >= 0 && currentPlayer !== networkMyPlayerIdx) {
     ui.innerHTML = `R${currentRound}/${totalRounds} &nbsp;|&nbsp; <span style="color:${t.color}">${htmlEsc(t.name)}</span> &nbsp;|&nbsp; ${t.angle}&deg; &nbsp;|&nbsp; Pwr ${t.power} <span class="net-blink">&#x258C;</span>`;
@@ -4392,6 +4398,92 @@ function handleAimAction(action) {
   document.getElementById('ctrl-fire').addEventListener('click', e => { e.preventDefault(); ensureAudio(); handleAimAction('fire'); });
 })();
 
+// ── ctrl-panel drag + turn visibility ─────────────────────────────────────
+(function initCtrlPanelDrag() {
+  const panel  = document.getElementById('ctrl-panel');
+  const handle = document.getElementById('ctrl-drag-handle');
+  const STORAGE_KEY = 'se_ctrlPanelPos';
+  let dragging = false, startX = 0, startY = 0, origLeft = 0, origTop = 0;
+
+  function applyPos(left, top) {
+    // Clamp inside the viewport
+    left = Math.max(0, Math.min(window.innerWidth  - panel.offsetWidth,  left));
+    top  = Math.max(0, Math.min(window.innerHeight - panel.offsetHeight, top));
+    panel.style.left = left + 'px';
+    panel.style.top  = top  + 'px';
+  }
+
+  function savePos() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        left: parseFloat(panel.style.left),
+        top:  parseFloat(panel.style.top),
+      }));
+    } catch (_) {}
+  }
+
+  // Called from hideSetup() after the panel becomes visible.
+  window._restoreCtrlPanelPos = function() {
+    let pos = null;
+    try { pos = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null'); } catch (_) {}
+    if (pos && isFinite(pos.left) && isFinite(pos.top)) {
+      applyPos(pos.left, pos.top);
+    } else {
+      // Default: vertically centred on the left edge
+      applyPos(10, Math.max(0, (window.innerHeight - panel.offsetHeight) / 2));
+    }
+  };
+
+  // Mouse drag
+  handle.addEventListener('mousedown', e => {
+    e.preventDefault();
+    dragging = true;
+    startX   = e.clientX;
+    startY   = e.clientY;
+    origLeft = parseFloat(panel.style.left)  || panel.getBoundingClientRect().left;
+    origTop  = parseFloat(panel.style.top)   || panel.getBoundingClientRect().top;
+    handle.classList.add('dragging');
+  });
+  document.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    applyPos(origLeft + (e.clientX - startX), origTop + (e.clientY - startY));
+  });
+  document.addEventListener('mouseup', () => {
+    if (!dragging) return;
+    dragging = false;
+    handle.classList.remove('dragging');
+    savePos();
+  });
+
+  // Touch drag
+  handle.addEventListener('touchstart', e => {
+    e.preventDefault();
+    dragging = true;
+    startX   = e.touches[0].clientX;
+    startY   = e.touches[0].clientY;
+    origLeft = parseFloat(panel.style.left)  || panel.getBoundingClientRect().left;
+    origTop  = parseFloat(panel.style.top)   || panel.getBoundingClientRect().top;
+  }, { passive: false });
+  document.addEventListener('touchmove', e => {
+    if (!dragging) return;
+    applyPos(origLeft + (e.touches[0].clientX - startX), origTop + (e.touches[0].clientY - startY));
+  }, { passive: false });
+  document.addEventListener('touchend', () => {
+    if (!dragging) return;
+    dragging = false;
+    savePos();
+  });
+})();
+
+// Returns true when the ctrl-panel should be visible (local human's turn)
+function _isMyTurn() {
+  if (!tanks || gameOver || shopOpen) return false;
+  const t = tanks[currentPlayer];
+  if (!t || t.health <= 0) return false;
+  if (networkModeOn && networkMyPlayerIdx >= 0) return currentPlayer === networkMyPlayerIdx;
+  return !t.isAI;
+}
+
 // ── weapon indicator click-to-select ───────────────────────────────────────
 document.getElementById('weapon-indicator').addEventListener('click', e => {
   const row = e.target.closest('.wi-weapon');
@@ -4525,6 +4617,7 @@ function hideSetup() {
   document.getElementById('vol').style.display           = '';
   document.getElementById('weapon-indicator').style.display = '';
   document.getElementById('ctrl-panel').style.display       = 'flex';
+  if (window._restoreCtrlPanelPos) window._restoreCtrlPanelPos();
   if (networkModeOn) {
     document.getElementById('net-ingame-hud').style.display = 'flex';
     document.getElementById('keys-net-hint').style.display  = '';
@@ -5966,6 +6059,9 @@ function initGame() {
   generateTerrain();
   generateStars();
   placeTanks();
+  // Round 1 only: initialize each player's money to Starting Cash from settings.
+  // This is the ONE place starting cash is ever assigned — never in startNextRound.
+  tanks.forEach(t => { t.money = gameSettings.cash ?? 5000; });
   currentPlayer = roundFirstPlayer % tanks.length;
   newWind();
   updateUI();

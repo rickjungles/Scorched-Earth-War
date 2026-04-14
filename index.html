@@ -1231,7 +1231,7 @@ const scoreboardEl = document.getElementById('scoreboard');
 const VWIDTH  = 1920;
 const VHEIGHT = 1080;
 
-const GAME_VERSION = '1.7.6'; // bump whenever index.html is updated
+const GAME_VERSION = '1.7.7'; // bump whenever index.html is updated
 
 // ── constants ──────────────────────────────────────────────────────────────
 const GRAVITY    = 260;   // px/s²
@@ -1360,13 +1360,11 @@ const PLAYER_COLORS = [
 ];
 
 const AI_DIFFICULTY = {
-  // angleNoise   — max degrees of random error added to perfect angle
-  // powerNoisePct— max % of computed power added as random error
-  // windFactor   — 0 = ignore wind (easy), null = randomised 60-140% (medium), 1 = exact (hard)
-  // correction   — fraction of previous shot's noise carried toward zero next turn (0 = none)
-  easy:   { angleNoise: 12,  powerNoisePct: 17,  windFactor: 0,    correction: 0   },
-  medium: { angleNoise:  4,  powerNoisePct:  8,  windFactor: null, correction: 0.5 },
-  hard:   { angleNoise:  1.5,powerNoisePct:  2.5,windFactor: 1,    correction: 0.8 },
+  // angleNoise   — max ± degrees of random error added to the perfect angle
+  // powerNoisePct— max ± % of computed power added as random error
+  easy:   { angleNoise: 12,  powerNoisePct: 15 },
+  medium: { angleNoise:  4,  powerNoisePct:  8 },
+  hard:   { angleNoise:  1.5,powerNoisePct:  3 },
 };
 
 const CPU_THINK_DELAY = 1.4;  // seconds before CPU fires
@@ -2082,12 +2080,6 @@ function placeTanks() {
       fuel: 0,
       interestThisRound: 0,
       selectedWeapon: 'Baby Missile',
-      // AI shot-correction and ceiling-awareness memory (reset each round via placeTanks)
-      _aiLastTargetIdx:   -1,
-      _aiLastAngleNoise:  0,
-      _aiLastPowerNoise:  0,
-      _aiLastShotResult:  'ground',
-      _aiCeilingStrikes:  0,
     });
   }
   pendingTankPositions = null; // consumed
@@ -3871,39 +3863,30 @@ function openShopForPlayer(playerIndex, onDone) {
 }
 
 // ── CPU AI ─────────────────────────────────────────────────────────────────
+
+// Step 1: pick the nearest living enemy
 function cpuSelectTarget(tankIndex) {
   const shooter = tanks[tankIndex];
-  const enemies = [];
+  let bestIdx = -1, bestDist = Infinity;
   for (let i = 0; i < tanks.length; i++) {
     if (i === tankIndex || tanks[i].health <= 0) continue;
-    enemies.push({ idx: i, dist: Math.abs(tanks[i].x - shooter.x), health: tanks[i].health });
+    const d = Math.abs(tanks[i].x - shooter.x);
+    if (d < bestDist) { bestDist = d; bestIdx = i; }
   }
-  if (enemies.length === 0) return -1;
-  // Find nearest, then prefer weakest among enemies within 25% further (or 300px)
-  const nearest  = Math.min(...enemies.map(e => e.dist));
-  const margin   = Math.max(nearest * 0.25, 300);
-  const nearby   = enemies.filter(e => e.dist <= nearest + margin);
-  nearby.sort((a, b) => a.health - b.health);
-  return nearby[0].idx;
+  return bestIdx;
 }
 
-// Returns { landX, result } where result is one of:
-//   'ground'     — landed on floor terrain
-//   'ceiling'    — hit ceiling terrain or concrete ceiling boundary
-//   'wall_left'  — hit left concrete wall
-//   'wall_right' — hit right concrete wall
-//   'off_screen' — fell off world or went off-side in open wall mode
-//   'timeout'    — exceeded simulation steps
-function cpuSimulateLanding(shooter, angleDeg, power, windOverride) {
-  const rad            = angleDeg * Math.PI / 180;
-  const spd            = power * POWER_SCALE;
-  const wAcc           = (windOverride !== undefined ? windOverride : wind) * WIND_SCALE;
-  const bodyY          = shooter.y - 11;
-  const w              = worldWidth;
-  const isConcrete     = (gameSettings.walls || 'None') === 'Concrete';
+// Step 2 (simulation engine): run real game physics silently, return landing info.
+// result: 'ground' | 'ceiling' | 'wall_left' | 'wall_right' | 'off_screen' | 'timeout'
+function cpuSimulateLanding(shooter, angleDeg, power) {
+  const rad        = angleDeg * Math.PI / 180;
+  const spd        = power * POWER_SCALE;
+  const wAcc       = wind * WIND_SCALE;
+  const w          = worldWidth;
+  const isConcrete = (gameSettings.walls || 'None') === 'Concrete';
 
   let x  = shooter.x + Math.cos(rad) * (CANNON_LEN + 5);
-  let y  = bodyY    - Math.sin(rad) * (CANNON_LEN + 5);
+  let y  = (shooter.y - 11) - Math.sin(rad) * (CANNON_LEN + 5);
   let vx = Math.cos(rad) * spd;
   let vy = -Math.sin(rad) * spd;
 
@@ -3914,25 +3897,18 @@ function cpuSimulateLanding(shooter, angleDeg, power, windOverride) {
     y  += vy      * AI_SIM_DT;
 
     if (y > VHEIGHT + 100) return { landX: x, result: 'off_screen' };
-
-    // Side boundary
     if (x < 0)  return { landX: x, result: isConcrete ? 'wall_left'  : 'off_screen' };
     if (x >= w) return { landX: x, result: isConcrete ? 'wall_right' : 'off_screen' };
 
-    const xi = Math.round(x);
-
-    // Canvas-top ceiling (y < 0): hard stop for Concrete; otherwise ignore (shot arcs back)
+    // y < 0: canvas ceiling — hard stop only for Concrete walls or Caves
     if (y < 0) {
-      if (ceilingTerrain) return { landX: x, result: 'ceiling' }; // treated as caves ceiling
-      if (isConcrete)     return { landX: x, result: 'ceiling' };
-      // Rubber/Wrap/None — let gravity bring it back, continue simulation
-      continue;
+      if (isConcrete || ceilingTerrain) return { landX: x, result: 'ceiling' };
+      continue; // rubber/wrap/none: let gravity bring it back
     }
 
+    const xi = Math.round(x);
     if (xi >= 0 && xi < w) {
-      // Caves ceiling terrain
       if (ceilingTerrain && y <= ceilingTerrain[xi]) return { landX: x, result: 'ceiling' };
-      // Floor terrain
       if (y >= terrain[xi]) return { landX: x, result: 'ground' };
     }
   }
@@ -3948,145 +3924,61 @@ function cpuSelectWeapon(tankIndex) {
   t.selectedWeapon = best ? best[0] : 'Baby Missile';
 }
 
-// Returns true if terrain rises above the straight line between shooter and target
-function cpuIsTerrainBlocking(shooter, target) {
-  const x0 = shooter.x, y0 = shooter.y - 11;
-  const x1 = target.x,  y1 = target.y  - 11;
-  const dx  = x1 - x0;
-  if (Math.abs(dx) < 2) return false;
-  const steps = Math.abs(Math.round(dx));
-  for (let s = 5; s < steps - 5; s++) {
-    const frac = s / steps;
-    const x    = Math.round(x0 + dx * frac);
-    if (x < 0 || x >= worldWidth) continue;
-    if (terrain[x] < y0 + (y1 - y0) * frac) return true;
-  }
-  return false;
-}
-
-// Find best power for a fixed angle, skipping shots that hit ceiling/walls
-function cpuFindBestPower(shooter, angleDeg, targetX, simWind) {
-  let bp = 60, bd = Infinity;
-  for (let p = 10; p <= MAX_POWER; p++) {
-    const sim = cpuSimulateLanding(shooter, angleDeg, p, simWind);
-    if (sim.result === 'ceiling' || sim.result === 'wall_left' || sim.result === 'wall_right') continue;
-    const d = Math.abs(sim.landX - targetX);
-    if (d < bd) { bd = d; bp = p; }
-  }
-  return bp;
-}
-
+// Steps 2–5: compute the best aim angle+power, then apply difficulty noise.
 function cpuComputeAim(tankIndex, targetIndex, noiseOverride = null) {
-  const shooter = tanks[tankIndex];
-  const target  = tanks[targetIndex];
-  const cfg     = noiseOverride || AI_DIFFICULTY[shooter.difficulty] || AI_DIFFICULTY.medium;
-
-  // ── Wind compensation per difficulty ─────────────────────────────────────
-  let simWind;
-  if (cfg.windFactor === 0) {
-    simWind = 0;
-  } else if (cfg.windFactor === null) {
-    simWind = wind * (0.6 + Math.random() * 0.8);
-  } else {
-    simWind = wind;
-  }
-
-  const targetX  = target.x;
+  const shooter    = tanks[tankIndex];
+  const target     = tanks[targetIndex];
+  const cfg        = noiseOverride || AI_DIFFICULTY[shooter.difficulty] || AI_DIFFICULTY.medium;
+  const targetX    = target.x;
   const goingRight = shooter.x < targetX;
 
-  // ── Result-based strategy override from last shot ─────────────────────────
-  // If last shot hit a ceiling/wall, skip the correction system and recompute fresh
-  const lastResult = shooter._aiLastShotResult || 'ground';
-  const lastHitObstacle = (lastResult === 'ceiling' || lastResult === 'wall_left' || lastResult === 'wall_right');
+  // Candidate angle range: 10–80 shooting right, 100–170 shooting left.
+  // This covers everything from a nearly-flat drive to a steep lob.
+  const aStart = goingRight ? 10 : 100;
+  const aEnd   = goingRight ? 80 : 170;
 
-  // ── Coarse sweep (skip shots that hit ceiling or walls) ───────────────────
+  // Step 2: for every angle candidate, sweep powers to find the one that
+  // lands closest to the target.  Skip any shot that clips a ceiling or wall
+  // (Step 3 — obstacle rejection happens automatically here).
   let bestAngle = goingRight ? 45 : 135;
-  let bestPower = 60;
+  let bestPower = 50;
   let bestDist  = Infinity;
-  for (let a = 2; a <= 178; a += 3) {
-    for (let p = 30; p <= MAX_POWER; p += 8) {
-      const sim = cpuSimulateLanding(shooter, a, p, simWind);
+
+  for (let a = aStart; a <= aEnd; a++) {
+    // Coarse power scan
+    let aPower = bestPower, aDist = Infinity;
+    for (let p = 10; p <= MAX_POWER; p += 2) {
+      const sim = cpuSimulateLanding(shooter, a, p);
       if (sim.result === 'ceiling' || sim.result === 'wall_left' || sim.result === 'wall_right') continue;
       const d = Math.abs(sim.landX - targetX);
-      if (d < bestDist) { bestDist = d; bestAngle = a; bestPower = p; }
+      if (d < aDist) { aDist = d; aPower = p; }
     }
+    // Fine power scan around the coarse best
+    for (let p = Math.max(10, aPower - 2); p <= Math.min(MAX_POWER, aPower + 2); p++) {
+      const sim = cpuSimulateLanding(shooter, a, p);
+      if (sim.result === 'ceiling' || sim.result === 'wall_left' || sim.result === 'wall_right') continue;
+      const d = Math.abs(sim.landX - targetX);
+      if (d < aDist) { aDist = d; aPower = p; }
+    }
+    if (aDist < bestDist) { bestDist = aDist; bestAngle = a; bestPower = aPower; }
   }
 
-  // ── Fine sweep (same ceiling/wall skip) ───────────────────────────────────
-  if (bestDist < Infinity) {
-    const aMin = Math.max(1,         bestAngle - 6);
-    const aMax = Math.min(179,       bestAngle + 6);
-    const pMin = Math.max(10,        bestPower - 12);
-    const pMax = Math.min(MAX_POWER, bestPower + 12);
-    let fd = Infinity;
-    for (let a = aMin; a <= aMax; a++) {
-      for (let p = pMin; p <= pMax; p++) {
-        const sim = cpuSimulateLanding(shooter, a, p, simWind);
-        if (sim.result === 'ceiling' || sim.result === 'wall_left' || sim.result === 'wall_right') continue;
-        const d = Math.abs(sim.landX - targetX);
-        if (d < fd) { fd = d; bestAngle = a; bestPower = p; }
-      }
-    }
-  }
-
-  // ── Forced flat drive shot when no ceiling-clear trajectory exists ─────────
-  // (e.g., very tight cave — all arcs clip the ceiling)
-  shooter._aiCeilingStrikes = shooter._aiCeilingStrikes || 0;
+  // If every trajectory is blocked (very tight cave), fall back to a flat drive
   if (bestDist === Infinity) {
-    shooter._aiCeilingStrikes++;
-    if (shooter._aiCeilingStrikes >= 2) {
-      // Force a sub-30° flat drive — stay low and hope for the best
-      bestAngle = goingRight ? 12 : 168;
-      bestPower = MAX_POWER;
-    } else {
-      // First miss: use a gentle angle and re-evaluate next turn
-      bestAngle = goingRight ? 25 : 155;
-      bestPower = cpuFindBestPower(shooter, bestAngle, targetX, simWind);
-    }
-  } else {
-    shooter._aiCeilingStrikes = 0;
+    bestAngle = goingRight ? 10 : 170;
+    bestPower = MAX_POWER;
   }
 
-  // ── Arc over blocking floor terrain (medium + hard) ───────────────────────
-  if (cfg.correction > 0 && bestDist < Infinity && cpuIsTerrainBlocking(shooter, target)) {
-    const arcBoost = 12 + Math.random() * 10;
-    const arcAngle = goingRight
-      ? Math.min(88, bestAngle + arcBoost)
-      : Math.max(92, bestAngle - arcBoost);
-    // Only use the arc angle if it still clears the ceiling
-    const arcSim = cpuSimulateLanding(shooter, arcAngle, bestPower, simWind);
-    if (arcSim.result !== 'ceiling' && arcSim.result !== 'wall_left' && arcSim.result !== 'wall_right') {
-      bestAngle = arcAngle;
-      bestPower = cpuFindBestPower(shooter, bestAngle, targetX, simWind);
-    }
+  // Step 5: safety check — don't detonate in your own blast radius
+  const selfSim = cpuSimulateLanding(shooter, bestAngle, bestPower);
+  const blastR  = (WEAPONS[shooter.selectedWeapon] || WEAPONS['Baby Missile']).blastR || BLAST_R;
+  if (Math.abs(selfSim.landX - shooter.x) < blastR * 1.5) {
+    bestPower = Math.min(MAX_POWER, Math.round(bestPower * 1.2));
   }
 
-  // ── Store expected result for next turn's strategy ────────────────────────
-  const finalSim = cpuSimulateLanding(shooter, bestAngle, bestPower, simWind);
-  shooter._aiLastShotResult = finalSim.result;
-
-  // ── Shot correction from previous turn (medium + hard, ground hits only) ──
-  let aNoise, pNoise;
-  const canCorrect = (
-    cfg.correction > 0 &&
-    !lastHitObstacle &&
-    shooter._aiLastTargetIdx === targetIndex &&
-    shooter._aiLastAngleNoise !== undefined
-  );
-  if (canCorrect) {
-    const corr = cfg.correction;
-    aNoise = shooter._aiLastAngleNoise * (1 - corr)
-           + (Math.random() * 2 - 1) * cfg.angleNoise * corr;
-    pNoise = shooter._aiLastPowerNoise * (1 - corr)
-           + (Math.random() * 2 - 1) * (cfg.powerNoisePct / 100) * bestPower * corr;
-  } else {
-    aNoise = (Math.random() * 2 - 1) * cfg.angleNoise;
-    pNoise = (Math.random() * 2 - 1) * (cfg.powerNoisePct / 100) * bestPower;
-  }
-
-  shooter._aiLastAngleNoise = aNoise;
-  shooter._aiLastPowerNoise = pNoise;
-  shooter._aiLastTargetIdx  = targetIndex;
+  // Step 4: apply difficulty noise
+  const aNoise = (Math.random() * 2 - 1) * cfg.angleNoise;
+  const pNoise = (Math.random() * 2 - 1) * (cfg.powerNoisePct / 100) * bestPower;
 
   return {
     angle: Math.max(1,  Math.min(179,       Math.round(bestAngle + aNoise))),
@@ -4137,7 +4029,7 @@ function fire() {
   if (!_simulatingRemote && wep.type === 'lazyboy') {
     const tgt = cpuSelectTarget(currentPlayer);
     if (tgt >= 0) {
-      const aim = cpuComputeAim(currentPlayer, tgt, { angleNoise: 0, powerNoisePct: 0, windFactor: 1, correction: 0 });
+      const aim = cpuComputeAim(currentPlayer, tgt, { angleNoise: 0, powerNoisePct: 0 });
       fireAngle = aim.angle;
       firePower = aim.power;
     }

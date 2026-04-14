@@ -1099,7 +1099,7 @@ canvas { position: absolute; image-rendering: pixelated; }
   <div id="about-box">
     <h2>SCORCHED EARTH</h2>
     <div class="about-subtitle">The Mother of All Games</div>
-    <div class="about-ver">Version 1.6.0</div>
+    <div class="about-ver" id="about-ver">Version 1.6.0</div>
     <div class="about-body">
       A JavaScript/HTML5 reimagining of the classic 1991 DOS artillery game.<br><br>
       Up to 10 players (human or CPU) take turns firing weapons at each other
@@ -1206,7 +1206,7 @@ const scoreboardEl = document.getElementById('scoreboard');
 const VWIDTH  = 1920;
 const VHEIGHT = 1080;
 
-const GAME_VERSION = '1.6.5'; // bump whenever index.html is updated
+const GAME_VERSION = '1.6.6'; // bump whenever index.html is updated
 
 // ── constants ──────────────────────────────────────────────────────────────
 const GRAVITY    = 260;   // px/s²
@@ -4270,6 +4270,7 @@ function gameLoop(ts) {
 
 // ── about overlay ──────────────────────────────────────────────────────────
 const aboutOverlayEl = document.getElementById('about-overlay');
+document.getElementById('about-ver').textContent = 'Version ' + GAME_VERSION;
 aboutOverlayEl.addEventListener('click', e => {
   if (e.target === aboutOverlayEl) aboutOverlayEl.classList.remove('visible');
 });
@@ -4398,6 +4399,7 @@ document.addEventListener('keydown', e => {
   if ((e.key === 'a' || e.key === 'A') && setupEl.style.display !== 'none') {
     e.preventDefault();
     aboutOverlayEl.classList.toggle('visible');
+    document.getElementById('about-ver').textContent = 'Version ' + GAME_VERSION;
     return;
   }
 

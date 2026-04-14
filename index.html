@@ -1206,7 +1206,7 @@ const scoreboardEl = document.getElementById('scoreboard');
 const VWIDTH  = 1920;
 const VHEIGHT = 1080;
 
-const GAME_VERSION = '1.6.2'; // bump whenever index.html is updated
+const GAME_VERSION = '1.6.3'; // bump whenever index.html is updated
 
 // ── constants ──────────────────────────────────────────────────────────────
 const GRAVITY    = 260;   // px/s²
@@ -4609,11 +4609,19 @@ function renderChips(containerId, items, stateObj) {
 function updateStartBtn() {
   const btn = document.getElementById('setup-start');
   if (!btn) return;
-  if (networkModeOn) {
-    btn.disabled = !(networkPhase === 'lobby' && networkIsHost && networkPlayers.length >= 2);
+  if (networkModeOn && networkPhase === 'join-form') {
+    btn.textContent = '\u25BA CONNECT';
+    btn.disabled    = false;
+    btn.onclick     = doJoin;
   } else {
-    const active = menuPlayers.filter(p => PLAYER_TYPES[p.typeIdx] !== 'off').length;
-    btn.disabled = active < 2;
+    btn.textContent = '\u25BA START GAME';
+    btn.onclick     = null;
+    if (networkModeOn) {
+      btn.disabled = !(networkPhase === 'lobby' && networkIsHost && networkPlayers.length >= 2);
+    } else {
+      const active = menuPlayers.filter(p => PLAYER_TYPES[p.typeIdx] !== 'off').length;
+      btn.disabled = active < 2;
+    }
   }
 }
 
@@ -4667,10 +4675,12 @@ let networkJoinState    = 'idle';      // 'idle' | 'connecting' | 'failed'
 let networkJoinError    = '';
 let networkJoinSettings = null;        // game_settings snapshot received from host
 
-// Hide editable panels for guests — they can't change settings
+// Hide editable panels for guests and during join-form — they can't change settings
 function _applyGuestPanelVisibility() {
-  // Guest in lobby: only the Players panel should be visible
-  const hideEditable = networkModeOn && !networkIsHost && networkPhase === 'lobby';
+  const hideEditable = networkModeOn && (
+    networkPhase === 'join-form' ||
+    (networkPhase === 'lobby' && !networkIsHost)
+  );
   const display = hideEditable ? 'none' : '';
   document.getElementById('panel-settings').style.display  = display;
   document.getElementById('panel-weapons').style.display   = display;
@@ -4745,7 +4755,7 @@ function renderNetworkPanel() {
         <button id="btn-join-confirm" ${dis}>${isConnecting ? 'Connecting\u2026' : 'CONNECT'}</button>
         ${isFailed ? '<button id="btn-join-retry">RETRY</button>' : ''}
         <button id="btn-join-cancel" ${dis}>BACK</button>
-        <button id="btn-paste-clipboard" ${dis} title="Paste address and room code from clipboard">&#128203; PASTE</button>
+        <button id="btn-paste-clipboard" ${dis} title="Paste address and room code from clipboard">&#128203; PASTE FROM CLIPBOARD</button>
       </div>
       <div id="net-form-status" class="${isFailed ? 'error' : isConnecting ? 'info' : ''}">${
         isFailed     ? networkJoinError :
@@ -4770,6 +4780,8 @@ function renderNetworkPanel() {
       networkJoinState = 'idle';
       networkPhase     = 'pre-connect';
       renderNetworkPanel();
+      _applyGuestPanelVisibility();
+      updateStartBtn();
     });
 
     div.querySelector('#btn-paste-clipboard').addEventListener('click', () => {
@@ -5081,6 +5093,8 @@ function showJoinForm() {
   networkJoinState = 'idle';
   networkPhase     = 'join-form';
   renderNetworkPanel();
+  _applyGuestPanelVisibility();
+  updateStartBtn();
 }
 
 function doJoin() {

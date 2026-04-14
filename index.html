@@ -1192,6 +1192,8 @@ const scoreboardEl = document.getElementById('scoreboard');
 const VWIDTH  = 1920;
 const VHEIGHT = 1080;
 
+const GAME_VERSION = '1.6.0'; // bump whenever index.html is updated
+
 // ── constants ──────────────────────────────────────────────────────────────
 const GRAVITY    = 260;   // px/s²
 const BLAST_R    = 48;    // default crater radius px
@@ -3649,6 +3651,7 @@ function _netShopLocalDone() {
       defInventory:   { ...tanks[myIdx].defInventory },
       selectedWeapon: tanks[myIdx].selectedWeapon,
       money:          tanks[myIdx].money,
+      version:        GAME_VERSION,
     }));
   }
 
@@ -4621,6 +4624,7 @@ let networkPublicIp = null;   // fetched from ipify when hosting; null until kno
 // In-game network state
 let networkMyPlayerIdx    = -1;    // our index in tanks[] (-1 = not in-game)
 let _simulatingRemote     = false; // true while simulating a received turn_action
+let _versionWarnShown     = false; // show version mismatch warning at most once per session
 let pendingNetworkTerrain = null;  // terrain array from host, used in generateTerrain()
 let pendingTankPositions  = null;  // tank x positions from host, applied in placeTanks()
 let pendingNetworkWind    = null;  // wind value from host, overrides newWind() result
@@ -5164,6 +5168,21 @@ function updateConnIndicator() {
 }
 
 // ── in-game notifications ───────────────────────────────────────────────────
+function _showVersionWarning(text) {
+  // Persistent red banner at top of screen — does not auto-dismiss
+  let banner = document.getElementById('net-version-warn');
+  if (!banner) {
+    banner = document.createElement('div');
+    banner.id = 'net-version-warn';
+    banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:#8b0000;color:#ffdddd;font-family:"Courier New",monospace;font-size:13px;font-weight:bold;text-align:center;padding:6px 40px;cursor:pointer;';
+    banner.title = 'Click to dismiss';
+    banner.addEventListener('click', () => banner.remove());
+    document.body.appendChild(banner);
+  }
+  banner.textContent = '\u26A0 ' + text + '  [click to dismiss]';
+  console.warn('[net] ' + text);
+}
+
 function showIngameNotif(text, accentColor) {
   const container = document.getElementById('net-ingame-notify');
   if (!container) return;
@@ -5414,7 +5433,7 @@ function broadcastSettings() {
   settings.enabledDefenses = MENU_DEFENSES.filter(d => menuDefenses[d]);
   settings.hostName        = menuPlayers[0].name || 'Player 1';
   settings.hostColor       = PLAYER_COLORS[menuPlayers[0].colorIdx];
-  networkWs.send(JSON.stringify({ type: 'game_settings', settings }));
+  networkWs.send(JSON.stringify({ type: 'game_settings', settings, version: GAME_VERSION }));
 }
 
 // Debounced version for high-frequency inputs (name typing)
@@ -5517,6 +5536,11 @@ function handleWsMessage(msg) {
           });
         }
       }
+      // Version mismatch warning — guest checks host's version (shown once per connection)
+      if (!networkIsHost && msg.version && msg.version !== GAME_VERSION && !_versionWarnShown) {
+        _versionWarnShown = true;
+        _showVersionWarning(`VERSION MISMATCH: Host has v${msg.version}, you have v${GAME_VERSION}. Update your game file to avoid bugs.`);
+      }
       if (networkPhase === 'lobby' && !networkIsHost) renderNetworkPanel();
       break;
 
@@ -5602,6 +5626,12 @@ function handleWsMessage(msg) {
       // Another player finished shopping — update the waiting overlay
       networkShopDone.add(msg.from);
       _renderNetShopOverlay();
+      // Version mismatch warning — host checks guest's version (shown once per connection)
+      if (networkIsHost && msg.version && msg.version !== GAME_VERSION && !_versionWarnShown) {
+        _versionWarnShown = true;
+        const senderName = (networkPlayers.find(p => p.id === msg.from) || {}).name || 'Guest';
+        _showVersionWarning(`VERSION MISMATCH: ${senderName} has v${msg.version}, you have v${GAME_VERSION}. Both should use the same file to avoid bugs.`);
+      }
       // Apply the sender's post-shop inventory on both host and guest so all clients
       // have accurate inventories before the first shot is fired.
       if (msg.inventory && tanks) {
@@ -5690,6 +5720,9 @@ function resetNetwork() {
   networkShopCallback   = null;
   networkShopTotal      = 0;
   networkPublicIp       = null;
+  _versionWarnShown     = false;
+  const _vwb = document.getElementById('net-version-warn');
+  if (_vwb) _vwb.remove();
   _dismissNetShopOverlay();
   closeChat();
   document.getElementById('net-ingame-hud').style.display = 'none';

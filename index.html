@@ -1102,7 +1102,7 @@ canvas { position: absolute; image-rendering: pixelated; }
     <div class="about-ver" id="about-ver">Version 1.6.0</div>
     <div class="about-body">
       A JavaScript/HTML5 reimagining of the classic 1991 DOS artillery game.<br><br>
-      Up to 10 players (human or CPU) take turns firing weapons at each other
+      Up to 5 players (human or CPU) take turns firing weapons at each other
       across a destructible landscape. Buy weapons between rounds, manage your
       cash, and be the last tank standing.<br><br>
       Inspired by the original Scorched Earth by Wendell Hicken.
@@ -1206,7 +1206,7 @@ const scoreboardEl = document.getElementById('scoreboard');
 const VWIDTH  = 1920;
 const VHEIGHT = 1080;
 
-const GAME_VERSION = '1.6.6'; // bump whenever index.html is updated
+const GAME_VERSION = '1.6.7'; // bump whenever index.html is updated
 
 // ── constants ──────────────────────────────────────────────────────────────
 const GRAVITY    = 260;   // px/s²
@@ -3722,9 +3722,12 @@ function _checkAllNetShopDone() {
   const allDone = livingPlayerIds.every(id => networkShopDone.has(id));
   if (!allDone) return;
 
-  // Send round_begin to all guests
+  // Send round_begin to all guests, including authoritative post-shop balances
   if (networkWs && networkWs.readyState === WebSocket.OPEN) {
-    networkWs.send(JSON.stringify({ type: 'round_begin' }));
+    networkWs.send(JSON.stringify({
+      type:   'round_begin',
+      moneys: tanks.map(t => t.money),
+    }));
   }
   _dismissNetShopOverlay();
   if (networkShopCallback) { const cb = networkShopCallback; networkShopCallback = null; cb(); }
@@ -5681,6 +5684,10 @@ function handleWsMessage(msg) {
       // All players are done shopping — fire the intro sequence
       if (!networkIsHost) {
         _dismissNetShopOverlay();
+        // Apply host's authoritative post-shop balances before cashAtRoundStart is captured
+        if (msg.moneys && tanks) {
+          msg.moneys.forEach((m, i) => { if (tanks[i] && m != null) tanks[i].money = m; });
+        }
         if (networkShopCallback) { const cb = networkShopCallback; networkShopCallback = null; cb(); }
       }
       break;

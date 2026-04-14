@@ -363,7 +363,7 @@ wss.on('connection', (ws, req) => {
 
       case 'round_begin': {
         if (!isHost) return;
-        broadcast(room, { type: 'round_begin' }, ws);
+        broadcast(room, { type: 'round_begin', moneys: msg.moneys || null }, ws);
         break;
       }
 

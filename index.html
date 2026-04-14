@@ -1219,7 +1219,7 @@ const scoreboardEl = document.getElementById('scoreboard');
 const VWIDTH  = 1920;
 const VHEIGHT = 1080;
 
-const GAME_VERSION = '1.7.4'; // bump whenever index.html is updated
+const GAME_VERSION = '1.7.5'; // bump whenever index.html is updated
 
 // ── constants ──────────────────────────────────────────────────────────────
 const GRAVITY    = 260;   // px/s²
@@ -1374,7 +1374,7 @@ const SETTING_DEFS = [
   { key:'rounds',   label:'Rounds',        opts:[1,5,10,20,50],                        fmt:v=>String(v) },
   { key:'cash',     label:'Starting Cash', opts:[5000,10000,15000,20000,30000,50000],  fmt:v=>'$'+v.toLocaleString() },
   { key:'interest', label:'Interest Rate', opts:[0,5,10,15,20,25,30],                 fmt:v=>v+'%' },
-  { key:'terrain',  label:'Terrain',       opts:['Random','Plains','Plateaus','Mountains','Canyon','Fortress','Mixed'], fmt:v=>v },
+  { key:'terrain',  label:'Terrain',       opts:['Random','Plains','Plateaus','Mountains','Canyon','Fortress','Caves','Mixed'], fmt:v=>v },
   { key:'walls',    label:'Walls',         opts:['None','Rubber','Wrap','Concrete','Absorb','Random'], fmt:v=>v },
   { key:'wind',     label:'Wind',          opts:['None','Light','Gusty','Tornado'],    fmt:v=>v },
   { key:'gravity',  label:'Gravity',       opts:['Low','Normal','High'],               fmt:v=>v },
@@ -1773,7 +1773,7 @@ document.getElementById('volSlider').addEventListener('input', e => {
 });
 
 // ── game state ─────────────────────────────────────────────────────────────
-let terrain, tanks, currentPlayer, gameOver, animId, lastTime, stars;
+let terrain, ceilingTerrain = null, tanks, currentPlayer, gameOver, animId, lastTime, stars;
 let wind             = 0;
 let explosions       = [];
 let projectiles      = [];
@@ -1959,6 +1959,25 @@ function _terrainFortress(w, h) {
   return t;
 }
 
+function _terrainCaves(w, h) {
+  // Floor: irregular bumpy surface, sitting 55–82% down
+  const floor = new Array(w);
+  _midpoint(floor, w, h * 0.62, h * 0.78, 0.38, h * 0.52, h * 0.86);
+
+  // Ceiling: inverted stalactite surface, 13–36% down from top
+  const ceil  = new Array(w);
+  _midpoint(ceil, w, h * 0.18, h * 0.32, 0.32, h * 0.10, h * 0.38);
+
+  // Ensure a minimum passage height of 22% of screen at every column
+  const MIN_GAP = h * 0.22;
+  for (let x = 0; x < w; x++) {
+    if (floor[x] - ceil[x] < MIN_GAP) floor[x] = Math.min(h * 0.90, ceil[x] + MIN_GAP);
+  }
+
+  ceilingTerrain = ceil.map(v => Math.round(v));
+  return floor.map(v => Math.round(v));
+}
+
 // ── terrain dispatcher ─────────────────────────────────────────────────────
 function generateTerrain() {
   // In network play, the host's terrain is received and used directly
@@ -1970,18 +1989,21 @@ function generateTerrain() {
   }
   const style = gameSettings.terrain || 'Random';
   const w = worldWidth, h = VHEIGHT;
+  // Caves is excluded from Random/Mixed — must be chosen explicitly
   const STYLES = ['Plains','Plateaus','Mountains','Mountains','Mountains','Canyon','Fortress'];
   // For Random/Mixed: pick from weighted pool excluding the last style used
   const pool = STYLES.filter(s => s !== lastTerrainPick);
   const pick = pool[Math.floor(Math.random() * pool.length)];
   const chosen = (style === 'Random' || style === 'Mixed') ? pick : style;
   lastTerrainPick = chosen;
+  ceilingTerrain = null; // reset; only Caves sets this
   switch (chosen) {
     case 'Plains':    terrain = _terrainPlains(w, h);    break;
     case 'Plateaus':  terrain = _terrainPlateaus(w, h);  break;
     case 'Mountains': terrain = _terrainMountains(w, h); break;
     case 'Canyon':    terrain = _terrainCanyon(w, h);    break;
     case 'Fortress':  terrain = _terrainFortress(w, h);  break;
+    case 'Caves':     terrain = _terrainCaves(w, h);     break;
     default:          terrain = _terrainRandom(w, h);    break;
   }
 }
@@ -2048,10 +2070,12 @@ function placeTanks() {
       fuel: 0,
       interestThisRound: 0,
       selectedWeapon: 'Baby Missile',
-      // AI shot-correction memory (reset each round via placeTanks)
-      _aiLastTargetIdx:  -1,
-      _aiLastAngleNoise: 0,
-      _aiLastPowerNoise: 0,
+      // AI shot-correction and ceiling-awareness memory (reset each round via placeTanks)
+      _aiLastTargetIdx:   -1,
+      _aiLastAngleNoise:  0,
+      _aiLastPowerNoise:  0,
+      _aiLastShotResult:  'ground',
+      _aiCeilingStrikes:  0,
     });
   }
   pendingTankPositions = null; // consumed
@@ -2124,6 +2148,24 @@ function drawScene() {
   ctx.closePath();
   ctx.fillStyle = tg;
   ctx.fill();
+
+  // Caves ceiling — draw as solid rock hanging from the top
+  if (ceilingTerrain) {
+    const maxCeilY = Math.max(...ceilingTerrain);
+    const cg = ctx.createLinearGradient(0, 0, 0, maxCeilY);
+    cg.addColorStop(0.00, '#1e0e04');
+    cg.addColorStop(0.55, '#5c3d1e');
+    cg.addColorStop(0.85, '#7a5230');
+    cg.addColorStop(1.00, '#4a9c2a');
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(0, ceilingTerrain[0]);
+    for (let x = 1; x < w; x++) ctx.lineTo(x, ceilingTerrain[x]);
+    ctx.lineTo(w - 1, 0);
+    ctx.closePath();
+    ctx.fillStyle = cg;
+    ctx.fill();
+  }
 }
 
 // ── draw: tank ─────────────────────────────────────────────────────────────
@@ -3830,11 +3872,20 @@ function cpuSelectTarget(tankIndex) {
   return nearby[0].idx;
 }
 
+// Returns { landX, result } where result is one of:
+//   'ground'     — landed on floor terrain
+//   'ceiling'    — hit ceiling terrain or concrete ceiling boundary
+//   'wall_left'  — hit left concrete wall
+//   'wall_right' — hit right concrete wall
+//   'off_screen' — fell off world or went off-side in open wall mode
+//   'timeout'    — exceeded simulation steps
 function cpuSimulateLanding(shooter, angleDeg, power, windOverride) {
-  const rad   = angleDeg * Math.PI / 180;
-  const spd   = power * POWER_SCALE;
-  const wAcc  = (windOverride !== undefined ? windOverride : wind) * WIND_SCALE;
-  const bodyY = shooter.y - 11;
+  const rad            = angleDeg * Math.PI / 180;
+  const spd            = power * POWER_SCALE;
+  const wAcc           = (windOverride !== undefined ? windOverride : wind) * WIND_SCALE;
+  const bodyY          = shooter.y - 11;
+  const w              = worldWidth;
+  const isConcrete     = (gameSettings.walls || 'None') === 'Concrete';
 
   let x  = shooter.x + Math.cos(rad) * (CANNON_LEN + 5);
   let y  = bodyY    - Math.sin(rad) * (CANNON_LEN + 5);
@@ -3846,11 +3897,31 @@ function cpuSimulateLanding(shooter, angleDeg, power, windOverride) {
     vy += GRAVITY * AI_SIM_DT;
     x  += vx      * AI_SIM_DT;
     y  += vy      * AI_SIM_DT;
-    if (x < 0 || x >= worldWidth || y > VHEIGHT + 100) return x;
+
+    if (y > VHEIGHT + 100) return { landX: x, result: 'off_screen' };
+
+    // Side boundary
+    if (x < 0)  return { landX: x, result: isConcrete ? 'wall_left'  : 'off_screen' };
+    if (x >= w) return { landX: x, result: isConcrete ? 'wall_right' : 'off_screen' };
+
     const xi = Math.round(x);
-    if (xi >= 0 && xi < worldWidth && y >= terrain[xi]) return x;
+
+    // Canvas-top ceiling (y < 0): hard stop for Concrete; otherwise ignore (shot arcs back)
+    if (y < 0) {
+      if (ceilingTerrain) return { landX: x, result: 'ceiling' }; // treated as caves ceiling
+      if (isConcrete)     return { landX: x, result: 'ceiling' };
+      // Rubber/Wrap/None — let gravity bring it back, continue simulation
+      continue;
+    }
+
+    if (xi >= 0 && xi < w) {
+      // Caves ceiling terrain
+      if (ceilingTerrain && y <= ceilingTerrain[xi]) return { landX: x, result: 'ceiling' };
+      // Floor terrain
+      if (y >= terrain[xi]) return { landX: x, result: 'ground' };
+    }
   }
-  return x;
+  return { landX: x, result: 'timeout' };
 }
 
 const CPU_SKIP_WEAPONS = new Set(['Lazy Boy', 'Tracer']);
@@ -3878,11 +3949,13 @@ function cpuIsTerrainBlocking(shooter, target) {
   return false;
 }
 
-// Find best power for a fixed angle, used after arc-boost adjusts the angle
+// Find best power for a fixed angle, skipping shots that hit ceiling/walls
 function cpuFindBestPower(shooter, angleDeg, targetX, simWind) {
   let bp = 60, bd = Infinity;
   for (let p = 10; p <= MAX_POWER; p++) {
-    const d = Math.abs(cpuSimulateLanding(shooter, angleDeg, p, simWind) - targetX);
+    const sim = cpuSimulateLanding(shooter, angleDeg, p, simWind);
+    if (sim.result === 'ceiling' || sim.result === 'wall_left' || sim.result === 'wall_right') continue;
+    const d = Math.abs(sim.landX - targetX);
     if (d < bd) { bd = d; bp = p; }
   }
   return bp;
@@ -3896,59 +3969,96 @@ function cpuComputeAim(tankIndex, targetIndex, noiseOverride = null) {
   // ── Wind compensation per difficulty ─────────────────────────────────────
   let simWind;
   if (cfg.windFactor === 0) {
-    simWind = 0;                                   // easy: pretend no wind
+    simWind = 0;
   } else if (cfg.windFactor === null) {
-    simWind = wind * (0.6 + Math.random() * 0.8); // medium: 60–140% of real wind
+    simWind = wind * (0.6 + Math.random() * 0.8);
   } else {
-    simWind = wind;                                // hard: exact wind
+    simWind = wind;
   }
 
-  const targetX = target.x;
+  const targetX  = target.x;
+  const goingRight = shooter.x < targetX;
 
-  // ── Coarse sweep ──────────────────────────────────────────────────────────
-  let bestAngle = shooter.x < targetX ? 45 : 135;
+  // ── Result-based strategy override from last shot ─────────────────────────
+  // If last shot hit a ceiling/wall, skip the correction system and recompute fresh
+  const lastResult = shooter._aiLastShotResult || 'ground';
+  const lastHitObstacle = (lastResult === 'ceiling' || lastResult === 'wall_left' || lastResult === 'wall_right');
+
+  // ── Coarse sweep (skip shots that hit ceiling or walls) ───────────────────
+  let bestAngle = goingRight ? 45 : 135;
   let bestPower = 60;
   let bestDist  = Infinity;
   for (let a = 2; a <= 178; a += 3) {
     for (let p = 30; p <= MAX_POWER; p += 8) {
-      const d = Math.abs(cpuSimulateLanding(shooter, a, p, simWind) - targetX);
+      const sim = cpuSimulateLanding(shooter, a, p, simWind);
+      if (sim.result === 'ceiling' || sim.result === 'wall_left' || sim.result === 'wall_right') continue;
+      const d = Math.abs(sim.landX - targetX);
       if (d < bestDist) { bestDist = d; bestAngle = a; bestPower = p; }
     }
   }
 
-  // ── Fine sweep ────────────────────────────────────────────────────────────
-  const aMin = Math.max(1,         bestAngle - 6);
-  const aMax = Math.min(179,       bestAngle + 6);
-  const pMin = Math.max(10,        bestPower - 12);
-  const pMax = Math.min(MAX_POWER, bestPower + 12);
-  bestDist = Infinity;
-  for (let a = aMin; a <= aMax; a++) {
-    for (let p = pMin; p <= pMax; p++) {
-      const d = Math.abs(cpuSimulateLanding(shooter, a, p, simWind) - targetX);
-      if (d < bestDist) { bestDist = d; bestAngle = a; bestPower = p; }
+  // ── Fine sweep (same ceiling/wall skip) ───────────────────────────────────
+  if (bestDist < Infinity) {
+    const aMin = Math.max(1,         bestAngle - 6);
+    const aMax = Math.min(179,       bestAngle + 6);
+    const pMin = Math.max(10,        bestPower - 12);
+    const pMax = Math.min(MAX_POWER, bestPower + 12);
+    let fd = Infinity;
+    for (let a = aMin; a <= aMax; a++) {
+      for (let p = pMin; p <= pMax; p++) {
+        const sim = cpuSimulateLanding(shooter, a, p, simWind);
+        if (sim.result === 'ceiling' || sim.result === 'wall_left' || sim.result === 'wall_right') continue;
+        const d = Math.abs(sim.landX - targetX);
+        if (d < fd) { fd = d; bestAngle = a; bestPower = p; }
+      }
     }
   }
 
-  // ── Arc over blocking terrain (medium + hard) ─────────────────────────────
-  if (cfg.correction > 0 && cpuIsTerrainBlocking(shooter, target)) {
-    const arcBoost = 12 + Math.random() * 10; // 12–22° toward vertical
-    if (shooter.x < targetX) {
-      bestAngle = Math.min(88, bestAngle + arcBoost);
+  // ── Forced flat drive shot when no ceiling-clear trajectory exists ─────────
+  // (e.g., very tight cave — all arcs clip the ceiling)
+  shooter._aiCeilingStrikes = shooter._aiCeilingStrikes || 0;
+  if (bestDist === Infinity) {
+    shooter._aiCeilingStrikes++;
+    if (shooter._aiCeilingStrikes >= 2) {
+      // Force a sub-30° flat drive — stay low and hope for the best
+      bestAngle = goingRight ? 12 : 168;
+      bestPower = MAX_POWER;
     } else {
-      bestAngle = Math.max(92, bestAngle - arcBoost);
+      // First miss: use a gentle angle and re-evaluate next turn
+      bestAngle = goingRight ? 25 : 155;
+      bestPower = cpuFindBestPower(shooter, bestAngle, targetX, simWind);
     }
-    bestPower = cpuFindBestPower(shooter, bestAngle, targetX, simWind);
+  } else {
+    shooter._aiCeilingStrikes = 0;
   }
 
-  // ── Shot correction from previous turn (medium + hard) ───────────────────
+  // ── Arc over blocking floor terrain (medium + hard) ───────────────────────
+  if (cfg.correction > 0 && bestDist < Infinity && cpuIsTerrainBlocking(shooter, target)) {
+    const arcBoost = 12 + Math.random() * 10;
+    const arcAngle = goingRight
+      ? Math.min(88, bestAngle + arcBoost)
+      : Math.max(92, bestAngle - arcBoost);
+    // Only use the arc angle if it still clears the ceiling
+    const arcSim = cpuSimulateLanding(shooter, arcAngle, bestPower, simWind);
+    if (arcSim.result !== 'ceiling' && arcSim.result !== 'wall_left' && arcSim.result !== 'wall_right') {
+      bestAngle = arcAngle;
+      bestPower = cpuFindBestPower(shooter, bestAngle, targetX, simWind);
+    }
+  }
+
+  // ── Store expected result for next turn's strategy ────────────────────────
+  const finalSim = cpuSimulateLanding(shooter, bestAngle, bestPower, simWind);
+  shooter._aiLastShotResult = finalSim.result;
+
+  // ── Shot correction from previous turn (medium + hard, ground hits only) ──
   let aNoise, pNoise;
-  if (
+  const canCorrect = (
     cfg.correction > 0 &&
+    !lastHitObstacle &&
     shooter._aiLastTargetIdx === targetIndex &&
     shooter._aiLastAngleNoise !== undefined
-  ) {
-    // Converge toward zero error: carry (1-correction) of old noise, add fresh
-    // random noise scaled by correction so it shrinks over successive turns
+  );
+  if (canCorrect) {
     const corr = cfg.correction;
     aNoise = shooter._aiLastAngleNoise * (1 - corr)
            + (Math.random() * 2 - 1) * cfg.angleNoise * corr;
@@ -3959,7 +4069,6 @@ function cpuComputeAim(tankIndex, targetIndex, noiseOverride = null) {
     pNoise = (Math.random() * 2 - 1) * (cfg.powerNoisePct / 100) * bestPower;
   }
 
-  // Save for next turn's correction
   shooter._aiLastAngleNoise = aNoise;
   shooter._aiLastPowerNoise = pNoise;
   shooter._aiLastTargetIdx  = targetIndex;
@@ -4344,6 +4453,11 @@ function gameLoop(ts) {
         tankHit = true;
         break;
       }
+    }
+    // Caves ceiling terrain collision
+    if (!tankHit && ceilingTerrain && px >= 0 && px < w && py <= ceilingTerrain[px]) {
+      onImpact(proj, px, Math.round(py));
+      tankHit = true; // reuse flag to skip floor check below
     }
     if (!tankHit && py >= 0 && terrain[px] != null && py >= terrain[px]) {
       if (proj.type === 'roller' && !proj.rolling) {

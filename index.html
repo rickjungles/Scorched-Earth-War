@@ -1219,7 +1219,7 @@ const scoreboardEl = document.getElementById('scoreboard');
 const VWIDTH  = 1920;
 const VHEIGHT = 1080;
 
-const GAME_VERSION = '1.7.3'; // bump whenever index.html is updated
+const GAME_VERSION = '1.7.4'; // bump whenever index.html is updated
 
 // ── constants ──────────────────────────────────────────────────────────────
 const GRAVITY    = 260;   // px/s²
@@ -1348,9 +1348,13 @@ const PLAYER_COLORS = [
 ];
 
 const AI_DIFFICULTY = {
-  easy:   { angleNoise: 26, powerNoise: 22 },
-  medium: { angleNoise: 12, powerNoise: 10 },
-  hard:   { angleNoise:  5, powerNoise:  4 },
+  // angleNoise   — max degrees of random error added to perfect angle
+  // powerNoisePct— max % of computed power added as random error
+  // windFactor   — 0 = ignore wind (easy), null = randomised 60-140% (medium), 1 = exact (hard)
+  // correction   — fraction of previous shot's noise carried toward zero next turn (0 = none)
+  easy:   { angleNoise: 12,  powerNoisePct: 17,  windFactor: 0,    correction: 0   },
+  medium: { angleNoise:  4,  powerNoisePct:  8,  windFactor: null, correction: 0.5 },
+  hard:   { angleNoise:  1.5,powerNoisePct:  2.5,windFactor: 1,    correction: 0.8 },
 };
 
 const CPU_THINK_DELAY = 1.4;  // seconds before CPU fires
@@ -2044,6 +2048,10 @@ function placeTanks() {
       fuel: 0,
       interestThisRound: 0,
       selectedWeapon: 'Baby Missile',
+      // AI shot-correction memory (reset each round via placeTanks)
+      _aiLastTargetIdx:  -1,
+      _aiLastAngleNoise: 0,
+      _aiLastPowerNoise: 0,
     });
   }
   pendingTankPositions = null; // consumed
@@ -3808,19 +3816,24 @@ function openShopForPlayer(playerIndex, onDone) {
 // ── CPU AI ─────────────────────────────────────────────────────────────────
 function cpuSelectTarget(tankIndex) {
   const shooter = tanks[tankIndex];
-  let bestIdx = -1, bestDist = Infinity;
+  const enemies = [];
   for (let i = 0; i < tanks.length; i++) {
     if (i === tankIndex || tanks[i].health <= 0) continue;
-    const dist = Math.abs(tanks[i].x - shooter.x);
-    if (dist < bestDist) { bestDist = dist; bestIdx = i; }
+    enemies.push({ idx: i, dist: Math.abs(tanks[i].x - shooter.x), health: tanks[i].health });
   }
-  return bestIdx;
+  if (enemies.length === 0) return -1;
+  // Find nearest, then prefer weakest among enemies within 25% further (or 300px)
+  const nearest  = Math.min(...enemies.map(e => e.dist));
+  const margin   = Math.max(nearest * 0.25, 300);
+  const nearby   = enemies.filter(e => e.dist <= nearest + margin);
+  nearby.sort((a, b) => a.health - b.health);
+  return nearby[0].idx;
 }
 
-function cpuSimulateLanding(shooter, angleDeg, power) {
+function cpuSimulateLanding(shooter, angleDeg, power, windOverride) {
   const rad   = angleDeg * Math.PI / 180;
   const spd   = power * POWER_SCALE;
-  const wAcc  = wind * WIND_SCALE;
+  const wAcc  = (windOverride !== undefined ? windOverride : wind) * WIND_SCALE;
   const bodyY = shooter.y - 11;
 
   let x  = shooter.x + Math.cos(rad) * (CANNON_LEN + 5);
@@ -3849,42 +3862,107 @@ function cpuSelectWeapon(tankIndex) {
   t.selectedWeapon = best ? best[0] : 'Baby Missile';
 }
 
+// Returns true if terrain rises above the straight line between shooter and target
+function cpuIsTerrainBlocking(shooter, target) {
+  const x0 = shooter.x, y0 = shooter.y - 11;
+  const x1 = target.x,  y1 = target.y  - 11;
+  const dx  = x1 - x0;
+  if (Math.abs(dx) < 2) return false;
+  const steps = Math.abs(Math.round(dx));
+  for (let s = 5; s < steps - 5; s++) {
+    const frac = s / steps;
+    const x    = Math.round(x0 + dx * frac);
+    if (x < 0 || x >= worldWidth) continue;
+    if (terrain[x] < y0 + (y1 - y0) * frac) return true;
+  }
+  return false;
+}
+
+// Find best power for a fixed angle, used after arc-boost adjusts the angle
+function cpuFindBestPower(shooter, angleDeg, targetX, simWind) {
+  let bp = 60, bd = Infinity;
+  for (let p = 10; p <= MAX_POWER; p++) {
+    const d = Math.abs(cpuSimulateLanding(shooter, angleDeg, p, simWind) - targetX);
+    if (d < bd) { bd = d; bp = p; }
+  }
+  return bp;
+}
+
 function cpuComputeAim(tankIndex, targetIndex, noiseOverride = null) {
   const shooter = tanks[tankIndex];
-  const targetX = tanks[targetIndex].x;
+  const target  = tanks[targetIndex];
+  const cfg     = noiseOverride || AI_DIFFICULTY[shooter.difficulty] || AI_DIFFICULTY.medium;
 
+  // ── Wind compensation per difficulty ─────────────────────────────────────
+  let simWind;
+  if (cfg.windFactor === 0) {
+    simWind = 0;                                   // easy: pretend no wind
+  } else if (cfg.windFactor === null) {
+    simWind = wind * (0.6 + Math.random() * 0.8); // medium: 60–140% of real wind
+  } else {
+    simWind = wind;                                // hard: exact wind
+  }
+
+  const targetX = target.x;
+
+  // ── Coarse sweep ──────────────────────────────────────────────────────────
   let bestAngle = shooter.x < targetX ? 45 : 135;
   let bestPower = 60;
   let bestDist  = Infinity;
-
-  // Coarse sweep
   for (let a = 2; a <= 178; a += 3) {
     for (let p = 30; p <= MAX_POWER; p += 8) {
-      const landX = cpuSimulateLanding(shooter, a, p);
-      const dist  = Math.abs(landX - targetX);
-      if (dist < bestDist) { bestDist = dist; bestAngle = a; bestPower = p; }
+      const d = Math.abs(cpuSimulateLanding(shooter, a, p, simWind) - targetX);
+      if (d < bestDist) { bestDist = d; bestAngle = a; bestPower = p; }
     }
   }
 
-  // Fine sweep around best
-  const aMin = Math.max(1,        bestAngle - 6);
-  const aMax = Math.min(179,      bestAngle + 6);
-  const pMin = Math.max(10,       bestPower - 12);
+  // ── Fine sweep ────────────────────────────────────────────────────────────
+  const aMin = Math.max(1,         bestAngle - 6);
+  const aMax = Math.min(179,       bestAngle + 6);
+  const pMin = Math.max(10,        bestPower - 12);
   const pMax = Math.min(MAX_POWER, bestPower + 12);
   bestDist = Infinity;
-
   for (let a = aMin; a <= aMax; a++) {
     for (let p = pMin; p <= pMax; p++) {
-      const landX = cpuSimulateLanding(shooter, a, p);
-      const dist  = Math.abs(landX - targetX);
-      if (dist < bestDist) { bestDist = dist; bestAngle = a; bestPower = p; }
+      const d = Math.abs(cpuSimulateLanding(shooter, a, p, simWind) - targetX);
+      if (d < bestDist) { bestDist = d; bestAngle = a; bestPower = p; }
     }
   }
 
-  // Apply difficulty noise (suppressed for perfect-aim weapons like Lazy Boy)
-  const cfg    = noiseOverride || AI_DIFFICULTY[shooter.difficulty] || AI_DIFFICULTY.medium;
-  const aNoise = (Math.random() * 2 - 1) * cfg.angleNoise;
-  const pNoise = (Math.random() * 2 - 1) * cfg.powerNoise;
+  // ── Arc over blocking terrain (medium + hard) ─────────────────────────────
+  if (cfg.correction > 0 && cpuIsTerrainBlocking(shooter, target)) {
+    const arcBoost = 12 + Math.random() * 10; // 12–22° toward vertical
+    if (shooter.x < targetX) {
+      bestAngle = Math.min(88, bestAngle + arcBoost);
+    } else {
+      bestAngle = Math.max(92, bestAngle - arcBoost);
+    }
+    bestPower = cpuFindBestPower(shooter, bestAngle, targetX, simWind);
+  }
+
+  // ── Shot correction from previous turn (medium + hard) ───────────────────
+  let aNoise, pNoise;
+  if (
+    cfg.correction > 0 &&
+    shooter._aiLastTargetIdx === targetIndex &&
+    shooter._aiLastAngleNoise !== undefined
+  ) {
+    // Converge toward zero error: carry (1-correction) of old noise, add fresh
+    // random noise scaled by correction so it shrinks over successive turns
+    const corr = cfg.correction;
+    aNoise = shooter._aiLastAngleNoise * (1 - corr)
+           + (Math.random() * 2 - 1) * cfg.angleNoise * corr;
+    pNoise = shooter._aiLastPowerNoise * (1 - corr)
+           + (Math.random() * 2 - 1) * (cfg.powerNoisePct / 100) * bestPower * corr;
+  } else {
+    aNoise = (Math.random() * 2 - 1) * cfg.angleNoise;
+    pNoise = (Math.random() * 2 - 1) * (cfg.powerNoisePct / 100) * bestPower;
+  }
+
+  // Save for next turn's correction
+  shooter._aiLastAngleNoise = aNoise;
+  shooter._aiLastPowerNoise = pNoise;
+  shooter._aiLastTargetIdx  = targetIndex;
 
   return {
     angle: Math.max(1,  Math.min(179,       Math.round(bestAngle + aNoise))),
@@ -3935,7 +4013,7 @@ function fire() {
   if (!_simulatingRemote && wep.type === 'lazyboy') {
     const tgt = cpuSelectTarget(currentPlayer);
     if (tgt >= 0) {
-      const aim = cpuComputeAim(currentPlayer, tgt, { angleNoise: 0, powerNoise: 0 });
+      const aim = cpuComputeAim(currentPlayer, tgt, { angleNoise: 0, powerNoisePct: 0, windFactor: 1, correction: 0 });
       fireAngle = aim.angle;
       firePower = aim.power;
     }

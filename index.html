@@ -1206,7 +1206,7 @@ const scoreboardEl = document.getElementById('scoreboard');
 const VWIDTH  = 1920;
 const VHEIGHT = 1080;
 
-const GAME_VERSION = '1.6.4'; // bump whenever index.html is updated
+const GAME_VERSION = '1.6.5'; // bump whenever index.html is updated
 
 // ── constants ──────────────────────────────────────────────────────────────
 const GRAVITY    = 260;   // px/s²
@@ -4612,10 +4612,8 @@ function updateStartBtn() {
   if (networkModeOn && networkPhase === 'join-form') {
     btn.textContent = '\u25BA CONNECT';
     btn.disabled    = false;
-    btn.onclick     = doJoin;
   } else {
     btn.textContent = '\u25BA START GAME';
-    btn.onclick     = null;
     if (networkModeOn) {
       btn.disabled = !(networkPhase === 'lobby' && networkIsHost && networkPlayers.length >= 2);
     } else {
@@ -5779,6 +5777,8 @@ function initSetupListeners() {
   });
   renderMenuSetup();
   document.getElementById('setup-start').addEventListener('click', () => {
+    // In join-form mode the button acts as CONNECT, not START GAME
+    if (networkModeOn && networkPhase === 'join-form') { doJoin(); return; }
     const settingsOut = {};
     SETTING_DEFS.forEach(def => { settingsOut[def.key] = def.opts[menuSettingsIdx[def.key]]; });
     settingsOut.wallsOriginal = settingsOut.walls;

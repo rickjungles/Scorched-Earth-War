@@ -273,7 +273,7 @@ wss.on('connection', (ws, req) => {
 
       case 'game_settings': {
         if (!isHost) return;
-        broadcast(room, { type: 'game_settings', settings: msg.settings, from: playerId }, ws);
+        broadcast(room, { type: 'game_settings', settings: msg.settings, version: msg.version || null, from: playerId }, ws);
         break;
       }
 
@@ -341,7 +341,10 @@ wss.on('connection', (ws, req) => {
           type:           'shop_done',
           from:           playerId,
           inventory:      msg.inventory      || null,
+          defInventory:   msg.defInventory   || null,
           selectedWeapon: msg.selectedWeapon || null,
+          money:          msg.money          ?? null,
+          version:        msg.version        || null,
         }, ws);
         break;
       }

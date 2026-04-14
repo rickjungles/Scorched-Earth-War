@@ -979,9 +979,12 @@ canvas { position: absolute; image-rendering: pixelated; }
 .sb-rank-nc     { color: rgba(255,255,255,0.25); font-size: 10px; }
 #sb-cash-section { padding: 10px 20px 14px; border-bottom: 1px solid rgba(0,255,255,0.3); }
 #sb-cash-title  { font-size: 10px; color: #0ff; letter-spacing: 0.12em; margin-bottom: 7px; }
-.sb-cash-row    { font-size: 12px; color: rgba(255,255,255,0.78); margin-bottom: 4px; }
-.sb-cash-name   { display: inline-block; min-width: 110px; }
-.sb-cash-math   { color: rgba(255,255,255,0.45); }
+#sb-cash-table  { width: 100%; border-collapse: collapse; font-size: 12px; }
+#sb-cash-table th { font-size: 9px; letter-spacing: 0.10em; color: rgba(0,255,255,0.6); font-weight: normal; text-align: right; padding: 0 8px 4px; }
+#sb-cash-table th:first-child { text-align: left; }
+#sb-cash-table td { text-align: right; padding: 2px 8px; color: rgba(255,255,255,0.78); }
+#sb-cash-table td:first-child { text-align: left; }
+.sb-cash-interest { color: #55ff55; }
 .sb-cash-total  { color: #FFFF55; font-weight: bold; }
 #sb-footer {
   display: flex; align-items: center; justify-content: space-between;
@@ -1171,7 +1174,18 @@ canvas { position: absolute; image-rendering: pixelated; }
     </div>
     <div id="sb-cash-section">
       <div id="sb-cash-title">CASH SUMMARY</div>
-      <div id="sb-cash-rows"></div>
+      <table id="sb-cash-table">
+        <thead>
+          <tr>
+            <th>PLAYER</th>
+            <th>STARTING MONEY</th>
+            <th>INTEREST</th>
+            <th>ROUND WINNINGS</th>
+            <th>TOTAL</th>
+          </tr>
+        </thead>
+        <tbody id="sb-cash-rows"></tbody>
+      </table>
     </div>
     <div id="sb-footer">
       <div id="sb-footer-left"></div>
@@ -1192,7 +1206,7 @@ const scoreboardEl = document.getElementById('scoreboard');
 const VWIDTH  = 1920;
 const VHEIGHT = 1080;
 
-const GAME_VERSION = '1.6.1'; // bump whenever index.html is updated
+const GAME_VERSION = '1.6.2'; // bump whenever index.html is updated
 
 // ── constants ──────────────────────────────────────────────────────────────
 const GRAVITY    = 260;   // px/s²
@@ -3077,25 +3091,25 @@ function showScoreboard(isFinal) {
   const rate = (gameSettings.interest || 0) / 100;
   tanks.forEach((t, i) => {
     const s        = playerStats[i];
-    // Interest was already applied at the START of this round on previous savings.
-    // Show that baked-in interest, then combat earnings, then the true ending balance.
+    // Interest was applied at START of this round on previous savings.
+    // prev = what they carried into this round before interest was added.
     const interest = t.interestThisRound || 0;
-    const prev     = cashAtRoundStart[i] - interest; // net savings (post-shop, pre-interest component)
+    const prev     = cashAtRoundStart[i] - interest;
     const earned   = Math.max(0, t.money - cashAtRoundStart[i]);
-    const newBal   = t.money; // no preview of future interest — that applies at next round start
+    const newBal   = t.money;
     const batBonus = 0.20 * ((t.defInventory || {})['Battery'] || 0);
     const intPct   = Math.round((rate + batBonus) * 100);
-    // Only show interest column if interest was actually earned this round
-    const intPart  = interest > 0
-      ? ` + <span style="color:#55ff55">$${interest.toLocaleString()}</span><span class="sb-cash-math"> (${intPct}%)</span>`
-      : '';
-    const div = document.createElement('div');
-    div.className = 'sb-cash-row';
-    div.innerHTML =
-      `<span class="sb-cash-name" style="color:${s.color}">${htmlEsc(s.name)}</span>` +
-      `<span class="sb-cash-math">$${prev.toLocaleString()}${intPart} + $${earned.toLocaleString()} = </span>` +
-      `<span class="sb-cash-total">$${newBal.toLocaleString()}</span>`;
-    cashRows.appendChild(div);
+    const intCell  = interest > 0
+      ? `<span class="sb-cash-interest">$${interest.toLocaleString()}</span> <span style="color:rgba(255,255,255,0.4)">(${intPct}%)</span>`
+      : `<span style="color:rgba(255,255,255,0.3)">—</span>`;
+    const tr = document.createElement('tr');
+    tr.innerHTML =
+      `<td style="color:${s.color}">${htmlEsc(s.name)}</td>` +
+      `<td>$${prev.toLocaleString()}</td>` +
+      `<td>${intCell}</td>` +
+      `<td>$${earned.toLocaleString()}</td>` +
+      `<td class="sb-cash-total">$${newBal.toLocaleString()}</td>`;
+    cashRows.appendChild(tr);
   });
 
   // Footer

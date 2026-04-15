@@ -1231,7 +1231,7 @@ const scoreboardEl = document.getElementById('scoreboard');
 const VWIDTH  = 1920;
 const VHEIGHT = 1080;
 
-const GAME_VERSION = '1.7.7'; // bump whenever index.html is updated
+const GAME_VERSION = '1.8.4'; // bump whenever index.html is updated
 
 // ── constants ──────────────────────────────────────────────────────────────
 const GRAVITY    = 260;   // px/s²
@@ -1337,12 +1337,15 @@ const WEAPONS = {
 
 // ── defense definitions ────────────────────────────────────────────────────
 const DEFENSES = {
-  'Shield S':  { cost: 1500, desc: 'Absorbs 30 damage',  shieldHP: 30  },
-  'Shield M':  { cost: 3000, desc: 'Absorbs 60 damage',  shieldHP: 60  },
-  'Shield L':  { cost: 5000, desc: 'Absorbs 100 damage', shieldHP: 100 },
-  'Parachute': { cost:  800, desc: 'Prevents fall damage'               },
-  'Battery':   { cost: 1000, desc: '20% bonus interest'                 },
-  'Fuel Tank': { cost:  600, desc: '50 movement units',  fuel: 50       },
+  'Shield S':     { cost: 1500, desc: 'Absorbs 30 damage',  shieldHP: 30  },
+  'Shield M':     { cost: 3000, desc: 'Absorbs 60 damage',  shieldHP: 60  },
+  'Shield L':     { cost: 5000, desc: 'Absorbs 100 damage', shieldHP: 100 },
+  'Parachute':    { cost:  800, desc: 'Prevents fall damage'               },
+  'Battery':      { cost: 1000, desc: '20% bonus interest'                 },
+  'Fuel Tank':    { cost:  600, desc: '50 movement units',  fuel: 50       },
+  'Auto Defense': { cost: 4000, desc: 'Fires interceptors at incoming shots — 3 charges.', charges: 3 },
+  'Deflector':    { cost: 2000, desc: 'Hard-bounces projectiles at 120px — 3 charges.', defCharges: 3 },
+  'Mag Deflector':{ cost: 3500, desc: 'Repulses projectiles within 180px — 5 charges.', magCharges: 5 },
 };
 
 // ── player / AI constants ──────────────────────────────────────────────────
@@ -1464,6 +1467,82 @@ function soundThud() {
   ngn.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
   ns.connect(ngn); ngn.connect(masterGain);
   ns.start(now);
+}
+
+function soundInterceptorFire() {
+  if (!ensureAudio()) return;
+  const now = audioCtx.currentTime;
+  const osc = audioCtx.createOscillator();
+  const ogn = audioCtx.createGain();
+  osc.type = 'square';
+  osc.frequency.setValueAtTime(1400, now);
+  osc.frequency.exponentialRampToValueAtTime(700, now + 0.07);
+  ogn.gain.setValueAtTime(0.15, now);
+  ogn.gain.exponentialRampToValueAtTime(0.001, now + 0.07);
+  osc.connect(ogn); ogn.connect(masterGain);
+  osc.start(now); osc.stop(now + 0.07);
+}
+
+function soundInterceptPop() {
+  if (!ensureAudio()) return;
+  const now = audioCtx.currentTime;
+  const dur = 0.20;
+  const ns  = audioCtx.createBufferSource();
+  ns.buffer = makeNoise(dur);
+  const bpf = audioCtx.createBiquadFilter();
+  bpf.type  = 'bandpass';
+  bpf.frequency.setValueAtTime(2400, now);
+  bpf.frequency.exponentialRampToValueAtTime(500, now + dur);
+  bpf.Q.value = 2;
+  const gn = audioCtx.createGain();
+  gn.gain.setValueAtTime(0.45, now);
+  gn.gain.exponentialRampToValueAtTime(0.001, now + dur);
+  ns.connect(bpf); bpf.connect(gn); gn.connect(masterGain);
+  ns.start(now); ns.stop(now + dur);
+}
+
+function soundDeflectorBounce() {
+  if (!ensureAudio()) return;
+  const now = audioCtx.currentTime;
+  const osc = audioCtx.createOscillator();
+  const ogn = audioCtx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(900, now);
+  osc.frequency.exponentialRampToValueAtTime(2200, now + 0.04);
+  osc.frequency.exponentialRampToValueAtTime(600, now + 0.18);
+  ogn.gain.setValueAtTime(0.35, now);
+  ogn.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+  osc.connect(ogn); ogn.connect(masterGain);
+  osc.start(now); osc.stop(now + 0.18);
+}
+
+function soundMagDeflectorHum(tankIndex) {
+  // Looping hum while mag field is active — one oscillator per active tank,
+  // stored on the tank object; stopped when charges run out.
+  if (!ensureAudio()) return;
+  const t = tanks[tankIndex];
+  if (t._magHumOsc) return;   // already humming
+  const now = audioCtx.currentTime;
+  const osc = audioCtx.createOscillator();
+  const ogn = audioCtx.createGain();
+  osc.type = 'sine';
+  osc.frequency.value = 90;
+  ogn.gain.setValueAtTime(0.06, now);
+  osc.connect(ogn); ogn.connect(masterGain);
+  osc.start(now);
+  t._magHumOsc = osc;
+  t._magHumGain = ogn;
+}
+
+function stopMagDeflectorHum(tankIndex) {
+  const t = tanks[tankIndex];
+  if (!t._magHumOsc) return;
+  const now = audioCtx.currentTime;
+  t._magHumGain.gain.setValueAtTime(t._magHumGain.gain.value, now);
+  t._magHumGain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+  t._magHumOsc.stop(now + 0.3);
+  t._magHumOsc = null;
+  t._magHumGain = null;
 }
 
 function startWhistle() {
@@ -1802,6 +1881,9 @@ let wallFlashes       = [];
 let worldWidth       = 0;
 let killEffects       = [];   // active death animations
 let killEffectPending = false; // blocks nextTurn() while animations play
+let interceptors      = [];   // active auto-defense interceptor projectiles
+let floatingTexts     = [];   // { x, y, text, age, life, color, vy } overlay messages
+let deflectorFlashes  = [];   // { x, y, age, duration } bounce-flash sparkles
 let pendingTurnAction = null;  // deferred () => void, called when effects finish
 
 // ── intro sequence state ───────────────────────────────────────────────────
@@ -1841,8 +1923,8 @@ let gameSettings     = {};
 let menuPlayers     = Array.from({length:5}, (_, i) => ({
   name:`Player ${i+1}`, colorIdx:i, typeIdx: i < 2 ? 1 : 0,
 }));
-let menuSettingsIdx = { rounds:1, cash:1, interest:2, terrain:0, walls:5, wind:1, gravity:1 };
-let menuWeapons     = Object.fromEntries(MENU_WEAPONS.map(w=>[w,true]));
+let menuSettingsIdx = { rounds:1, cash:1, interest:2, terrain:0, walls:5, wind:2, gravity:1 };
+let menuWeapons     = Object.fromEntries(MENU_WEAPONS.map(w=>[w, w !== 'Nuke' && w !== 'Lazy Boy']));
 let menuDefenses    = Object.fromEntries(MENU_DEFENSES.map(d=>[d,true]));
 
 // ── resize ─────────────────────────────────────────────────────────────────
@@ -2077,6 +2159,11 @@ function placeTanks() {
       ),
       defInventory: Object.fromEntries(Object.keys(DEFENSES).map(k => [k, 0])),
       shieldHP: 0,
+      maxShieldHP: 0,
+      autoDefenseCharges: 0,
+      deflectorCharges: 0,
+      magDeflectorCharges: 0,
+      magDeflectorActive: {},   // tracks which proj IDs have entered the field
       fuel: 0,
       interestThisRound: 0,
       selectedWeapon: 'Baby Missile',
@@ -2660,7 +2747,7 @@ function spawnMirvChildren(parent) {
       x: parent.x, y: parent.y,
       vx: parent.vx + dvx, vy: parent.vy,
       trail: [], type: 'standard', weapon: childWeapon,
-      owner: parent.owner, mirvSplit: false,
+      owner: parent.owner, mirvSplit: false, isSubMunition: true,
     });
   }
   addExplosion(parent.x, parent.y, 16);
@@ -3278,6 +3365,9 @@ function startNextRound() {
   killEffects       = [];
   killEffectPending = false;
   pendingTurnAction = null;
+  interceptors      = [];
+  floatingTexts     = [];
+  deflectorFlashes  = [];
   introPhase        = 'none';
   introTimer        = 0;
   introTankDrops    = [];
@@ -3312,6 +3402,7 @@ function startNextRound() {
       t.money += bonus;
     }
     t.interestThisRound = bonus;
+    stopMagDeflectorHum(i);
     applyDefenses(t);
   });
 
@@ -3345,6 +3436,13 @@ function startNextRound() {
     // Snapshot balances AFTER shop closes — combat earnings are measured against this
     cashAtRoundStart = tanks.map(t => t.money);
     console.log('[money] shop closed (round', currentRound, ') – post-shop balances:', tanks.map(t => t.name + ': $' + t.money).join(', '));
+    // Record max shield HP for tooltip %, then consume single-use defense items
+    tanks.forEach(t => {
+      t.maxShieldHP = t.shieldHP;
+      for (const [name, def] of Object.entries(DEFENSES)) {
+        if (def.shieldHP || def.charges || def.defCharges || def.magCharges) t.defInventory[name] = 0;
+      }
+    });
     // Reset weapon selection to Baby Missile after shop closes, regardless of shop auto-select
     tanks.forEach(t => { if (t.health > 0) t.selectedWeapon = 'Baby Missile'; });
     startIntroSequence(() => {
@@ -3402,6 +3500,9 @@ function nextTurn() {
       type:            'state_sync',
       healths:         tanks.map(t => t.health),
       shieldHPs:       tanks.map(t => t.shieldHP),
+      autoDefCharges:  tanks.map(t => t.autoDefenseCharges),
+      deflCharges:     tanks.map(t => t.deflectorCharges),
+      magDefCharges:   tanks.map(t => t.magDeflectorCharges),
       moneys:          tanks.map(t => t.money),
       damageDealt:     tanks.map(t => t.damageDealt),
       inventories:     tanks.map(t => ({ ...t.inventory })),
@@ -3487,6 +3588,275 @@ function cycleWeapon(dir) {
   updateWeaponIndicator();
 }
 
+// ── auto defense system ────────────────────────────────────────────────────
+
+function spawnInterceptor(tankIndex, targetProj) {
+  const t     = tanks[tankIndex];
+  const fromX = t.x;
+  const fromY = t.y - 11;
+  const speed = 380;
+
+  // Predict target's position at the time the interceptor would arrive,
+  // accounting for target velocity and gravity.
+  const dx    = targetProj.x - fromX;
+  const dy    = targetProj.y - fromY;
+  const tPred = (Math.hypot(dx, dy) || 1) / speed;
+  const predX = targetProj.x + targetProj.vx * tPred;
+  const predY = targetProj.y + targetProj.vy * tPred + 0.5 * GRAVITY * tPred * tPred;
+
+  // Aim error: fast shots are harder to predict → more error, lower hit rate
+  const targetSpeed = Math.hypot(targetProj.vx, targetProj.vy);
+  const maxError    = targetSpeed > 250 ? 0.22 : 0.10;  // radians (~40% vs ~70% success)
+  const aimError    = (Math.random() - 0.5) * 2 * maxError;
+  const angle       = Math.atan2(predY - fromY, predX - fromX) + aimError;
+
+  soundInterceptorFire();
+
+  interceptors.push({
+    x: fromX, y: fromY,
+    vx: Math.cos(angle) * speed,
+    vy: Math.sin(angle) * speed,
+    target:      targetProj,
+    defenderIdx: tankIndex,
+    age:         0,
+    trail:       [],
+  });
+}
+
+function interceptSucceeded(ic) {
+  const px = ic.target.x, py = ic.target.y;
+
+  // Remove the intercepted projectile
+  const idx = projectiles.indexOf(ic.target);
+  if (idx >= 0) projectiles.splice(idx, 1);
+
+  // Small mid-air pop — no terrain damage, no tank damage
+  addExplosion(px, py, 18);
+  soundInterceptPop();
+
+  // Floating status text
+  floatingTexts.push({ x: px, y: py - 12, text: 'INTERCEPTED', age: 0, life: 2.0, color: '#44ffcc', vy: -22 });
+
+  // If nothing is left in flight, close the turn
+  if (projectiles.length === 0 && !napalmTurnPending) {
+    stopWhistle();
+    netHealthSync();
+    if (!checkWin()) maybeNextTurn();
+  }
+}
+
+function updateInterceptors(dt) {
+  for (let i = interceptors.length - 1; i >= 0; i--) {
+    const ic = interceptors[i];
+    ic.age += dt;
+    ic.trail.push({ x: ic.x, y: ic.y });
+    if (ic.trail.length > 8) ic.trail.shift();
+
+    // Target already removed from play
+    if (!ic.target || projectiles.indexOf(ic.target) < 0) {
+      interceptors.splice(i, 1); continue;
+    }
+
+    // Hit check
+    if (Math.hypot(ic.x - ic.target.x, ic.y - ic.target.y) < 20) {
+      interceptSucceeded(ic);
+      interceptors.splice(i, 1); continue;
+    }
+
+    // Move — no gravity (it's a guided interceptor missile)
+    ic.x += ic.vx * dt;
+    ic.y += ic.vy * dt;
+
+    // Remove if aged out or off-map
+    if (ic.age > 2.5 || ic.x < -50 || ic.x > worldWidth + 50 || ic.y > VHEIGHT + 50 || ic.y < -300) {
+      interceptors.splice(i, 1);
+    }
+  }
+}
+
+function drawInterceptors() {
+  for (const ic of interceptors) {
+    // Fading trail
+    for (let j = 1; j < ic.trail.length; j++) {
+      const alpha = (j / ic.trail.length) * 0.65;
+      ctx.strokeStyle = `rgba(160,210,255,${alpha.toFixed(2)})`;
+      ctx.lineWidth   = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(ic.trail[j - 1].x, ic.trail[j - 1].y);
+      ctx.lineTo(ic.trail[j].x,     ic.trail[j].y);
+      ctx.stroke();
+    }
+    // Bright dot
+    ctx.beginPath();
+    ctx.arc(ic.x, ic.y, 2.5, 0, Math.PI * 2);
+    ctx.fillStyle = '#ffffff';
+    ctx.fill();
+    // Soft glow
+    const grd = ctx.createRadialGradient(ic.x, ic.y, 0, ic.x, ic.y, 7);
+    grd.addColorStop(0, 'rgba(200,240,255,0.85)');
+    grd.addColorStop(1, 'rgba(100,180,255,0)');
+    ctx.beginPath();
+    ctx.arc(ic.x, ic.y, 7, 0, Math.PI * 2);
+    ctx.fillStyle = grd;
+    ctx.fill();
+  }
+}
+
+function drawFloatingTexts() {
+  for (const ft of floatingTexts) {
+    const alpha = Math.max(0, 1 - ft.age / ft.life);
+    ctx.save();
+    ctx.globalAlpha  = alpha;
+    ctx.font         = 'bold 12px Courier New';
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.lineWidth    = 3;
+    ctx.strokeStyle  = 'rgba(0,0,0,0.75)';
+    ctx.strokeText(ft.text, ft.x, ft.y);
+    ctx.fillStyle    = ft.color || '#ffffff';
+    ctx.fillText(ft.text, ft.x, ft.y);
+    ctx.restore();
+  }
+}
+
+function drawAutoDefenseHUD() {
+  if (!tanks || gameOver) return;
+  const t = tanks[currentPlayer];
+  if (!t || t.autoDefenseCharges <= 0) return;
+
+  const PAD = 12, bw = 152, bh = 28;
+  const bx  = VWIDTH - bw - PAD;
+  const by  = PAD + 38 + 6;   // just below the wind indicator
+
+  ctx.fillStyle = 'rgba(0,0,0,0.58)';
+  ctx.fillRect(bx, by, bw, bh);
+  ctx.strokeStyle = 'rgba(68,220,200,0.35)';
+  ctx.lineWidth   = 1;
+  ctx.strokeRect(bx, by, bw, bh);
+
+  ctx.fillStyle    = '#44ddcc';
+  ctx.font         = '11px Courier New';
+  ctx.textAlign    = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('AUTO-D', bx + 8, by + bh / 2);
+
+  const maxDots = Math.min(t.autoDefenseCharges, 9);
+  for (let c = 0; c < maxDots; c++) {
+    ctx.beginPath();
+    ctx.arc(bx + bw - 10 - c * 11, by + bh / 2, 4, 0, Math.PI * 2);
+    ctx.fillStyle = '#44ddcc';
+    ctx.fill();
+  }
+}
+
+function drawDeflectorDomes() {
+  if (!tanks) return;
+  const now = performance.now() / 1000;
+  for (let ti = 0; ti < tanks.length; ti++) {
+    const t = tanks[ti];
+    if (t.health <= 0) continue;
+
+    // Deflector — dashed cyan dome, flickering
+    if (t.deflectorCharges > 0) {
+      const cx = t.x, cy = t.y - 9;
+      const alpha = 0.28 + 0.12 * Math.sin(now * 6 + ti);
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.strokeStyle = '#44ddff';
+      ctx.lineWidth   = 1.5;
+      ctx.setLineDash([6, 5]);
+      ctx.lineDashOffset = (now * 40) % 11;
+      ctx.beginPath();
+      ctx.arc(cx, cy, 120, Math.PI, 0, false);   // upper semicircle
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+    }
+
+    // Mag Deflector — concentric purple/blue rings, pulsing outward
+    if (t.magDeflectorCharges > 0) {
+      const cx = t.x, cy = t.y - 9;
+      const RINGS = 3;
+      for (let r = 0; r < RINGS; r++) {
+        const phase  = ((now * 0.8 + r / RINGS) % 1);   // 0→1
+        const radius = 60 + phase * 120;
+        const alpha  = (1 - phase) * 0.30;
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.strokeStyle = r % 2 === 0 ? '#aa55ff' : '#5599ff';
+        ctx.lineWidth   = 1.2;
+        ctx.beginPath();
+        ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+  }
+}
+
+function drawDeflectorFlashes() {
+  for (const f of deflectorFlashes) {
+    const prog  = f.age / f.duration;
+    const alpha = 1 - prog;
+    const r     = 14 + prog * 22;
+    ctx.save();
+    ctx.globalAlpha  = alpha;
+    ctx.strokeStyle  = '#88eeff';
+    ctx.lineWidth    = 2;
+    ctx.beginPath();
+    ctx.arc(f.x, f.y, r, 0, Math.PI * 2);
+    ctx.stroke();
+    // Sparkle lines
+    for (let k = 0; k < 6; k++) {
+      const ang = (k / 6) * Math.PI * 2 + prog * 1.5;
+      const r0  = r * 0.4, r1 = r * 1.1;
+      ctx.strokeStyle = '#ccffff';
+      ctx.lineWidth   = 1;
+      ctx.beginPath();
+      ctx.moveTo(f.x + Math.cos(ang) * r0, f.y + Math.sin(ang) * r0);
+      ctx.lineTo(f.x + Math.cos(ang) * r1, f.y + Math.sin(ang) * r1);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+}
+
+function drawDefenseHUD() {
+  if (!tanks || gameOver) return;
+  const t = tanks[currentPlayer];
+  if (!t) return;
+
+  const PAD = 12, bw = 152, bh = 28;
+  let row = 0;
+
+  function drawRow(label, charges, color) {
+    const bx = VWIDTH - bw - PAD;
+    const by = PAD + 38 + 6 + row * (bh + 3);
+    ctx.fillStyle = 'rgba(0,0,0,0.58)';
+    ctx.fillRect(bx, by, bw, bh);
+    ctx.strokeStyle = `${color}55`;
+    ctx.lineWidth   = 1;
+    ctx.strokeRect(bx, by, bw, bh);
+    ctx.fillStyle    = color;
+    ctx.font         = '11px Courier New';
+    ctx.textAlign    = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(label, bx + 8, by + bh / 2);
+    const maxDots = Math.min(charges, 9);
+    for (let c = 0; c < maxDots; c++) {
+      ctx.beginPath();
+      ctx.arc(bx + bw - 10 - c * 11, by + bh / 2, 4, 0, Math.PI * 2);
+      ctx.fillStyle = color;
+      ctx.fill();
+    }
+    row++;
+  }
+
+  if (t.autoDefenseCharges  > 0) drawRow('AUTO-D',  t.autoDefenseCharges,  '#44ddcc');
+  if (t.deflectorCharges    > 0) drawRow('DEFLECT', t.deflectorCharges,    '#44ddff');
+  if (t.magDeflectorCharges > 0) drawRow('MAG-DEF', t.magDeflectorCharges, '#aa55ff');
+}
+
 // ── shop helpers ───────────────────────────────────────────────────────────
 function blastDesc(r) {
   if (r <  30) return 'Small';
@@ -3503,16 +3873,44 @@ function weaponTag(wep) {
 }
 
 function applyDefenses(t) {
-  let hp = 0, fuel = 0;
+  let hp = 0, fuel = 0, adCharges = 0, defCh = 0, magCh = 0;
   for (const [name, def] of Object.entries(DEFENSES)) {
     const qty = t.defInventory[name] || 0;
     if (qty > 0) {
-      if (def.shieldHP) hp   += def.shieldHP * qty;
-      if (def.fuel)     fuel += def.fuel     * qty;
+      if (def.shieldHP)   hp       += def.shieldHP   * qty;
+      if (def.fuel)       fuel     += def.fuel        * qty;
+      if (def.charges)    adCharges += def.charges    * qty;
+      if (def.defCharges) defCh    += def.defCharges  * qty;
+      if (def.magCharges) magCh    += def.magCharges  * qty;
     }
   }
-  t.shieldHP = hp;
-  t.fuel     = fuel;
+  t.shieldHP           = hp;
+  t.fuel               = fuel;
+  t.autoDefenseCharges = adCharges;
+  t.deflectorCharges   = defCh;
+  t.magDeflectorCharges = magCh;
+  t.magDeflectorActive  = {};  // reset field-entry tracking on reapply
+}
+
+// Shields, Deflector, and Mag Deflector are mutually exclusive. Refund any
+// conflicting item before buying the new one.
+const DEFENSE_MUTEX_GROUPS = [
+  ['Shield S', 'Shield M', 'Shield L', 'Deflector', 'Mag Deflector'],
+];
+function enforceDefenseMutex(t, buying) {
+  for (const group of DEFENSE_MUTEX_GROUPS) {
+    if (!group.includes(buying)) continue;
+    for (const other of group) {
+      if (other === buying) continue;
+      const qty = t.defInventory[other] || 0;
+      if (qty > 0) {
+        const refund = DEFENSES[other].cost * qty;
+        t.money += refund;
+        t.defInventory[other] = 0;
+        console.log('[mutex] refunded', qty, 'x', other, '+$' + refund);
+      }
+    }
+  }
 }
 
 function shopBuyItem(playerIndex, isDefense, name) {
@@ -3520,6 +3918,7 @@ function shopBuyItem(playerIndex, isDefense, name) {
   if (isDefense) {
     const def = DEFENSES[name];
     if (!def || t.money < def.cost || !enabledDefenses.includes(name)) return;
+    enforceDefenseMutex(t, name);
     t.money -= def.cost;
     t.defInventory[name] = (t.defInventory[name] || 0) + 1;
     applyDefenses(t);
@@ -3669,25 +4068,158 @@ function renderShop(playerIndex) {
 
 // ── CPU auto-buy ───────────────────────────────────────────────────────────
 function cpuAutoBuy(playerIndex) {
-  const t = tanks[playerIndex];
-  // Prioritize missiles: buy highest-damage weapon affordable
-  const bestWeapon = Object.entries(WEAPONS)
-    .filter(([name, wep]) => wep.cost > 0 && t.money >= wep.cost && enabledWeapons.includes(name))
-    .sort(([, a], [, b]) => b.hitDamage - a.hitDamage)[0];
-  if (bestWeapon) {
-    t.money -= bestWeapon[1].cost;
-    t.inventory[bestWeapon[0]]++;
-    if (t.selectedWeapon === 'Baby Missile') t.selectedWeapon = bestWeapon[0];
+  const t    = tanks[playerIndex];
+  const diff = t.difficulty || 'medium';
+  const owns = n => t.inventory[n] || 0;
+
+  // ── game-state signals ───────────────────────────────────────────────────
+  const myWins   = (playerStats[playerIndex] || {}).roundWins || 0;
+  const nPlayers = Math.max(1, playerStats.length);
+  const avgWins  = playerStats.reduce((s, p) => s + (p.roundWins || 0), 0) / nPlayers;
+  const isLosing  = myWins < avgWins - 0.5;
+  const isWinning = myWins > avgWins + 0.5;
+  const roundsLeft = totalRounds - currentRound + 1;
+  const prevDamage = currentRound > 1 ? ((lastRoundData[playerIndex] || {}).damage || 0) : 999;
+  const missedAlot = prevDamage < 40;
+
+  // ── phase 0: hard CPU sells excess carry-over weapons to free up budget ──
+  if (diff === 'hard') {
+    const sellExcess = (name, keepMax) => {
+      const excess = Math.max(0, owns(name) - keepMax);
+      if (excess > 0 && WEAPONS[name] && WEAPONS[name].cost > 0) {
+        t.inventory[name] -= excess;
+        t.money += Math.floor(WEAPONS[name].cost * 0.8) * excess;
+      }
+    };
+    sellExcess('Missile',       3);
+    sellExcess('Large Missile', 2);
+    sellExcess('Roller',        1);
+    sellExcess('Digger',        1);
   }
-  // Buy one shield if affordable (prefer M, then S)
-  for (const shName of ['Shield M', 'Shield S']) {
-    const def = DEFENSES[shName];
-    if (def && t.money >= def.cost && enabledDefenses.includes(shName)) {
-      t.money -= def.cost;
-      t.defInventory[shName] = (t.defInventory[shName] || 0) + 1;
-      break;
+
+  // ── budget allocation ─────────────────────────────────────────────────────
+  const startMoney = t.money;
+  let wRatio = 0.60, dRatio = 0.30;
+  if (diff === 'hard') {
+    if (isLosing)  { wRatio = 0.70; dRatio = 0.22; }
+    if (isWinning) { wRatio = 0.50; dRatio = 0.25; }
+  }
+  let wBudget = Math.floor(startMoney * wRatio);
+  let dBudget = Math.floor(startMoney * dRatio);
+
+  // helpers: check affordability against both real money and category budget
+  const canBuyW = name => {
+    const w = WEAPONS[name];
+    return w && w.cost > 0 && enabledWeapons.includes(name) && w.cost <= t.money && w.cost <= wBudget;
+  };
+  const doBuyW = name => {
+    const cost = WEAPONS[name].cost;
+    t.money -= cost; wBudget -= cost;
+    t.inventory[name] = (t.inventory[name] || 0) + 1;
+  };
+  const canBuyD = name => {
+    const d = DEFENSES[name];
+    return d && enabledDefenses.includes(name) && d.cost <= t.money && d.cost <= dBudget;
+  };
+  const doBuyD = name => {
+    const cost = DEFENSES[name].cost;
+    t.money -= cost; dBudget -= cost;
+    t.defInventory[name] = (t.defInventory[name] || 0) + 1;
+  };
+
+  // ── EASY: random, no strategy ─────────────────────────────────────────────
+  if (diff === 'easy') {
+    const weapPool = Object.keys(WEAPONS)
+      .filter(n => WEAPONS[n].cost > 0 && WEAPONS[n].cost <= startMoney * 0.35 && enabledWeapons.includes(n));
+    const numBuys = 1 + Math.floor(Math.random() * 3);
+    for (let i = 0; i < numBuys && weapPool.length > 0; i++) {
+      const pick = weapPool[Math.floor(Math.random() * weapPool.length)];
+      if (canBuyW(pick)) doBuyW(pick);
+    }
+    if (Math.random() < 0.55) {
+      const defPool = Object.keys(DEFENSES).filter(n => enabledDefenses.includes(n));
+      if (defPool.length > 0) {
+        const pick = defPool[Math.floor(Math.random() * defPool.length)];
+        if (canBuyD(pick)) doBuyD(pick);
+      }
+    }
+    applyDefenses(t);
+    return;
+  }
+
+  // ── MEDIUM / HARD: strategic buying ───────────────────────────────────────
+  const ownedMidTier  = owns('Missile') + owns('Large Missile');
+  const ownedGround   = owns('Roller') + owns('Heavy Roller') + owns('Digger') + owns('Sandhog');
+  const ownedFinisher = owns('Nuke') + owns('Baby Nuke') + owns('MIRV') + owns("Death's Head")
+                      + owns('Funky Bomb') + owns('Hot Napalm');
+  // medium occasionally shops suboptimally — set once per shopping session
+  const suboptimal = diff === 'medium' && Math.random() < 0.35;
+
+  // ── weapons ───────────────────────────────────────────────────────────────
+
+  // Lazy Boy if missed a lot last round and don't own one
+  if (missedAlot && owns('Lazy Boy') === 0 && canBuyW('Lazy Boy')) doBuyW('Lazy Boy');
+
+  // Finisher: 1 total — hard prefers highest-damage, medium chooses more cheaply
+  if (ownedFinisher === 0) {
+    const finishers = suboptimal
+      ? ['Baby Nuke', 'MIRV', "Death's Head", 'Funky Bomb', 'Hot Napalm', 'Nuke']
+      : (diff === 'hard'
+          ? ['Nuke', "Death's Head", 'Funky Bomb', 'Hot Napalm', 'Baby Nuke', 'MIRV']
+          : ["Death's Head", 'Baby Nuke', 'Funky Bomb', 'Hot Napalm', 'MIRV', 'Nuke']);
+    for (const name of finishers) { if (canBuyW(name)) { doBuyW(name); break; } }
+  }
+
+  // Bread-and-butter mid-tier: aim for 2 (medium) or 3 (hard) total
+  const midTierTarget = diff === 'hard' ? 3 : 2;
+  for (let i = ownedMidTier; i < midTierTarget; i++) {
+    if      (!suboptimal && canBuyW('Large Missile')) doBuyW('Large Missile');
+    else if (canBuyW('Missile'))                      doBuyW('Missile');
+    else if (canBuyW('Large Missile'))                doBuyW('Large Missile');
+    else break;
+  }
+
+  // Ground weapon: 1 (medium) or 2 (hard) total
+  const groundTarget = diff === 'hard' ? 2 : 1;
+  if (ownedGround < groundTarget) {
+    const groundPref = suboptimal
+      ? ['Roller', 'Digger', 'Sandhog', 'Heavy Roller']
+      : ['Sandhog', 'Heavy Roller', 'Digger', 'Roller'];
+    let bought = 0;
+    for (const name of groundPref) {
+      if (bought >= groundTarget - ownedGround) break;
+      if (canBuyW(name)) { doBuyW(name); bought++; }
     }
   }
+
+  // Spend remaining weapon budget — hard keeps buying Large Missiles (up to 5 total)
+  if (diff === 'hard') {
+    while (canBuyW('Large Missile') && owns('Large Missile') < 5) doBuyW('Large Missile');
+  } else if (Math.random() < 0.4 && canBuyW('Missile')) {
+    doBuyW('Missile');
+  }
+
+  // ── defenses ──────────────────────────────────────────────────────────────
+
+  // Shield: largest affordable, but medium sometimes buys too small
+  if (suboptimal) {
+    if      (canBuyD('Shield S')) doBuyD('Shield S');
+    else if (canBuyD('Shield M')) doBuyD('Shield M');
+  } else {
+    if      (canBuyD('Shield L')) doBuyD('Shield L');
+    else if (canBuyD('Shield M')) doBuyD('Shield M');
+    else if (canBuyD('Shield S')) doBuyD('Shield S');
+  }
+
+  // Battery only in early rounds (interest compounds over remaining rounds)
+  if (roundsLeft >= 3 && canBuyD('Battery')) doBuyD('Battery');
+
+  // Parachute — hard always buys, medium 50%
+  if (canBuyD('Parachute') && (diff === 'hard' || Math.random() < 0.5)) doBuyD('Parachute');
+
+  // Fuel Tank — hard 70%, medium 30%
+  if (canBuyD('Fuel Tank') && Math.random() < (diff === 'hard' ? 0.7 : 0.3)) doBuyD('Fuel Tank');
+
   applyDefenses(t);
 }
 
@@ -3915,11 +4447,58 @@ function cpuSimulateLanding(shooter, angleDeg, power) {
   return { landX: x, result: 'timeout' };
 }
 
-const CPU_SKIP_WEAPONS = new Set(['Lazy Boy', 'Tracer']);
-function cpuSelectWeapon(tankIndex) {
-  const t = tanks[tankIndex];
+const CPU_GROUND_TYPES = new Set(['roller', 'digger']);
+
+function cpuSelectWeapon(tankIndex, targetIdx) {
+  const t      = tanks[tankIndex];
+  const target = (targetIdx >= 0) ? tanks[targetIdx] : null;
+  const has    = name => (t.inventory[name] || 0) > 0;
+
+  // 1. Target is nearly dead and unshielded — don't waste good ammo
+  if (target && target.health <= 30 && target.shieldHP === 0) {
+    t.selectedWeapon = 'Baby Missile';
+    return;
+  }
+
+  // 2. Ceiling blocks normal arcs — fall back to ground/burrow weapons
+  if (target) {
+    const testAngle = target.x > t.x ? 45 : 135;
+    if (cpuSimulateLanding(t, testAngle, 50).result === 'ceiling') {
+      for (const name of ['Sandhog', 'Digger', 'Heavy Roller', 'Roller']) {
+        if (has(name)) { t.selectedWeapon = name; return; }
+      }
+    }
+  }
+
+  // 3. Target has a shield — use the heaviest weapon to punch through it
+  if (target && target.shieldHP > 0) {
+    const heavy = Object.entries(WEAPONS)
+      .filter(([name, wep]) => has(name) && name !== 'Baby Missile' && name !== 'Tracer'
+                            && name !== 'Lazy Boy' && !CPU_GROUND_TYPES.has(wep.type))
+      .sort(([, a], [, b]) => b.hitDamage - a.hitDamage)[0];
+    if (heavy) { t.selectedWeapon = heavy[0]; return; }
+  }
+
+  // 4. Use Lazy Boy when available — CPU bought it because it was missing shots
+  if (has('Lazy Boy')) { t.selectedWeapon = 'Lazy Boy'; return; }
+
+  // 5. Flat terrain around the target — napalm spreads well here
+  if (target) {
+    const tx = Math.round(Math.max(0, Math.min(worldWidth - 1, target.x)));
+    let minH = Infinity, maxH = -Infinity;
+    for (let xi = Math.max(0, tx - 60); xi <= Math.min(worldWidth - 1, tx + 60); xi++) {
+      if (terrain[xi] !== undefined) { minH = Math.min(minH, terrain[xi]); maxH = Math.max(maxH, terrain[xi]); }
+    }
+    if (maxH - minH < 30) {
+      if (has('Hot Napalm')) { t.selectedWeapon = 'Hot Napalm'; return; }
+      if (has('Napalm'))    { t.selectedWeapon = 'Napalm';     return; }
+    }
+  }
+
+  // 6. Default: highest-damage non-ground weapon in inventory
   const best = Object.entries(WEAPONS)
-    .filter(([name]) => !CPU_SKIP_WEAPONS.has(name) && name !== 'Baby Missile' && (t.inventory[name] || 0) > 0)
+    .filter(([name, wep]) => has(name) && name !== 'Baby Missile' && name !== 'Tracer'
+                          && name !== 'Lazy Boy' && !CPU_GROUND_TYPES.has(wep.type))
     .sort(([, a], [, b]) => b.hitDamage - a.hitDamage)[0];
   t.selectedWeapon = best ? best[0] : 'Baby Missile';
 }
@@ -3991,9 +4570,9 @@ function startCpuTurn() {
   const idx = currentPlayer;
   if (!tanks[idx] || !tanks[idx].isAI || tanks[idx].health <= 0) return;
 
-  cpuSelectWeapon(idx);
   const targetIdx = cpuSelectTarget(idx);
   if (targetIdx === -1) return;
+  cpuSelectWeapon(idx, targetIdx);
 
   const aim     = cpuComputeAim(idx, targetIdx);
   cpuAimAngle   = aim.angle;
@@ -4213,6 +4792,98 @@ function gameLoop(ts) {
   // Screen-shake decay
   if (screenShake > 0) screenShake = Math.max(0, screenShake - 18 * dt);
 
+  // Auto Defense: scan for incoming airborne projectiles entering 150 px threat range
+  if (projectiles.length > 0 && (!networkModeOn || networkIsHost)) {
+    for (const proj of projectiles) {
+      if (proj.beingIntercepted || proj.rolling || proj.burrowing || proj.isSubMunition) continue;
+      if (proj.type === 'roller' || proj.type === 'digger') continue;
+      for (let ti = 0; ti < tanks.length; ti++) {
+        const t = tanks[ti];
+        if (t.health <= 0 || t.autoDefenseCharges <= 0 || ti === proj.owner) continue;
+        if (Math.hypot(proj.x - t.x, proj.y - (t.y - 9)) <= 150) {
+          t.autoDefenseCharges--;
+          proj.beingIntercepted = true;
+          spawnInterceptor(ti, proj);
+          break;
+        }
+      }
+    }
+  }
+  updateInterceptors(dt);
+
+  // Deflector & Mag Deflector (host-authoritative)
+  if (projectiles.length > 0 && (!networkModeOn || networkIsHost)) {
+    for (let i = projectiles.length - 1; i >= 0; i--) {
+      const proj = projectiles[i];
+      if (proj.rolling || proj.burrowing || proj.beingIntercepted) continue;
+      const isRollerType = proj.type === 'roller' || proj.type === 'digger';
+
+      for (let ti = 0; ti < tanks.length; ti++) {
+        const t = tanks[ti];
+        if (t.health <= 0 || ti === proj.owner) continue;
+        const cx = t.x, cy = t.y - 9;
+        const dx = proj.x - cx, dy = proj.y - cy;
+        const dist = Math.hypot(dx, dy);
+
+        // ── Mag Deflector: continuous repulsive force within 180 px ────────
+        if (!isRollerType && t.magDeflectorCharges > 0) {
+          const MAG_R = 180;
+          if (dist < MAG_R && dist > 1) {
+            // First time this projectile enters this field: consume a charge
+            if (!proj._magField) proj._magField = new Set();
+            if (!proj._magField.has(ti)) {
+              proj._magField.add(ti);
+              t.magDeflectorCharges--;
+              soundMagDeflectorHum(ti);
+              if (t.magDeflectorCharges === 0) stopMagDeflectorHum(ti);
+            }
+            // F = k / dist^2  — repulsive push away from tank centre
+            const MAG_K  = 55000;
+            const force  = MAG_K / (dist * dist);
+            const nx = dx / dist, ny = dy / dist;
+            proj.vx += nx * force * dt;
+            proj.vy += ny * force * dt;
+          }
+        }
+
+        // ── Deflector: hard bounce at 120 px ───────────────────────────────
+        if (t.deflectorCharges > 0) {
+          const DEF_R = 120;
+          // Only trigger on inward-moving projectiles (approaching the centre)
+          const approaching = dx * proj.vx + dy * proj.vy < 0;
+          if (dist < DEF_R && approaching) {
+            // Rollers get their rollVx reversed; airborne get reflection + scatter
+            if (proj.rolling) {
+              proj.rollVx = -proj.rollVx * 0.80;
+            } else {
+              // Surface normal = outward radial direction
+              const nx = dx / dist, ny = dy / dist;
+              // Reflect velocity off the surface
+              const dot = proj.vx * nx + proj.vy * ny;
+              proj.vx = (proj.vx - 2 * dot * nx) * 0.80;
+              proj.vy = (proj.vy - 2 * dot * ny) * 0.80;
+              // ±30° random scatter
+              const scatter = (Math.random() - 0.5) * (Math.PI / 3);
+              const spd = Math.hypot(proj.vx, proj.vy);
+              const ang = Math.atan2(proj.vy, proj.vx) + scatter;
+              proj.vx = Math.cos(ang) * spd;
+              proj.vy = Math.sin(ang) * spd;
+            }
+            // Push projectile outside the dome so it won't re-trigger
+            proj.x = cx + (dx / dist) * (DEF_R + 2);
+            proj.y = cy + (dy / dist) * (DEF_R + 2);
+
+            t.deflectorCharges--;
+            soundDeflectorBounce();
+            deflectorFlashes.push({ x: proj.x, y: proj.y, age: 0, duration: 0.30 });
+            floatingTexts.push({ x: proj.x, y: proj.y - 12, text: 'DEFLECTED',
+              age: 0, life: 1.8, color: '#44ddff', vy: -20 });
+          }
+        }
+      }
+    }
+  }
+
   // Projectile physics (iterate backwards for safe splicing)
   for (let i = projectiles.length - 1; i >= 0; i--) {
     const proj = projectiles[i];
@@ -4388,28 +5059,42 @@ function gameLoop(ts) {
   updateExplosions(dt);
   updateNapalm(dt);
   updateKillEffects(dt);
+  for (let i = floatingTexts.length - 1; i >= 0; i--) {
+    const ft = floatingTexts[i];
+    ft.age += dt; ft.y += ft.vy * dt;
+    if (ft.age >= ft.life) floatingTexts.splice(i, 1);
+  }
   for (let i = wallFlashes.length - 1; i >= 0; i--) {
     wallFlashes[i].age += dt;
     if (wallFlashes[i].age >= wallFlashes[i].duration) wallFlashes.splice(i, 1);
+  }
+  for (let i = deflectorFlashes.length - 1; i >= 0; i--) {
+    deflectorFlashes[i].age += dt;
+    if (deflectorFlashes[i].age >= deflectorFlashes[i].duration) deflectorFlashes.splice(i, 1);
   }
 
   // Draw — world-space items under camera transform
   applyCamera();
   drawScene();
+  drawDeflectorDomes();
   drawAimGuide();
   for (let i = 0; i < tanks.length; i++) {
     drawTank(tanks[i], i === currentPlayer && projectiles.length === 0 && !shopOpen && !cpuThinking);
   }
   drawProjectiles();
+  drawInterceptors();
   drawExplosions();
   drawNapalm();
   drawKillEffects();
+  drawFloatingTexts();
+  drawDeflectorFlashes();
   drawWallFlashes();
   restoreCamera();
 
   // Screen-space HUD (drawn after restoreCamera)
   drawWallBorder();
   drawWindIndicator();
+  drawDefenseHUD();
 
   ctx.restore();
   animId = requestAnimationFrame(gameLoop);
@@ -4824,6 +5509,7 @@ function stepSetting(si, dir) {
 
 function renderChips(containerId, items, stateObj) {
   const container = document.getElementById(containerId);
+  const tip       = document.getElementById('tank-tooltip');
   container.innerHTML = '';
   items.forEach(item => {
     const btn = document.createElement('button');
@@ -4838,6 +5524,32 @@ function renderChips(containerId, items, stateObj) {
     btn.addEventListener('keydown', e => {
       if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); toggle(); }
     });
+
+    // Tooltip: look up desc from WEAPONS or DEFENSES
+    const data = WEAPONS[item] || DEFENSES[item];
+    if (data && data.desc) {
+      const costStr = data.cost > 0 ? `<span style="color:#88cc88">$${data.cost.toLocaleString()}</span> &nbsp;` : '';
+      btn.addEventListener('mouseenter', e => {
+        tip.innerHTML = `<span style="color:#ffdd88">${htmlEsc(item)}</span> &nbsp;${costStr}<span style="color:#cccccc">${htmlEsc(data.desc)}</span>`;
+        const pad = 12, tw = tip.offsetWidth || 180, th = tip.offsetHeight || 32;
+        let tx = e.clientX + pad, ty = e.clientY - 36;
+        if (tx + tw > window.innerWidth)  tx = e.clientX - tw - pad;
+        if (ty < 0)                        ty = e.clientY + pad;
+        if (ty + th > window.innerHeight)  ty = window.innerHeight - th - pad;
+        tip.style.left = tx + 'px'; tip.style.top = ty + 'px';
+        tip.style.display = 'block';
+      });
+      btn.addEventListener('mousemove', e => {
+        const pad = 12, tw = tip.offsetWidth || 180, th = tip.offsetHeight || 32;
+        let tx = e.clientX + pad, ty = e.clientY - 36;
+        if (tx + tw > window.innerWidth)  tx = e.clientX - tw - pad;
+        if (ty < 0)                        ty = e.clientY + pad;
+        if (ty + th > window.innerHeight)  ty = window.innerHeight - th - pad;
+        tip.style.left = tx + 'px'; tip.style.top = ty + 'px';
+      });
+      btn.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
+    }
+
     container.appendChild(btn);
   });
 }
@@ -5565,10 +6277,13 @@ function networkGameOver(message) {
 function netHealthSync() {
   if (!networkModeOn || !networkIsHost || !networkWs || networkWs.readyState !== WebSocket.OPEN) return;
   networkWs.send(JSON.stringify({
-    type:     'state_sync',
-    healths:  tanks.map(t => t.health),
-    shieldHPs: tanks.map(t => t.shieldHP),
-    moneys:   tanks.map(t => t.money),
+    type:          'state_sync',
+    healths:       tanks.map(t => t.health),
+    shieldHPs:     tanks.map(t => t.shieldHP),
+    autoDefCharges: tanks.map(t => t.autoDefenseCharges),
+    deflCharges:   tanks.map(t => t.deflectorCharges),
+    magDefCharges: tanks.map(t => t.magDeflectorCharges),
+    moneys:        tanks.map(t => t.money),
     wind,
   }));
 }
@@ -5624,6 +6339,15 @@ function applyStateSync(msg) {
   }
   if (msg.shieldHPs) {
     msg.shieldHPs.forEach((s, i) => { if (tanks[i]) tanks[i].shieldHP = s; });
+  }
+  if (msg.autoDefCharges) {
+    msg.autoDefCharges.forEach((c, i) => { if (tanks[i]) tanks[i].autoDefenseCharges = c; });
+  }
+  if (msg.deflCharges) {
+    msg.deflCharges.forEach((c, i) => { if (tanks[i]) tanks[i].deflectorCharges = c; });
+  }
+  if (msg.magDefCharges) {
+    msg.magDefCharges.forEach((c, i) => { if (tanks[i]) tanks[i].magDeflectorCharges = c; });
   }
   if (msg.moneys) {
     msg.moneys.forEach((m, i) => { if (tanks[i]) tanks[i].money = m; });
@@ -5896,7 +6620,10 @@ function handleWsMessage(msg) {
           tanks[senderIdx].inventory = { ...msg.inventory };
           // JSON can't encode Infinity — restore free weapons which are always unlimited
           Object.entries(WEAPONS).forEach(([n, w]) => { if (w.cost === 0) tanks[senderIdx].inventory[n] = Infinity; });
-          if (msg.defInventory) tanks[senderIdx].defInventory = { ...msg.defInventory };
+          if (msg.defInventory) {
+            tanks[senderIdx].defInventory = { ...msg.defInventory };
+            applyDefenses(tanks[senderIdx]); // update shieldHP so tooltip % is correct from round start
+          }
           tanks[senderIdx].selectedWeapon = msg.selectedWeapon || tanks[senderIdx].selectedWeapon;
           if (msg.money != null) tanks[senderIdx].money = msg.money;
           console.log('[money] shop_done RECV from', tanks[senderIdx].name, '– money: $' + tanks[senderIdx].money);
@@ -6126,6 +6853,9 @@ function initGame() {
   killEffects       = [];
   killEffectPending = false;
   pendingTurnAction = null;
+  interceptors      = [];
+  floatingTexts     = [];
+  deflectorFlashes  = [];
   introPhase        = 'none';
   introTimer        = 0;
   introTankDrops    = [];
@@ -6157,6 +6887,7 @@ function initGame() {
 
   generateTerrain();
   generateStars();
+  if (tanks) tanks.forEach((_, i) => stopMagDeflectorHum(i));
   placeTanks();
   // Round 1 only: initialize each player's money to Starting Cash from settings.
   // This is the ONE place starting cash is ever assigned — never in startNextRound.
@@ -6180,6 +6911,13 @@ function initGame() {
     // Snapshot balances AFTER shop closes — combat earnings are measured against this
     cashAtRoundStart = tanks.map(t => t.money);
     console.log('[money] shop closed (round 1) – post-shop balances:', tanks.map(t => t.name + ': $' + t.money).join(', '));
+    // Record max shield HP for tooltip %, then consume single-use defense items
+    tanks.forEach(t => {
+      t.maxShieldHP = t.shieldHP;
+      for (const [name, def] of Object.entries(DEFENSES)) {
+        if (def.shieldHP || def.charges || def.defCharges || def.magCharges) t.defInventory[name] = 0;
+      }
+    });
     // Reset weapon selection to Baby Missile after shop closes, regardless of shop auto-select
     tanks.forEach(t => { if (t.health > 0) t.selectedWeapon = 'Baby Missile'; });
     startIntroSequence(() => {
@@ -6227,9 +6965,16 @@ document.getElementById('net-chat-input').addEventListener('keydown', e => {
     if (!hit) { tip.style.display = 'none'; return; }
 
     const barColor = hit.health > 60 ? '#44dd44' : hit.health > 30 ? '#ddcc22' : '#dd2222';
+    let shieldStr = '';
+    if (hit.maxShieldHP > 0 && hit.shieldHP > 0) {
+      const pct = Math.round(hit.shieldHP / hit.maxShieldHP * 100);
+      const sc = pct > 50 ? '#44aaff' : pct > 20 ? '#aaddff' : '#ff8844';
+      shieldStr = ` &nbsp;<span style="color:${sc}">\u{1F6E1} ${pct}%</span>`;
+    }
     tip.innerHTML =
       `<span style="color:${hit.color}">${htmlEsc(hit.name)}</span> &nbsp;` +
-      `<span style="color:${barColor}">${hit.health} HP</span>`;
+      `<span style="color:${barColor}">${hit.health} HP</span>` +
+      shieldStr;
 
     // Position tooltip near cursor, keeping it on-screen
     const pad = 12;

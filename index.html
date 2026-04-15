@@ -373,54 +373,30 @@ canvas { position: absolute; image-rendering: pixelated; }
 #quit-confirm-box button:hover { background: #0ff; color: #000; }
 #quit-btn-yes { border-color: #f55 !important; color: #f55 !important; }
 #quit-btn-yes:hover { background: #f55 !important; color: #000 !important; }
-/* ── about overlay ─────────────────────────────────────────────────────────── */
-#about-overlay {
-  display: none;
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.75);
-  z-index: 900;
-  align-items: center;
-  justify-content: center;
+/* ── about + settings side-by-side row ───────────────────────────────────── */
+#about-settings-row {
+  display: flex;
+  gap: 12px;
+  align-items: stretch;
+  margin-bottom: 12px;
 }
-#about-overlay.visible { display: flex; }
-#about-box {
-  background: #000;
-  border: 2px solid #0ff;
-  color: #fff;
-  font-family: 'Courier New', monospace;
-  padding: 32px 44px 28px;
-  min-width: 380px;
-  max-width: 520px;
+#panel-about {
+  flex: 2 0 40%;
+  margin-bottom: 0;
 }
-#about-box h2 {
-  margin: 0 0 2px;
-  font-size: 22px;
-  color: #ff5555;
-  letter-spacing: 0.12em;
-  text-shadow: 2px 2px #550000;
-}
-#about-box .about-subtitle {
-  color: #FFFF55;
-  font-size: 13px;
-  margin-bottom: 20px;
-  letter-spacing: 0.05em;
-}
-#about-box .about-ver {
+#panel-about .about-ver {
   color: #0ff;
-  font-size: 13px;
-  margin-bottom: 18px;
-}
-#about-box .about-body {
-  color: rgba(255,255,255,0.75);
-  font-size: 13px;
-  line-height: 1.7;
-  margin-bottom: 22px;
-}
-#about-box .about-dismiss {
-  text-align: right;
-  color: rgba(0,255,255,0.45);
   font-size: 12px;
+  margin-bottom: 12px;
+}
+#panel-about .about-body {
+  color: rgba(255,255,255,0.75);
+  font-size: 12px;
+  line-height: 1.65;
+}
+#about-settings-row #panel-settings {
+  flex: 3 0 0;
+  margin-bottom: 0;
 }
 /* ── DOS-era setup screen ─────────────────────────────────────────────────── */
 #setup {
@@ -935,7 +911,6 @@ canvas { position: absolute; image-rendering: pixelated; }
   display: flex; flex-direction: column; align-items: stretch;
   margin-top: 12px; gap: 10px;
 }
-#setup-kbd-hints { color: #00AAAA; font-size: 12px; letter-spacing: 1px; text-align: center; }
 #setup-start-row { display: flex; justify-content: center; }
 #setup-start {
   padding: 8px 24px; background: #007700; color: #fff;
@@ -1120,21 +1095,6 @@ canvas { position: absolute; image-rendering: pixelated; }
     </div>
   </div>
 </div>
-<div id="about-overlay">
-  <div id="about-box">
-    <h2>SCORCHED EARTH</h2>
-    <div class="about-subtitle">The Mother of All Games</div>
-    <div class="about-ver" id="about-ver">Version 1.6.0</div>
-    <div class="about-body">
-      A JavaScript/HTML5 reimagining of the classic 1991 DOS artillery game.<br><br>
-      Up to 5 players (human or CPU) take turns firing weapons at each other
-      across a destructible landscape. Buy weapons between rounds, manage your
-      cash, and be the last tank standing.<br><br>
-      Inspired by the original Scorched Earth by Wendell Hicken.
-    </div>
-    <div class="about-dismiss">Press A or Escape to close</div>
-  </div>
-</div>
 <div id="setup">
   <div id="setup-inner">
     <h1 id="setup-title">SCORCHED EARTH</h1>
@@ -1159,9 +1119,24 @@ canvas { position: absolute; image-rendering: pixelated; }
       </div>
     </div>
 
-    <div class="dos-panel" id="panel-settings">
-      <div class="dos-panel-title">Game Settings</div>
-      <div class="dos-panel-body" id="setup-settings-body"></div>
+    <div id="about-settings-row">
+      <div class="dos-panel" id="panel-settings">
+        <div class="dos-panel-title">Game Settings</div>
+        <div class="dos-panel-body" id="setup-settings-body"></div>
+      </div>
+      <div class="dos-panel" id="panel-about">
+        <div class="dos-panel-title">About</div>
+        <div class="dos-panel-body">
+          <div class="about-ver" id="about-ver"></div>
+          <div class="about-body">
+            A JavaScript/HTML5 reimagining of the classic 1991 DOS artillery game.<br><br>
+            Up to 5 players (human or CPU) take turns firing weapons at each other
+            across a destructible landscape. Buy weapons between rounds, manage your
+            cash, and be the last tank standing.<br><br>
+            Inspired by the original Scorched Earth by Wendell Hicken.
+          </div>
+        </div>
+      </div>
     </div>
 
     <div class="dos-panel" id="panel-weapons">
@@ -1179,7 +1154,6 @@ canvas { position: absolute; image-rendering: pixelated; }
     </div>
 
     <div id="setup-footer">
-      <div id="setup-kbd-hints">Tab/Arrows: navigate &nbsp;|&nbsp; Space/Enter: toggle &nbsp;|&nbsp; A: about</div>
       <div id="setup-start-row"><button id="setup-start">&#9654; START GAME</button></div>
     </div>
   </div>
@@ -1204,8 +1178,9 @@ canvas { position: absolute; image-rendering: pixelated; }
           <tr>
             <th>PLAYER</th>
             <th>BANK</th>
-            <th>ROUND WINNINGS</th>
             <th>INTEREST</th>
+            <th>BONUS CASH</th>
+            <th>ROUND WINNINGS</th>
             <th>TOTAL</th>
           </tr>
         </thead>
@@ -1231,7 +1206,7 @@ const scoreboardEl = document.getElementById('scoreboard');
 const VWIDTH  = 1920;
 const VHEIGHT = 1080;
 
-const GAME_VERSION = '1.8.4'; // bump whenever index.html is updated
+const GAME_VERSION = '1.8.9'; // bump whenever index.html is updated
 
 // ── constants ──────────────────────────────────────────────────────────────
 const GRAVITY    = 260;   // px/s²
@@ -1384,9 +1359,10 @@ const MENU_DEFENSES = [
   'Parachute','Battery','Fuel Tank','Auto Defense',
 ];
 const SETTING_DEFS = [
-  { key:'rounds',   label:'Rounds',        opts:[1,5,10,20,50],                        fmt:v=>String(v) },
-  { key:'cash',     label:'Starting Cash', opts:[5000,10000,15000,20000,30000,50000],  fmt:v=>'$'+v.toLocaleString() },
-  { key:'interest', label:'Interest Rate', opts:[0,5,10,15,20,25,30],                 fmt:v=>v+'%' },
+  { key:'rounds',   label:'Rounds',        opts:Array.from({length:50},(_,i)=>i+1),    fmt:v=>String(v) },
+  { key:'cash',         label:'Starting Cash',  opts:[5000,10000,15000,20000,30000,50000],       fmt:v=>'$'+v.toLocaleString() },
+  { key:'cashPerRound', label:'Cash Per Round',  opts:Array.from({length:21},(_,i)=>i*1000),     fmt:v=>v===0?'Off':'$'+v.toLocaleString() },
+  { key:'interest',     label:'Interest Rate',   opts:[0,5,10,15,20,25,30],                      fmt:v=>v+'%' },
   { key:'terrain',  label:'Terrain',       opts:['Random','Plains','Plateaus','Mountains','Canyon','Fortress','Caves','Mixed'], fmt:v=>v },
   { key:'walls',    label:'Walls',         opts:['None','Rubber','Wrap','Concrete','Absorb','Random'], fmt:v=>v },
   { key:'wind',     label:'Wind',          opts:['None','Light','Gusty','Tornado'],    fmt:v=>v },
@@ -1923,7 +1899,7 @@ let gameSettings     = {};
 let menuPlayers     = Array.from({length:5}, (_, i) => ({
   name:`Player ${i+1}`, colorIdx:i, typeIdx: i < 2 ? 1 : 0,
 }));
-let menuSettingsIdx = { rounds:1, cash:1, interest:2, terrain:0, walls:5, wind:2, gravity:1 };
+let menuSettingsIdx = { rounds:4, cash:1, cashPerRound:1, interest:2, terrain:0, walls:5, wind:2, gravity:1 };
 let menuWeapons     = Object.fromEntries(MENU_WEAPONS.map(w=>[w, w !== 'Nuke' && w !== 'Lazy Boy']));
 let menuDefenses    = Object.fromEntries(MENU_DEFENSES.map(d=>[d,true]));
 
@@ -3156,12 +3132,19 @@ function endRound() {
   const roundKills = new Array(tanks.length).fill(0);
   tanks.forEach(t => { if (t.health <= 0 && t.killedBy >= 0) roundKills[t.killedBy]++; });
 
-  // Capture per-round snapshot
+  // Capture per-round snapshot (combat cash only, before bonus is applied)
+  const perRoundBonus = gameSettings.cashPerRound || 0;
   lastRoundData = tanks.map((t, i) => ({
-    kills:  roundKills[i],
-    damage: t.damageDealt,
-    cash:   Math.max(0, t.money - cashAtRoundStart[i]),
+    kills:     roundKills[i],
+    damage:    t.damageDealt,
+    cash:      Math.max(0, t.money - cashAtRoundStart[i]),
+    bonusCash: perRoundBonus,
   }));
+
+  // Apply per-round cash allowance to all players
+  if (perRoundBonus > 0) {
+    tanks.forEach(t => { t.money += perRoundBonus; });
+  }
 
   // Save rankings before score update (for rank-change arrows)
   prevRankings = playerStats.map((_, i) => i)
@@ -3253,27 +3236,39 @@ function showScoreboard(isFinal) {
   const cashRows = document.getElementById('sb-cash-rows');
   cashRows.innerHTML = '';
   document.getElementById('sb-cash-section').style.display = '';
-  const rate = (gameSettings.interest || 0) / 100;
+  const rate           = (gameSettings.interest || 0) / 100;
+  const showBonusCol   = (gameSettings.cashPerRound || 0) > 0;
+  // Show/hide the BONUS CASH column header
+  const cashThead = document.querySelector('#sb-cash-table thead tr');
+  cashThead.querySelectorAll('th').forEach(th => {
+    if (th.textContent === 'BONUS CASH') th.style.display = showBonusCol ? '' : 'none';
+  });
   tanks.forEach((t, i) => {
     const s        = playerStats[i];
+    const rd       = lastRoundData[i] || { cash: 0, bonusCash: 0 };
     const bank     = cashAtRoundStart[i] ?? t.money;           // what was left after purchases
-    const won      = Math.max(0, t.money - bank);              // combat earnings this round
+    const combat   = rd.cash;                                  // pure combat earnings (pre-bonus)
+    const bonus    = rd.bonusCash || 0;
     const batBonus = 0.20 * ((t.defInventory || {})['Battery'] || 0);
     const interest = Math.floor(bank * (rate + batBonus));     // interest on the bank balance
-    const total    = bank + interest + won;                    // what they have to shop with next
+    const total    = bank + interest + bonus + combat;         // what they have to shop with next
     const intPct   = Math.round((rate + batBonus) * 100);
-    const wonCell  = won > 0
-      ? `<span style="color:#55ff55">+$${won.toLocaleString()}</span>`
+    const wonCell  = combat > 0
+      ? `<span style="color:#55ff55">+$${combat.toLocaleString()}</span>`
       : `<span style="color:rgba(255,255,255,0.3)">—</span>`;
     const intCell  = interest > 0
       ? `<span class="sb-cash-interest">+$${interest.toLocaleString()}</span> <span style="color:rgba(255,255,255,0.4)">(${intPct}%)</span>`
+      : `<span style="color:rgba(255,255,255,0.3)">—</span>`;
+    const bonusCell = bonus > 0
+      ? `<span style="color:#FFFF55">+$${bonus.toLocaleString()}</span>`
       : `<span style="color:rgba(255,255,255,0.3)">—</span>`;
     const tr = document.createElement('tr');
     tr.innerHTML =
       `<td style="color:${s.color}">${htmlEsc(s.name)}</td>` +
       `<td>$${bank.toLocaleString()}</td>` +
-      `<td>${wonCell}</td>` +
       `<td>${intCell}</td>` +
+      `<td style="display:${showBonusCol ? '' : 'none'}">${bonusCell}</td>` +
+      `<td>${wonCell}</td>` +
       `<td class="sb-cash-total">$${total.toLocaleString()}</td>`;
     cashRows.appendChild(tr);
   });
@@ -5100,12 +5095,7 @@ function gameLoop(ts) {
   animId = requestAnimationFrame(gameLoop);
 }
 
-// ── about overlay ──────────────────────────────────────────────────────────
-const aboutOverlayEl = document.getElementById('about-overlay');
 document.getElementById('about-ver').textContent = 'Version ' + GAME_VERSION;
-aboutOverlayEl.addEventListener('click', e => {
-  if (e.target === aboutOverlayEl) aboutOverlayEl.classList.remove('visible');
-});
 
 // ── quit to menu ───────────────────────────────────────────────────────────
 const quitConfirmEl = document.getElementById('quit-confirm');
@@ -5294,9 +5284,6 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
     e.preventDefault();
     if (chatOpen) { closeChat(); return; }
-    if (aboutOverlayEl.classList.contains('visible')) {
-      aboutOverlayEl.classList.remove('visible'); return;
-    }
     if (quitConfirmEl.classList.contains('visible')) {
       quitConfirmEl.classList.remove('visible'); return;
     }
@@ -5310,14 +5297,6 @@ document.addEventListener('keydown', e => {
   if ((e.key === 't' || e.key === 'T') && networkModeOn && setupEl.style.display === 'none' && !shopOpen && !chatOpen) {
     e.preventDefault();
     openChat();
-    return;
-  }
-
-  // A: about (on menu screen only)
-  if ((e.key === 'a' || e.key === 'A') && setupEl.style.display !== 'none') {
-    e.preventDefault();
-    aboutOverlayEl.classList.toggle('visible');
-    document.getElementById('about-ver').textContent = 'Version ' + GAME_VERSION;
     return;
   }
 
@@ -5628,9 +5607,10 @@ function _applyGuestPanelVisibility() {
     (networkPhase === 'lobby' && !networkIsHost)
   );
   const display = hideEditable ? 'none' : '';
-  document.getElementById('panel-settings').style.display  = display;
-  document.getElementById('panel-weapons').style.display   = display;
-  document.getElementById('panel-defenses').style.display  = display;
+  document.getElementById('panel-settings').style.display      = display;
+  document.getElementById('panel-weapons').style.display       = display;
+  document.getElementById('panel-defenses').style.display      = display;
+  document.getElementById('about-settings-row').style.display  = display;
 }
 
 function setNetworkMode(on) {
@@ -5652,9 +5632,10 @@ function setNetworkMode(on) {
     placeholder.style.display = 'none';
     table.style.display       = '';
     // Restore editable panels when network mode is turned off
-    document.getElementById('panel-settings').style.display  = '';
-    document.getElementById('panel-weapons').style.display   = '';
-    document.getElementById('panel-defenses').style.display  = '';
+    document.getElementById('panel-settings').style.display      = '';
+    document.getElementById('panel-weapons').style.display       = '';
+    document.getElementById('panel-defenses').style.display      = '';
+    document.getElementById('about-settings-row').style.display  = '';
   }
   updateStartBtn();
 }

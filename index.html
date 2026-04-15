@@ -1206,10 +1206,10 @@ const scoreboardEl = document.getElementById('scoreboard');
 const VWIDTH  = 1920;
 const VHEIGHT = 1080;
 
-const GAME_VERSION = '1.8.9'; // bump whenever index.html is updated
+const GAME_VERSION = '1.9.2'; // bump whenever index.html is updated
 
 // ── constants ──────────────────────────────────────────────────────────────
-const GRAVITY    = 260;   // px/s²
+let GRAVITY      = 260;   // px/s² — overridden at game start by gravity setting
 const BLAST_R    = 48;    // default crater radius px
 const TANK_HIT_R = 18;    // tank collision radius px
 const HIT_DAMAGE   = 75;
@@ -1312,15 +1312,15 @@ const WEAPONS = {
 
 // ── defense definitions ────────────────────────────────────────────────────
 const DEFENSES = {
-  'Shield S':     { cost: 1500, desc: 'Absorbs 30 damage',  shieldHP: 30  },
-  'Shield M':     { cost: 3000, desc: 'Absorbs 60 damage',  shieldHP: 60  },
-  'Shield L':     { cost: 5000, desc: 'Absorbs 100 damage', shieldHP: 100 },
-  'Parachute':    { cost:  800, desc: 'Prevents fall damage'               },
-  'Battery':      { cost: 1000, desc: '20% bonus interest'                 },
-  'Fuel Tank':    { cost:  600, desc: '50 movement units',  fuel: 50       },
-  'Auto Defense': { cost: 4000, desc: 'Fires interceptors at incoming shots — 3 charges.', charges: 3 },
-  'Deflector':    { cost: 2000, desc: 'Hard-bounces projectiles at 120px — 3 charges.', defCharges: 3 },
-  'Mag Deflector':{ cost: 3500, desc: 'Repulses projectiles within 180px — 5 charges.', magCharges: 5 },
+  'Shield S':     { cost: 1500, tag: '(30 HP shield)',    desc: 'Absorbs 30 damage before it reaches your tank.',           shieldHP: 30  },
+  'Shield M':     { cost: 3000, tag: '(60 HP shield)',    desc: 'Absorbs 60 damage before it reaches your tank.',           shieldHP: 60  },
+  'Shield L':     { cost: 5000, tag: '(100 HP shield)',   desc: 'Absorbs 100 damage before it reaches your tank.',          shieldHP: 100 },
+  'Parachute':    { cost:  800, tag: '(no fall dmg)',     desc: 'Deploys automatically — prevents all falling damage.'                    },
+  'Battery':      { cost: 1000, tag: '(+20% interest)',   desc: 'Adds 20% to your interest rate each round. Stacks.'                      },
+  'Fuel Tank':    { cost:  600, tag: '(50 fuel)',         desc: 'Grants 50 movement units to reposition before firing.',   fuel: 50       },
+  'Auto Defense': { cost: 4000, tag: '(3 intercepts)',    desc: 'Fires interceptor missiles at incoming shots. 3 charges.', charges: 3    },
+  'Deflector':    { cost: 2000, tag: '(3 deflects)',      desc: 'Hard-bounces projectiles that come within 120px. 3 charges.', defCharges: 3 },
+  'Mag Deflector':{ cost: 3500, tag: '(5 repulses)',      desc: 'Magnetically repels projectiles within 180px. 5 charges.', magCharges: 5 },
 };
 
 // ── player / AI constants ──────────────────────────────────────────────────
@@ -4023,6 +4023,29 @@ function renderShop(playerIndex) {
     sellBtn.addEventListener('click', ev => { ev.stopPropagation(); shopSellItem(playerIndex, isDefense, name); });
     buyBtn .addEventListener('click', ev => { ev.stopPropagation(); shopBuyItem (playerIndex, isDefense, name); });
     row.addEventListener('click', () => { shopCursor = cursorIdx; renderShop(playerIndex); });
+
+    // Tooltip on hover
+    const itemData = isDefense ? DEFENSES[name] : WEAPONS[name];
+    if (itemData && itemData.desc) {
+      const tip = document.getElementById('tank-tooltip');
+      const costTip = itemData.cost > 0 ? `<span style="color:#88cc88">$${itemData.cost.toLocaleString()}</span> &nbsp;` : '';
+      const positionTip = e => {
+        const pad = 14, tw = tip.offsetWidth || 240, th = tip.offsetHeight || 32;
+        let tx = e.clientX + pad, ty = e.clientY - 40;
+        if (tx + tw > window.innerWidth)  tx = e.clientX - tw - pad;
+        if (ty < 0)                       ty = e.clientY + pad;
+        if (ty + th > window.innerHeight) ty = window.innerHeight - th - pad;
+        tip.style.left = tx + 'px'; tip.style.top = ty + 'px';
+      };
+      row.addEventListener('mouseenter', e => {
+        tip.innerHTML = `<span style="color:#ffdd88">${htmlEsc(name)}</span> &nbsp;${costTip}<span style="color:#cccccc">${htmlEsc(itemData.desc)}</span>`;
+        tip.style.display = 'block';
+        positionTip(e);
+      });
+      row.addEventListener('mousemove',  positionTip);
+      row.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
+    }
+
     return row;
   }
 
@@ -4053,7 +4076,7 @@ function renderShop(playerIndex) {
     const owned   = t.defInventory[name] || 0;
     const canBuy  = t.money >= def.cost;
     const canSell = owned > 0;
-    dList.appendChild(makeRow(name, def.desc, `$${def.cost.toLocaleString()}`, String(owned), true, canBuy, canSell));
+    dList.appendChild(makeRow(name, def.tag, `$${def.cost.toLocaleString()}`, String(owned), true, canBuy, canSell));
   }
 
   // Scroll selected row into view
@@ -6524,13 +6547,14 @@ function handleWsMessage(msg) {
         const pl = msg.players  || networkPlayers;
         if (s && pl && pl.length) {
           const settingsOut = {
-            rounds:   s.rounds,
-            cash:     s.cash,
-            interest: s.interest,
-            terrain:  s.terrain,
-            walls:    s.walls,
-            wind:     s.wind,
-            gravity:  s.gravity,
+            rounds:       s.rounds,
+            cash:         s.cash,
+            cashPerRound: s.cashPerRound || 0,
+            interest:     s.interest,
+            terrain:      s.terrain,
+            walls:        s.walls,
+            wind:         s.wind,
+            gravity:      s.gravity,
           };
           settingsOut.wallsOriginal = settingsOut.walls;
           const activePlayers = pl.map(p => ({
@@ -6819,6 +6843,10 @@ function initSetupListeners() {
 function initGame() {
   if (!playerConfigs || playerConfigs.length === 0) return;
   if (animId) cancelAnimationFrame(animId);
+
+  // Apply gravity setting
+  const gravMap = { 'Low': 130, 'Normal': 260, 'High': 455 };
+  GRAVITY = gravMap[gameSettings.gravity] ?? 260;
 
   gameOver          = false;
   projectiles       = [];

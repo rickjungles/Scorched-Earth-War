@@ -472,9 +472,37 @@ canvas { position: absolute; image-rendering: pixelated; }
 }
 #net-pre-buttons {
   display: flex;
-  gap: 16px;
+  flex-direction: column;
+  gap: 4px;
   padding: 12px 4px;
 }
+.net-pre-action-row {
+  display: flex;
+  gap: 16px;
+  padding: 4px 0;
+}
+#net-pre-layout {
+  display: flex;
+  gap: 28px;
+  align-items: flex-start;
+}
+#net-pre-hints {
+  flex: 1;
+  font-size: 11px;
+  line-height: 1.7;
+  color: rgba(255,255,255,0.55);
+  padding-top: 10px;
+}
+#net-pre-hints .hint-head {
+  color: #FFFF55;
+  letter-spacing: 2px;
+  font-size: 10px;
+  text-transform: uppercase;
+  display: block;
+  margin-top: 10px;
+  margin-bottom: 2px;
+}
+#net-pre-hints .hint-head:first-child { margin-top: 0; }
 #btn-host, #btn-join {
   background: transparent;
   border: 2px solid #00AAAA;
@@ -5613,6 +5641,10 @@ let pendingStateSyncs       = [];    // state_sync msgs queued while projectiles
 // Chat state
 let chatOpen = false;               // T-key chat input is visible
 
+// Host server address (persists across re-renders)
+let networkHostAddr = 'localhost';
+let networkHostPort = '3000';
+
 // Join-form state (persists across re-renders and retries)
 let networkJoinAddr     = 'localhost';
 let networkJoinPort     = '3000';
@@ -5668,12 +5700,46 @@ function renderNetworkPanel() {
   el.innerHTML = '';
 
   if (networkPhase === 'pre-connect') {
+    const layout = document.createElement('div');
+    layout.id = 'net-pre-layout';
+    el.appendChild(layout);
+
     const div = document.createElement('div');
     div.id = 'net-pre-buttons';
-    div.innerHTML = `<button id="btn-host">&#9654; HOST</button><button id="btn-join">&#9670; JOIN</button>`;
-    el.appendChild(div);
-    div.querySelector('#btn-host').addEventListener('click', hostGame);
+    div.innerHTML = `
+      <div class="net-form-grid net-server-row">
+        <label class="net-form-label" for="net-host-addr">Server</label>
+        <input class="net-form-input" id="net-host-addr" type="text" value="${htmlEsc(networkHostAddr)}" placeholder="localhost" maxlength="64" autocomplete="off">
+        <label class="net-form-label" for="net-host-port">Port</label>
+        <input class="net-form-input net-form-input-short" id="net-host-port" type="text" value="${htmlEsc(networkHostPort)}" placeholder="3000" maxlength="5" autocomplete="off">
+      </div>
+      <div class="net-pre-action-row">
+        <button id="btn-host">&#9654; HOST</button><button id="btn-join">&#9670; JOIN</button>
+      </div>`;
+    layout.appendChild(div);
+    div.querySelector('#btn-host').addEventListener('click', () => {
+      const addrEl = div.querySelector('#net-host-addr');
+      const portEl = div.querySelector('#net-host-port');
+      networkHostAddr = (addrEl ? addrEl.value.trim() : networkHostAddr) || 'localhost';
+      networkHostPort = (portEl ? portEl.value.trim() : networkHostPort) || '3000';
+      hostGame();
+    });
     div.querySelector('#btn-join').addEventListener('click', showJoinForm);
+
+    const hints = document.createElement('div');
+    hints.id = 'net-pre-hints';
+    hints.innerHTML = `
+      <span class="hint-head">Requirements</span>
+      A Node.js relay server must be running before you can HOST or JOIN.
+      <span class="hint-head">Running locally?</span>
+      Launch <strong>start-server.bat</strong> to start the server, then click HOST.<br>
+      If other players are joining over the internet, open port ${htmlEsc(networkHostPort)} in Windows Firewall
+      and forward it on your router to this machine.
+      <span class="hint-head">Remote server?</span>
+      Enter the server address and port above, then click HOST.<br>
+      Guests will connect to that same server using the room code you share with them.`;
+    layout.appendChild(hints);
+
     const st = document.createElement('div');
     st.id = 'net-status';
     el.appendChild(st);
@@ -5984,7 +6050,7 @@ function connectWs(url, onOpen) {
       networkJoinError = 'Connection failed \u2014 check address and try again.';
       renderNetworkPanel();
     } else if (networkPhase === 'pre-connect') {
-      netStatus('Server not running \u2014 run start-server.bat first.', true);
+      netStatus('Could not reach server \u2014 check address and ensure server is running.', true);
     } else {
       netStatus('Connection error.', true);
     }
@@ -5995,7 +6061,7 @@ function connectWs(url, onOpen) {
 let _cachedServerInfo = null;
 function _ensureServerInfo() {
   if (_cachedServerInfo) return;
-  fetch('http://localhost:3000/info')
+  fetch(`http://${networkHostAddr}:${networkHostPort}/info`)
     .then(r => r.json())
     .then(info => {
       _cachedServerInfo = info;
@@ -6014,7 +6080,7 @@ function hostGame() {
   _ensureServerInfo();
   const name  = menuPlayers[0].name || 'Player 1';
   const color = PLAYER_COLORS[menuPlayers[0].colorIdx];
-  connectWs('ws://localhost:3000', () => networkWs.send(JSON.stringify({ type: 'create_room', name, color })));
+  connectWs(`ws://${networkHostAddr}:${networkHostPort}`, () => networkWs.send(JSON.stringify({ type: 'create_room', name, color })));
   // Fetch public IP in parallel — update lobby once it resolves
   fetch('https://api.ipify.org?format=text')
     .then(r => r.text())

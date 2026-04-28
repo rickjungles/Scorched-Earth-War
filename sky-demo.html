@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Sky Preview - Scorched Earth</title>
+<style>
+    body {
+        margin: 0;
+        background: #1a1a1a;
+        color: #ddd;
+        font-family: system-ui, sans-serif;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 16px;
+    }
+    canvas {
+        border: 1px solid #333;
+        display: block;
+        background: #000;
+    }
+    .controls {
+        margin-top: 16px;
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        gap: 10px 16px;
+        align-items: center;
+        max-width: 900px;
+        width: 100%;
+        background: #222;
+        padding: 16px 20px;
+        border-radius: 8px;
+        box-sizing: border-box;
+    }
+    .controls label { font-size: 14px; }
+    .controls input[type=range] { width: 100%; }
+    .controls .value { font-family: monospace; min-width: 70px; text-align: right; }
+    .row-toggle {
+        grid-column: 1 / -1;
+        display: flex;
+        gap: 20px;
+        padding-top: 8px;
+        border-top: 1px solid #333;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+    .status {
+        grid-column: 1 / -1;
+        font-size: 13px;
+        color: #888;
+        font-family: monospace;
+        word-break: break-all;
+    }
+    h1 { font-size: 18px; margin: 0 0 12px; }
+    .preset-btns { display: flex; gap: 6px; flex-wrap: wrap; margin-left: auto; }
+    .preset-btns button {
+        background: #333; color: #ddd; border: 1px solid #555;
+        padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 12px;
+    }
+    .preset-btns button:hover { background: #444; }
+</style>
+</head>
+<body>
+
+<h1>Scorched Earth - Sky Preview</h1>
+<canvas id="game" width="900" height="500"></canvas>
+
+<div class="controls">
+    <label for="time">Time of day</label>
+    <input type="range" id="time" min="0" max="24" step="0.05" value="14">
+    <span class="value" id="timeVal">14:00</span>
+
+    <label for="cloud">Cloud cover</label>
+    <input type="range" id="cloud" min="0" max="100" step="1" value="0">
+    <span class="value" id="cloudVal">0%</span>
+
+    <div class="row-toggle">
+        <label><input type="checkbox" id="useRealTime"> Use real local time</label>
+        <label><input type="checkbox" id="useRealWeather"> Use real weather (Open-Meteo, Howard WI)</label>
+        <div class="preset-btns">
+            <button data-h="5.5">Pre-dawn</button>
+            <button data-h="6.8">Sunrise</button>
+            <button data-h="12">Noon</button>
+            <button data-h="19.2">Sunset</button>
+            <button data-h="22">Night</button>
+        </div>
+    </div>
+
+    <div class="status" id="status">Initializing...</div>
+</div>
+
+<script>
+// ============================================================
+// Sky module (inlined - copy this class into your game's sky.js)
+// ============================================================
+class Sky {
+    constructor(options = {}) {
+        this.lat = options.lat ?? 44.55;
+        this.lon = options.lon ?? -88.05;
+        this.useWeather = options.useWeather ?? true;
+        this.useRealSunTimes = options.useRealSunTimes ?? true;
+
+        this.timeOverride = null;
+        this.cloudOverride = null;
+
+        this.sunrise = 6.5;
+        this.sunset = 19.5;
+
+        this.cloudCover = 0;
+        this.weatherCode = 0;
+        this.weatherReady = false;
+        this.lastWeatherFetch = 0;
+        this.weatherFetchInterval = 30 * 60 * 1000;
+
+        this.stars = [];
+        this.clouds = [];
+        this.lastWidth = 0;
+        this.lastHeight = 0;
+
+        if (this.useWeather) this.fetchWeather();
+    }
+
+    async fetchWeather() {
+        const now = Date.now();
+        if (now - this.lastWeatherFetch < this.weatherFetchInterval && this.weatherReady) return;
+        this.lastWeatherFetch = now;
+        try {
+            const url = `https://api.open-meteo.com/v1/forecast` +
+                `?latitude=${this.lat}&longitude=${this.lon}` +
+                `&current=cloud_cover,weather_code` +
+                `&daily=sunrise,sunset&timezone=auto`;
+            const res = await fetch(url);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            this.cloudCover = data.current?.cloud_cover ?? 0;
+            this.weatherCode = data.current?.weather_code ?? 0;
+            if (this.useRealSunTimes && data.daily?.sunrise?.[0]) {
+                this.sunrise = this._isoToDecimalHour(data.daily.sunrise[0]);
+                this.sunset = this._isoToDecimalHour(data.daily.sunset[0]);
+            }
+            this.weatherReady = true;
+            this._regenerateClouds();
+        } catch (err) {
+            console.warn('[Sky] weather fetch failed:', err.message);
+        }
+    }
+
+    _isoToDecimalHour(iso) {
+        const t = iso.split('T')[1];
+        const [h, m] = t.split(':').map(Number);
+        return h + m / 60;
+    }
+
+    getCurrentHour() {
+        if (this.timeOverride !== null) return this.timeOverride;
+        const d = new Date();
+        return d.getHours() + d.getMinutes() / 60 + d.getSeconds() / 3600;
+    }
+
+    getCurrentCloudCover() {
+        return this.cloudOverride !== null ? this.cloudOverride : this.cloudCover;
+    }
+
+    _getPalette(hour) {
+        const palettes = {
+            night:    { top: [5, 8, 24],     mid: [15, 20, 56],   bot: [26, 31, 72] },
+            preDawn:  { top: [22, 22, 60],   mid: [60, 40, 80],   bot: [120, 70, 90] },
+            sunrise:  { top: [120, 140, 200], mid: [240, 160, 130], bot: [255, 200, 120] },
+            morning:  { top: [110, 170, 220], mid: [180, 215, 240], bot: [255, 240, 210] },
+            day:      { top: [60, 130, 200],  mid: [120, 180, 230], bot: [185, 220, 240] },
+            afternoon:{ top: [70, 130, 195],  mid: [140, 180, 220], bot: [220, 220, 210] },
+            sunset:   { top: [60, 50, 110],   mid: [220, 100, 90],  bot: [250, 175, 95] },
+            dusk:     { top: [15, 18, 50],    mid: [55, 38, 90],    bot: [120, 60, 100] },
+        };
+        const sr = this.sunrise, ss = this.sunset;
+        const stops = [
+            { h: 0,        p: palettes.night },
+            { h: sr - 1.5, p: palettes.night },
+            { h: sr - 0.5, p: palettes.preDawn },
+            { h: sr + 0.3, p: palettes.sunrise },
+            { h: sr + 1.5, p: palettes.morning },
+            { h: sr + 4,   p: palettes.day },
+            { h: ss - 4,   p: palettes.day },
+            { h: ss - 1.5, p: palettes.afternoon },
+            { h: ss - 0.2, p: palettes.sunset },
+            { h: ss + 0.8, p: palettes.dusk },
+            { h: ss + 2,   p: palettes.night },
+            { h: 24,       p: palettes.night },
+        ];
+        for (let i = 0; i < stops.length - 1; i++) {
+            const a = stops[i], b = stops[i + 1];
+            if (hour >= a.h && hour <= b.h) {
+                const t = (hour - a.h) / (b.h - a.h || 1);
+                return this._lerpPalette(a.p, b.p, t);
+            }
+        }
+        return palettes.night;
+    }
+
+    _lerpPalette(a, b, t) {
+        return {
+            top: this._lerp3(a.top, b.top, t),
+            mid: this._lerp3(a.mid, b.mid, t),
+            bot: this._lerp3(a.bot, b.bot, t),
+        };
+    }
+
+    _lerp3(a, b, t) {
+        return [
+            Math.round(a[0] + (b[0] - a[0]) * t),
+            Math.round(a[1] + (b[1] - a[1]) * t),
+            Math.round(a[2] + (b[2] - a[2]) * t),
+        ];
+    }
+
+    _rgb(c, alpha = 1) { return `rgba(${c[0]},${c[1]},${c[2]},${alpha})`; }
+
+    _nightAmount(hour) {
+        const sr = this.sunrise, ss = this.sunset;
+        if (hour < sr - 1) return 1;
+        if (hour < sr + 0.5) return 1 - (hour - (sr - 1)) / 1.5;
+        if (hour < ss - 0.5) return 0;
+        if (hour < ss + 1.5) return (hour - (ss - 0.5)) / 2;
+        return 1;
+    }
+
+    _ensureGenerated(width, height) {
+        if (width === this.lastWidth && height === this.lastHeight) return;
+        this.lastWidth = width;
+        this.lastHeight = height;
+        this._generateStars(width, height);
+        this._regenerateClouds();
+    }
+
+    _generateStars(width, height) {
+        this.stars = [];
+        const count = Math.floor((width * height) / 5000);
+        for (let i = 0; i < count; i++) {
+            this.stars.push({
+                x: Math.random() * width,
+                y: Math.random() * height * 0.75,
+                size: Math.random() * 1.6 + 0.3,
+                phase: Math.random() * Math.PI * 2,
+                speed: 0.5 + Math.random() * 2.5,
+                bright: Math.random() < 0.08,
+            });
+        }
+    }
+
+    _regenerateClouds() {
+        if (!this.lastWidth) return;
+        const cover = this.getCurrentCloudCover();
+        const target = Math.floor((cover / 100) * 28);
+        this.clouds = [];
+        for (let i = 0; i < target; i++) this.clouds.push(this._makeCloud(true));
+    }
+
+    _makeCloud(randomX) {
+        const w = this.lastWidth, h = this.lastHeight;
+
+        const roll = Math.random();
+        let type, cloudW, cloudH, displaceScale, opacity;
+        if (roll < 0.5) {
+            type = 'puffy';
+            cloudW = 250 + Math.random() * 320;
+            cloudH = 120 + Math.random() * 80;
+            displaceScale = 40 + Math.random() * 25;
+            opacity = 0.92;
+        } else if (roll < 0.82) {
+            type = 'stretched';
+            cloudW = 450 + Math.random() * 450;
+            cloudH = 80 + Math.random() * 60;
+            displaceScale = 32 + Math.random() * 20;
+            opacity = 0.85;
+        } else {
+            type = 'wispy';
+            cloudW = 350 + Math.random() * 350;
+            cloudH = 45 + Math.random() * 35;
+            displaceScale = 50 + Math.random() * 30;
+            opacity = 0.55;
+        }
+
+        const pad = Math.ceil(displaceScale * 1.6) + 8;
+        const bmpW = Math.ceil(cloudW + pad * 2);
+        const bmpH = Math.ceil(cloudH + pad * 2);
+
+        const bitmap = this._renderCloudBitmap(bmpW, bmpH, cloudW, cloudH, pad, displaceScale, type);
+
+        return {
+            x: randomX ? Math.random() * w : -bmpW,
+            // y is bitmap top-left. Subtract pad so the visible cloud silhouette
+            // (centered in the bitmap with `pad` empty space around it) appears
+            // in the upper third of the sky.
+            y: -pad + 10 + Math.random() * h * 0.20,
+            width: cloudW,
+            height: cloudH,
+            bmpW, bmpH,
+            pad,
+            type,
+            opacity,
+            speed: 0.04 + Math.random() * 0.1,
+            bitmap,
+        };
+    }
+
+    _renderCloudBitmap(bmpW, bmpH, cloudW, cloudH, pad, displaceScale, type) {
+        const src = (typeof OffscreenCanvas !== 'undefined')
+            ? new OffscreenCanvas(bmpW, bmpH)
+            : Object.assign(document.createElement('canvas'), { width: bmpW, height: bmpH });
+        const sctx = src.getContext('2d');
+
+        const numBlobs = 2 + Math.floor(Math.random() * 3);
+        for (let i = 0; i < numBlobs; i++) {
+            const t = numBlobs === 1 ? 0.5 : i / (numBlobs - 1);
+            const cx = pad + cloudW * (0.2 + t * 0.6) + (Math.random() - 0.5) * cloudW * 0.2;
+            const cy = pad + cloudH * (0.45 + (Math.random() - 0.5) * 0.25);
+            const rx = cloudW * (0.22 + Math.random() * 0.18);
+            const ry = cloudH * (0.55 + Math.random() * 0.3);
+
+            const grad = sctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(rx, ry));
+            grad.addColorStop(0,    'rgba(255,255,255,0.95)');
+            grad.addColorStop(0.5,  'rgba(255,255,255,0.6)');
+            grad.addColorStop(1,    'rgba(255,255,255,0)');
+            sctx.fillStyle = grad;
+            sctx.save();
+            sctx.translate(cx, cy);
+            sctx.scale(rx / Math.max(rx, ry), ry / Math.max(rx, ry));
+            sctx.beginPath();
+            sctx.arc(0, 0, Math.max(rx, ry), 0, Math.PI * 2);
+            sctx.fill();
+            sctx.restore();
+        }
+
+        const srcData = sctx.getImageData(0, 0, bmpW, bmpH);
+        const srcPixels = srcData.data;
+
+        const baseFreq = type === 'wispy' ? 0.025 : 0.018;
+        const seedX = Math.random() * 1000;
+        const seedY = Math.random() * 1000;
+
+        const outData = sctx.createImageData(bmpW, bmpH);
+        const outPixels = outData.data;
+
+        const stretchX = type === 'wispy' ? 1.6 : 1.0;
+        const stretchY = type === 'wispy' ? 0.4 : (type === 'stretched' ? 0.6 : 1.0);
+
+        for (let y = 0; y < bmpH; y++) {
+            for (let x = 0; x < bmpW; x++) {
+                const nx = (this._valueNoise(x * baseFreq, y * baseFreq, seedX) - 0.5) * 2
+                         + (this._valueNoise(x * baseFreq * 2, y * baseFreq * 2, seedX + 100) - 0.5);
+                const ny = (this._valueNoise(x * baseFreq, y * baseFreq, seedY) - 0.5) * 2
+                         + (this._valueNoise(x * baseFreq * 2, y * baseFreq * 2, seedY + 100) - 0.5);
+
+                const sx = x + nx * displaceScale * stretchX;
+                const sy = y + ny * displaceScale * stretchY;
+
+                const xi = Math.round(sx);
+                const yi = Math.round(sy);
+                if (xi < 0 || xi >= bmpW || yi < 0 || yi >= bmpH) continue;
+
+                const srcIdx = (yi * bmpW + xi) * 4;
+                const dstIdx = (y * bmpW + x) * 4;
+                outPixels[dstIdx]     = srcPixels[srcIdx];
+                outPixels[dstIdx + 1] = srcPixels[srcIdx + 1];
+                outPixels[dstIdx + 2] = srcPixels[srcIdx + 2];
+                outPixels[dstIdx + 3] = srcPixels[srcIdx + 3];
+            }
+        }
+
+        const intermediate = (typeof OffscreenCanvas !== 'undefined')
+            ? new OffscreenCanvas(bmpW, bmpH)
+            : Object.assign(document.createElement('canvas'), { width: bmpW, height: bmpH });
+        intermediate.getContext('2d').putImageData(outData, 0, 0);
+
+        // Blur softens all edges uniformly
+        const blurRadius = Math.round(Math.max(3, displaceScale * 0.12));
+        const out = (typeof OffscreenCanvas !== 'undefined')
+            ? new OffscreenCanvas(bmpW, bmpH)
+            : Object.assign(document.createElement('canvas'), { width: bmpW, height: bmpH });
+        const octx = out.getContext('2d');
+        octx.filter = `blur(${blurRadius}px)`;
+        octx.drawImage(intermediate, 0, 0);
+        octx.filter = 'none';
+        return out;
+    }
+
+    _valueNoise(x, y, seed) {
+        const xi = Math.floor(x);
+        const yi = Math.floor(y);
+        const xf = x - xi;
+        const yf = y - yi;
+        const u = xf * xf * (3 - 2 * xf);
+        const v = yf * yf * (3 - 2 * yf);
+
+        const a = this._hash2(xi,     yi,     seed);
+        const b = this._hash2(xi + 1, yi,     seed);
+        const c = this._hash2(xi,     yi + 1, seed);
+        const d = this._hash2(xi + 1, yi + 1, seed);
+
+        return a * (1 - u) * (1 - v)
+             + b * u       * (1 - v)
+             + c * (1 - u) * v
+             + d * u       * v;
+    }
+
+    _hash2(x, y, seed) {
+        let h = (x * 374761393 + y * 668265263 + seed * 982451653) | 0;
+        h = (h ^ (h >>> 13)) * 1274126177 | 0;
+        h = h ^ (h >>> 16);
+        return ((h >>> 0) % 10000) / 10000;
+    }
+
+    update(timestamp) {
+        if (this.useWeather) this.fetchWeather();
+        const targetCount = Math.floor((this.getCurrentCloudCover() / 100) * 28);
+        while (this.clouds.length < targetCount) this.clouds.push(this._makeCloud(true));
+        while (this.clouds.length > targetCount) this.clouds.pop();
+    }
+
+    draw(ctx, timestamp = performance.now()) {
+        const w = ctx.canvas.width, h = ctx.canvas.height;
+        this._ensureGenerated(w, h);
+        const hour = this.getCurrentHour();
+        const palette = this._getPalette(hour);
+        const nightAmt = this._nightAmount(hour);
+
+        const grad = ctx.createLinearGradient(0, 0, 0, h);
+        grad.addColorStop(0,    this._rgb(palette.top));
+        grad.addColorStop(0.55, this._rgb(palette.mid));
+        grad.addColorStop(1,    this._rgb(palette.bot));
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, w, h);
+
+        if (nightAmt > 0.01) this._drawStars(ctx, timestamp, nightAmt);
+        const celestial = this._drawCelestial(ctx, hour, w, h);
+
+        let occlusion = 0;
+        if (this.getCurrentCloudCover() > 5) {
+            const sunPos = (celestial && celestial.isSun) ? celestial : null;
+            this._drawClouds(ctx, palette, nightAmt, sunPos);
+            if (sunPos) occlusion = this._computeSunOcclusion(sunPos.x, sunPos.y);
+        }
+
+        if (occlusion > 0.01) {
+            ctx.fillStyle = `rgba(15, 20, 35, ${occlusion * 0.55})`;
+            ctx.fillRect(0, 0, w, h);
+        }
+
+        this._drawHorizonGlow(ctx, hour, w, h);
+    }
+
+    _drawStars(ctx, t, alpha) {
+        for (const s of this.stars) {
+            const tw = (Math.sin(t * 0.001 * s.speed + s.phase) + 1) * 0.5;
+            const a = alpha * (0.25 + tw * 0.75);
+            const size = s.bright ? s.size * 1.6 : s.size;
+            if (s.bright) {
+                const g = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, size * 4);
+                g.addColorStop(0, `rgba(255,255,230,${a * 0.35})`);
+                g.addColorStop(1, 'rgba(255,255,230,0)');
+                ctx.fillStyle = g;
+                ctx.beginPath();
+                ctx.arc(s.x, s.y, size * 4, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.fillStyle = `rgba(255,250,225,${a})`;
+            ctx.beginPath();
+            ctx.arc(s.x, s.y, size, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+
+    _drawCelestial(ctx, hour, w, h) {
+        const sr = this.sunrise, ss = this.sunset;
+        const isDay = hour >= sr - 0.3 && hour <= ss + 0.3;
+        let t;
+        if (isDay) {
+            t = (hour - sr) / (ss - sr);
+        } else {
+            const moonStart = ss, moonEnd = sr + 24;
+            const moonHour = hour < sr ? hour + 24 : hour;
+            t = (moonHour - moonStart) / (moonEnd - moonStart);
+        }
+        t = Math.max(0, Math.min(1, t));
+        const x = t * w;
+        const y = h * 0.55 - Math.sin(t * Math.PI) * h * 0.45;
+        ctx.save();
+        if (isDay) this._drawSun(ctx, x, y, hour, sr, ss);
+        else this._drawMoon(ctx, x, y);
+        ctx.restore();
+        return { x, y, isSun: isDay };
+    }
+
+    _computeSunOcclusion(sunX, sunY) {
+        const sunRadius = 26;
+        const checkRadius = sunRadius * 1.8;
+        let total = 0;
+        for (const c of this.clouds) {
+            const cx = c.x + c.bmpW / 2;
+            const cy = c.y + c.bmpH / 2;
+            const halfW = c.width / 2 + checkRadius;
+            const halfH = c.height / 2 + checkRadius;
+
+            const dx = Math.abs(cx - sunX);
+            const dy = Math.abs(cy - sunY);
+            if (dx > halfW || dy > halfH) continue;
+
+            const fx = 1 - dx / halfW;
+            const fy = 1 - dy / halfH;
+            const overlap = Math.min(fx, fy);
+            total += overlap * c.opacity * 0.6;
+        }
+        return Math.min(1, total);
+    }
+
+    _drawSun(ctx, x, y, hour, sr, ss) {
+        const r = 26;
+        const distFromHorizon = Math.min(Math.abs(hour - sr), Math.abs(hour - ss));
+        const horizonMix = Math.max(0, 1 - distFromHorizon / 2);
+        const sunColor = [
+            255,
+            Math.round(235 - 80 * horizonMix),
+            Math.round(120 - 80 * horizonMix),
+        ];
+        const g = ctx.createRadialGradient(x, y, 0, x, y, r * 5);
+        g.addColorStop(0,   `rgba(${sunColor[0]},${sunColor[1]},${sunColor[2]},0.45)`);
+        g.addColorStop(0.5, `rgba(${sunColor[0]},${sunColor[1]},${sunColor[2]},0.12)`);
+        g.addColorStop(1,   `rgba(${sunColor[0]},${sunColor[1]},${sunColor[2]},0)`);
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(x, y, r * 5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = `rgb(${sunColor[0]},${sunColor[1]},${sunColor[2]})`;
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    _drawMoon(ctx, x, y) {
+        const r = 20;
+        const g = ctx.createRadialGradient(x, y, 0, x, y, r * 4);
+        g.addColorStop(0, 'rgba(240,240,220,0.35)');
+        g.addColorStop(1, 'rgba(240,240,220,0)');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(x, y, r * 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#f0eed8';
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = 'rgba(170,165,145,0.55)';
+        const craters = [[-6, -4, 3.5], [5, 6, 2.5], [7, -7, 1.8], [-4, 7, 2]];
+        for (const [dx, dy, cr] of craters) {
+            ctx.beginPath();
+            ctx.arc(x + dx, y + dy, cr, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+
+    _drawClouds(ctx, palette, nightAmt, sunPos) {
+        const base = palette.bot;
+        const lightR = Math.min(255, base[0] + 50);
+        const lightG = Math.min(255, base[1] + 50);
+        const lightB = Math.min(255, base[2] + 50);
+        const darkR = Math.max(20, Math.round(base[0] * 0.35));
+        const darkG = Math.max(20, Math.round(base[1] * 0.35));
+        const darkB = Math.max(30, Math.round(base[2] * 0.45));
+        const r = Math.round(lightR + (darkR - lightR) * nightAmt);
+        const g = Math.round(lightG + (darkG - lightG) * nightAmt);
+        const b = Math.round(lightB + (darkB - lightB) * nightAmt);
+
+        const hlAmt = 1 - nightAmt;
+        const hr = Math.min(255, r + Math.round(40 * hlAmt));
+        const hg = Math.min(255, g + Math.round(40 * hlAmt));
+        const hb = Math.min(255, b + Math.round(35 * hlAmt));
+
+        if (!this._scratch) {
+            this._scratch = (typeof OffscreenCanvas !== 'undefined')
+                ? new OffscreenCanvas(512, 256)
+                : Object.assign(document.createElement('canvas'), { width: 512, height: 256 });
+        }
+        const scratch = this._scratch;
+        const sctx = scratch.getContext('2d');
+
+        for (const c of this.clouds) {
+            c.x += c.speed;
+            if (c.x > this.lastWidth) c.x = -c.bmpW;
+
+            if (scratch.width < c.bmpW || scratch.height < c.bmpH) {
+                scratch.width = Math.max(scratch.width, c.bmpW);
+                scratch.height = Math.max(scratch.height, c.bmpH);
+            }
+
+            // Per-cloud sun proximity (0 = far, 1 = directly over sun)
+            let sunProx = 0;
+            if (sunPos) {
+                const cx = c.x + c.bmpW / 2;
+                const cy = c.y + c.bmpH / 2;
+                const halfW = c.width / 2;
+                const halfH = c.height / 2;
+                const dx = Math.abs(cx - sunPos.x);
+                const dy = Math.abs(cy - sunPos.y);
+                if (dx < halfW && dy < halfH) {
+                    const fx = 1 - dx / halfW;
+                    const fy = 1 - dy / halfH;
+                    sunProx = Math.min(fx, fy);
+                }
+            }
+
+            sctx.clearRect(0, 0, c.bmpW, c.bmpH);
+
+            // Stamp the displaced bitmap
+            sctx.globalCompositeOperation = 'source-over';
+            sctx.drawImage(c.bitmap, 0, 0);
+
+            // Tint - darken when blocking sun (denser-looking interior)
+            const tintDarken = 1 - sunProx * 0.45;
+            const tr = Math.round(r * tintDarken);
+            const tg = Math.round(g * tintDarken);
+            const tb = Math.round(b * tintDarken);
+            sctx.globalCompositeOperation = 'source-atop';
+            sctx.fillStyle = `rgb(${tr},${tg},${tb})`;
+            sctx.fillRect(0, 0, c.bmpW, c.bmpH);
+
+            if (hlAmt > 0.15 && c.type !== 'wispy') {
+                const hlGrad = sctx.createLinearGradient(0, 0, 0, c.bmpH);
+                hlGrad.addColorStop(0,    `rgba(${hr},${hg},${hb},${0.5 * hlAmt})`);
+                hlGrad.addColorStop(0.5,  `rgba(${hr},${hg},${hb},0)`);
+                hlGrad.addColorStop(1,    `rgba(${hr},${hg},${hb},0)`);
+                sctx.fillStyle = hlGrad;
+                sctx.fillRect(0, 0, c.bmpW, c.bmpH);
+            }
+
+            // Composite onto sky - boost opacity when blocking sun
+            ctx.save();
+            const opacityBoost = 1 + sunProx * 0.5;
+            ctx.globalAlpha = Math.min(1, c.opacity * opacityBoost);
+            ctx.drawImage(scratch, 0, 0, c.bmpW, c.bmpH,
+                          Math.round(c.x), Math.round(c.y), c.bmpW, c.bmpH);
+            ctx.restore();
+        }
+    }
+
+    _drawHorizonGlow(ctx, hour, w, h) {
+        const sr = this.sunrise, ss = this.sunset;
+        const dist = Math.min(Math.abs(hour - sr), Math.abs(hour - ss));
+        if (dist > 1.5) return;
+        const intensity = 1 - dist / 1.5;
+        const isSunset = Math.abs(hour - ss) < Math.abs(hour - sr);
+        const color = isSunset
+            ? `rgba(255, 130, 70, ${0.25 * intensity})`
+            : `rgba(255, 180, 120, ${0.22 * intensity})`;
+        const g = ctx.createLinearGradient(0, h * 0.5, 0, h);
+        g.addColorStop(0, 'rgba(0,0,0,0)');
+        g.addColorStop(1, color);
+        ctx.fillStyle = g;
+        ctx.fillRect(0, h * 0.5, w, h * 0.5);
+    }
+}
+
+// ============================================================
+// Demo wiring
+// ============================================================
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+
+// Demo defaults: weather OFF (no network needed), sliders fully control sky
+const sky = new Sky({ useWeather: false });
+sky.timeOverride = 14;
+sky.cloudOverride = 0;
+
+const timeSlider = document.getElementById('time');
+const cloudSlider = document.getElementById('cloud');
+const timeVal = document.getElementById('timeVal');
+const cloudVal = document.getElementById('cloudVal');
+const useRealTime = document.getElementById('useRealTime');
+const useRealWeather = document.getElementById('useRealWeather');
+const statusEl = document.getElementById('status');
+
+function fmtHour(h) {
+    const hh = Math.floor(h);
+    const mm = Math.round((h - hh) * 60);
+    return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+}
+
+timeSlider.oninput = () => {
+    const v = parseFloat(timeSlider.value);
+    timeVal.textContent = fmtHour(v);
+    if (!useRealTime.checked) sky.timeOverride = v;
+};
+cloudSlider.oninput = () => {
+    const v = parseInt(cloudSlider.value, 10);
+    cloudVal.textContent = v + '%';
+    if (!useRealWeather.checked) sky.cloudOverride = v;
+};
+useRealTime.onchange = () => {
+    sky.timeOverride = useRealTime.checked ? null : parseFloat(timeSlider.value);
+};
+useRealWeather.onchange = () => {
+    if (useRealWeather.checked) {
+        sky.cloudOverride = null;
+        sky.useWeather = true;
+        sky.weatherReady = false;
+        sky.lastWeatherFetch = 0;
+        sky.fetchWeather();
+    } else {
+        sky.useWeather = false;
+        sky.cloudOverride = parseInt(cloudSlider.value, 10);
+    }
+};
+
+document.querySelectorAll('.preset-btns button').forEach(btn => {
+    btn.onclick = () => {
+        const h = parseFloat(btn.dataset.h);
+        timeSlider.value = h;
+        timeVal.textContent = fmtHour(h);
+        useRealTime.checked = false;
+        sky.timeOverride = h;
+    };
+});
+
+// Simple terrain for context
+const terrain = [];
+(function generateTerrain() {
+    const segments = 200;
+    for (let i = 0; i <= segments; i++) {
+        const x = (i / segments) * canvas.width;
+        const base = canvas.height * 0.78;
+        const y = base + Math.sin(i * 0.08) * 25 + Math.sin(i * 0.21) * 12 + Math.sin(i * 0.5) * 6;
+        terrain.push({ x, y });
+    }
+})();
+
+function drawTerrain() {
+    ctx.fillStyle = '#3a2820';
+    ctx.beginPath();
+    ctx.moveTo(0, canvas.height);
+    for (const p of terrain) ctx.lineTo(p.x, p.y);
+    ctx.lineTo(canvas.width, canvas.height);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = '#5a4030';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (let i = 0; i < terrain.length; i++) {
+        const p = terrain[i];
+        if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y);
+    }
+    ctx.stroke();
+}
+
+function drawTank(x, color) {
+    const idx = Math.floor((x / canvas.width) * (terrain.length - 1));
+    const y = terrain[idx].y;
+    ctx.fillStyle = color;
+    ctx.fillRect(x - 14, y - 10, 28, 8);
+    ctx.fillRect(x - 18, y - 4, 36, 4);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(x, y - 8);
+    ctx.lineTo(x + 18, y - 14);
+    ctx.stroke();
+}
+
+function updateStatus() {
+    const cur = sky.getCurrentHour();
+    const cov = sky.getCurrentCloudCover();
+    const ready = sky.useWeather ? (sky.weatherReady ? 'OK' : 'pending') : 'off';
+    statusEl.textContent =
+        `hour=${fmtHour(cur)}  clouds=${Math.round(cov)}%  sunrise=${fmtHour(sky.sunrise)}  sunset=${fmtHour(sky.sunset)}  weather=${ready}`;
+}
+
+function loop(t) {
+    sky.update(t);
+    sky.draw(ctx, t);
+    drawTerrain();
+    drawTank(180, '#2a4a2a');
+    drawTank(720, '#4a2a2a');
+    updateStatus();
+    requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

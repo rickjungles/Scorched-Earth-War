@@ -1235,7 +1235,7 @@ const scoreboardEl = document.getElementById('scoreboard');
 const VWIDTH  = 1920;
 const VHEIGHT = 1080;
 
-const GAME_VERSION = '1.9.5'; // bump whenever index.html is updated
+const GAME_VERSION = '1.9.6'; // bump whenever index.html is updated
 
 // ── constants ──────────────────────────────────────────────────────────────
 let GRAVITY      = 260;   // px/s² — overridden at game start by gravity setting
@@ -1932,7 +1932,7 @@ let gameSettings     = {};
 let menuPlayers     = Array.from({length:5}, (_, i) => ({
   name:`Player ${i+1}`, colorIdx:i, typeIdx: i < 2 ? 1 : 0,
 }));
-let menuSettingsIdx = { rounds:4, cash:1, cashPerRound:1, interest:2, terrain:0, walls:5, wind:2, gravity:1, timeOfDay:0, cloudCover:0 };
+let menuSettingsIdx = { rounds:4, cash:1, cashPerRound:1, interest:2, terrain:0, walls:5, wind:2, gravity:1, timeOfDay:6, cloudCover:3 };
 (function() {
   try {
     const saved = JSON.parse(localStorage.getItem('se_sky') || 'null');
@@ -5561,13 +5561,21 @@ function renderSettingsPanel() {
 
 function applyRoundSky(timeChoice, cloudChoice) {
   if (!sky) return;
-  if (timeChoice === 'local')        sky.timeOverride = null;
-  else if (timeChoice === 'dawn')    sky.timeOverride = sky.sunrise - 0.5;
-  else if (timeChoice === 'sunrise') sky.timeOverride = sky.sunrise + 0.3;
-  else if (timeChoice === 'noon')    sky.timeOverride = 12;
-  else if (timeChoice === 'sunset')  sky.timeOverride = sky.sunset - 0.2;
-  else if (timeChoice === 'night')   sky.timeOverride = 22;
-  else if (timeChoice === 'random')  sky.timeOverride = Math.random() * 24;
+
+  // Only fetch live weather when the player actually wants local data
+  sky.useWeather = (timeChoice === 'local' || cloudChoice === 'local');
+
+  if (timeChoice === 'local') {
+    sky.timeOverride = null;
+  } else if (timeChoice === 'random') {
+    // Pick from named times only — never re-roll to local clock
+    const times = [sky.sunrise - 0.5, sky.sunrise + 0.3, 12, sky.sunset - 0.2, 22];
+    sky.timeOverride = times[Math.floor(Math.random() * times.length)];
+  } else if (timeChoice === 'dawn')    sky.timeOverride = sky.sunrise - 0.5;
+  else if (timeChoice === 'sunrise')   sky.timeOverride = sky.sunrise + 0.3;
+  else if (timeChoice === 'noon')      sky.timeOverride = 12;
+  else if (timeChoice === 'sunset')    sky.timeOverride = sky.sunset - 0.2;
+  else if (timeChoice === 'night')     sky.timeOverride = 22;
 
   if (cloudChoice === 'local')       sky.cloudOverride = null;
   else if (cloudChoice === 'random') sky.cloudOverride = Math.floor(Math.random() * 101);
@@ -7018,7 +7026,7 @@ function initGame() {
   tanks.forEach(t => { t.money = gameSettings.cash ?? 5000; });
   currentPlayer = roundFirstPlayer % tanks.length;
   newWind();
-  if (!sky) sky = new Sky({ lat: 44.55, lon: -88.05, useWeather: true });
+  if (!sky) sky = new Sky({ lat: 44.55, lon: -88.05, useWeather: false });
   applyRoundSky(gameSettings.timeOfDay, gameSettings.cloudCover);
   sky.setWindSpeed(wind * 20);
   updateUI();

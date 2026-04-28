@@ -1221,6 +1221,7 @@ canvas { position: absolute; image-rendering: pixelated; }
     </div>
   </div>
 </div>
+<script src="sky.js"></script>
 <script>
 const canvas  = document.getElementById('c');
 const ctx     = canvas.getContext('2d');
@@ -1234,7 +1235,7 @@ const scoreboardEl = document.getElementById('scoreboard');
 const VWIDTH  = 1920;
 const VHEIGHT = 1080;
 
-const GAME_VERSION = '1.9.2'; // bump whenever index.html is updated
+const GAME_VERSION = '1.9.6'; // bump whenever index.html is updated
 
 // ── constants ──────────────────────────────────────────────────────────────
 let GRAVITY      = 260;   // px/s² — overridden at game start by gravity setting
@@ -1395,6 +1396,8 @@ const SETTING_DEFS = [
   { key:'walls',    label:'Walls',         opts:['None','Rubber','Wrap','Concrete','Absorb','Random'], fmt:v=>v },
   { key:'wind',     label:'Wind',          opts:['None','Light','Gusty','Tornado'],    fmt:v=>v },
   { key:'gravity',  label:'Gravity',       opts:['Low','Normal','High'],               fmt:v=>v },
+  { key:'timeOfDay',  label:'Time of Day',  opts:['local','dawn','sunrise','noon','sunset','night','random'], fmt:v=>v[0].toUpperCase()+v.slice(1) },
+  { key:'cloudCover', label:'Cloud Cover',  opts:['local','20','50','80','100','random'],                     fmt:v=>v==='local'?'Local':v==='random'?'Random':v+'%' },
 ];
 const PLAYER_TYPES = ['off','human','cpu-easy','cpu-medium','cpu-hard'];
 const PLAYER_TYPE_LABELS = {
@@ -1868,12 +1871,14 @@ document.getElementById('volSlider').addEventListener('input', e => {
 // ── game state ─────────────────────────────────────────────────────────────
 let terrain, ceilingTerrain = null, tanks, currentPlayer, gameOver, animId, lastTime, stars;
 let wind             = 0;
+let sky              = null;  // Sky module instance (created once in initGame)
 let explosions       = [];
 let projectiles      = [];
 let napalmParticles  = [];
 let turnCount        = 0;
 let shopOpen          = false;
 let screenShake       = 0;
+let frameSx = 0, frameSy = 0; // per-frame shake offsets, shared by sky draw and applyCamera
 let shopCursor        = 0;
 let shopCurrentPlayer = -1;
 let shopRowItems      = [];
@@ -1927,7 +1932,18 @@ let gameSettings     = {};
 let menuPlayers     = Array.from({length:5}, (_, i) => ({
   name:`Player ${i+1}`, colorIdx:i, typeIdx: i < 2 ? 1 : 0,
 }));
-let menuSettingsIdx = { rounds:4, cash:1, cashPerRound:1, interest:2, terrain:0, walls:5, wind:2, gravity:1 };
+let menuSettingsIdx = { rounds:4, cash:1, cashPerRound:1, interest:2, terrain:0, walls:5, wind:2, gravity:1, timeOfDay:6, cloudCover:3 };
+(function() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('se_sky') || 'null');
+    if (saved) {
+      if (typeof saved.timeOfDay === 'number' && saved.timeOfDay >= 0 && saved.timeOfDay < 7)
+        menuSettingsIdx.timeOfDay = saved.timeOfDay;
+      if (typeof saved.cloudCover === 'number' && saved.cloudCover >= 0 && saved.cloudCover < 6)
+        menuSettingsIdx.cloudCover = saved.cloudCover;
+    }
+  } catch (_) {}
+})();
 let menuWeapons     = Object.fromEntries(MENU_WEAPONS.map(w=>[w, w !== 'Nuke' && w !== 'Lazy Boy']));
 let menuDefenses    = Object.fromEntries(MENU_DEFENSES.map(d=>[d,true]));
 
@@ -2194,9 +2210,7 @@ function newWind() {
 // ── camera helpers ─────────────────────────────────────────────────────────
 function applyCamera() {
   ctx.save();
-  const sx = screenShake > 0 ? Math.round((Math.random() * 2 - 1) * screenShake) : 0;
-  const sy = screenShake > 0 ? Math.round((Math.random() * 2 - 1) * screenShake) : 0;
-  ctx.translate(-Math.round(camera.x) + sx, -Math.round(camera.y) + sy);
+  ctx.translate(-Math.round(camera.x) + frameSx, -Math.round(camera.y) + frameSy);
 }
 
 function shakeScreen(amount) {
@@ -2211,18 +2225,20 @@ function restoreCamera() {
 function drawScene() {
   const w = worldWidth, h = VHEIGHT;
 
-  // sky — spans full world width so stars and background are correct under camera
-  const sky = ctx.createLinearGradient(0, 0, 0, h * 0.75);
-  sky.addColorStop(0, '#04040f');
-  sky.addColorStop(1, '#0b2238');
-  ctx.fillStyle = sky;
-  ctx.fillRect(0, 0, w, h);
+  if (!sky) {
+    // Fallback sky gradient + stars when sky module is not active
+    const skyGrad = ctx.createLinearGradient(0, 0, 0, h * 0.75);
+    skyGrad.addColorStop(0, '#04040f');
+    skyGrad.addColorStop(1, '#0b2238');
+    ctx.fillStyle = skyGrad;
+    ctx.fillRect(0, 0, w, h);
 
-  for (const s of stars) {
-    ctx.fillStyle = `rgba(255,255,255,${s.a})`;
-    ctx.beginPath();
-    ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
-    ctx.fill();
+    for (const s of stars) {
+      ctx.fillStyle = `rgba(255,255,255,${s.a})`;
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
 
   let minY = terrain[0];
@@ -3436,6 +3452,8 @@ function startNextRound() {
     wind = pendingNetworkWind;
     pendingNetworkWind = null;
   }
+  applyRoundSky(gameSettings.timeOfDay, gameSettings.cloudCover);
+  if (sky) sky.setWindSpeed(wind * 20);
   // Host sends authoritative terrain, positions, wind, and wall type so guests stay in sync
   if (networkModeOn && networkIsHost && networkWs && networkWs.readyState === WebSocket.OPEN) {
     networkWs.send(JSON.stringify({
@@ -4796,6 +4814,19 @@ function gameLoop(ts) {
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.scale(canvas.width / VWIDTH, canvas.height / VHEIGHT);
 
+  // Per-frame shake offsets — computed once so sky and terrain shake in unison
+  frameSx = screenShake > 0 ? Math.round((Math.random() * 2 - 1) * screenShake) : 0;
+  frameSy = screenShake > 0 ? Math.round((Math.random() * 2 - 1) * screenShake) : 0;
+
+  // Sky module — translated by the same shake as terrain so horizon seam never shows
+  if (sky) {
+    ctx.save();
+    ctx.translate(frameSx, frameSy);
+    sky.update(ts);
+    sky.draw(ctx, ts, VWIDTH, VHEIGHT);
+    ctx.restore();
+  }
+
   // ── intro sequence ─────────────────────────────────────────────────────
   if (introPhase !== 'none') {
     introTimer += dt;
@@ -5528,6 +5559,29 @@ function renderSettingsPanel() {
   });
 }
 
+function applyRoundSky(timeChoice, cloudChoice) {
+  if (!sky) return;
+
+  // Only fetch live weather when the player actually wants local data
+  sky.useWeather = (timeChoice === 'local' || cloudChoice === 'local');
+
+  if (timeChoice === 'local') {
+    sky.timeOverride = null;
+  } else if (timeChoice === 'random') {
+    // Pick from named times only — never re-roll to local clock
+    const times = [sky.sunrise - 0.5, sky.sunrise + 0.3, 12, sky.sunset - 0.2, 22];
+    sky.timeOverride = times[Math.floor(Math.random() * times.length)];
+  } else if (timeChoice === 'dawn')    sky.timeOverride = sky.sunrise - 0.5;
+  else if (timeChoice === 'sunrise')   sky.timeOverride = sky.sunrise + 0.3;
+  else if (timeChoice === 'noon')      sky.timeOverride = 12;
+  else if (timeChoice === 'sunset')    sky.timeOverride = sky.sunset - 0.2;
+  else if (timeChoice === 'night')     sky.timeOverride = 22;
+
+  if (cloudChoice === 'local')       sky.cloudOverride = null;
+  else if (cloudChoice === 'random') sky.cloudOverride = Math.floor(Math.random() * 101);
+  else                               sky.cloudOverride = parseInt(cloudChoice, 10);
+}
+
 function stepSetting(si, dir) {
   const def = SETTING_DEFS[si];
   menuSettingsIdx[def.key] = (menuSettingsIdx[def.key] + def.opts.length + dir) % def.opts.length;
@@ -5535,6 +5589,9 @@ function stepSetting(si, dir) {
   const vals = document.querySelectorAll('.setting-value');
   if (vals[si]) vals[si].focus();
   if (networkModeOn && networkIsHost) broadcastSettings();
+  if (def.key === 'timeOfDay' || def.key === 'cloudCover') {
+    try { localStorage.setItem('se_sky', JSON.stringify({ timeOfDay: menuSettingsIdx.timeOfDay, cloudCover: menuSettingsIdx.cloudCover })); } catch (_) {}
+  }
 }
 
 function renderChips(containerId, items, stateObj) {
@@ -6969,6 +7026,9 @@ function initGame() {
   tanks.forEach(t => { t.money = gameSettings.cash ?? 5000; });
   currentPlayer = roundFirstPlayer % tanks.length;
   newWind();
+  if (!sky) sky = new Sky({ lat: 44.55, lon: -88.05, useWeather: false });
+  applyRoundSky(gameSettings.timeOfDay, gameSettings.cloudCover);
+  sky.setWindSpeed(wind * 20);
   updateUI();
   updateWeaponIndicator();
 

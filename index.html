@@ -1235,7 +1235,7 @@ const scoreboardEl = document.getElementById('scoreboard');
 const VWIDTH  = 1920;
 const VHEIGHT = 1080;
 
-const GAME_VERSION = '1.9.8'; // bump whenever index.html is updated
+const GAME_VERSION = '1.9.9'; // bump whenever index.html is updated
 
 // ── constants ──────────────────────────────────────────────────────────────
 let GRAVITY      = 260;   // px/s² — overridden at game start by gravity setting
@@ -1398,7 +1398,7 @@ const SETTING_DEFS = [
   { key:'timeOfDay',  label:'Time of Day',  opts:['local','dawn','sunrise','noon','sunset','night','random'], fmt:v=>v[0].toUpperCase()+v.slice(1) },
   { key:'cloudCover', label:'Cloud Cover',  opts:['local','20','50','80','100','random'],                     fmt:v=>v==='local'?'Local':v==='random'?'Random':v+'%' },
   { key:'rain',       label:'Rain',         opts:['none','local','light','moderate','storm','random'],        fmt:v=>({none:'None',local:'Local',light:'Light Rain',moderate:'Moderate',storm:'Storm',random:'Random'}[v]??v) },
-  { key:'wind',     label:'Wind',          opts:['None','Light','Gusty','Tornado'],    fmt:v=>v },
+  { key:'wind',     label:'Wind',          opts:['None','Light','Gusty','Tornado','Random'],    fmt:v=>v },
 ];
 const PLAYER_TYPES = ['off','human','cpu-easy','cpu-medium','cpu-hard'];
 const PLAYER_TYPE_LABELS = {
@@ -1872,6 +1872,7 @@ document.getElementById('volSlider').addEventListener('input', e => {
 // ── game state ─────────────────────────────────────────────────────────────
 let terrain, ceilingTerrain = null, tanks, currentPlayer, gameOver, animId, lastTime, stars;
 let wind             = 0;
+let windEffectiveMax = 5; // resolved once per round by newWind(); used by windMaxForSetting()
 let sky              = null;  // Sky module instance (created once in initGame)
 let explosions       = [];
 let projectiles      = [];
@@ -1933,7 +1934,7 @@ let gameSettings     = {};
 let menuPlayers     = Array.from({length:5}, (_, i) => ({
   name:`Player ${i+1}`, colorIdx:i, typeIdx: i < 2 ? 1 : 0,
 }));
-let menuSettingsIdx = { rounds:4, cash:1, cashPerRound:1, interest:2, terrain:0, walls:5, wind:2, gravity:1, timeOfDay:6, cloudCover:3, rain:5 };
+let menuSettingsIdx = { rounds:4, cash:1, cashPerRound:1, interest:2, terrain:0, walls:5, wind:4, gravity:1, timeOfDay:6, cloudCover:3, rain:5 };
 (function() {
   try {
     const saved = JSON.parse(localStorage.getItem('se_sky') || 'null');
@@ -2202,12 +2203,19 @@ function windMaxForSetting() {
   if (s === 'Light')   return 5;
   if (s === 'Gusty')   return 15;
   if (s === 'Tornado') return 30;
+  if (s === 'Random')  return windEffectiveMax;
   return 5; // default
 }
 
 function newWind() {
-  const max = windMaxForSetting();
-  wind = max === 0 ? 0 : Math.round((Math.random() * 2 - 1) * max);
+  let s = gameSettings && gameSettings.wind;
+  if (s === 'Random') {
+    const opts = ['None', 'Light', 'Gusty', 'Tornado'];
+    s = opts[Math.floor(Math.random() * opts.length)];
+  }
+  const maxes = { None: 0, Light: 5, Gusty: 15, Tornado: 30 };
+  windEffectiveMax = maxes[s] ?? 5;
+  wind = windEffectiveMax === 0 ? 0 : Math.round((Math.random() * 2 - 1) * windEffectiveMax);
 }
 
 // ── camera helpers ─────────────────────────────────────────────────────────

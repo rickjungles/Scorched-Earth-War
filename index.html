@@ -1261,7 +1261,7 @@ const scoreboardEl = document.getElementById('scoreboard');
 const VWIDTH  = 1920;
 const VHEIGHT = 1080;
 
-const GAME_VERSION = '1.10.3'; // bump whenever index.html is updated
+const GAME_VERSION = '1.10.4'; // bump whenever index.html is updated
 
 // ── constants ──────────────────────────────────────────────────────────────
 let GRAVITY      = 260;   // px/s² — overridden at game start by gravity setting
@@ -1417,10 +1417,10 @@ const SETTING_DEFS = [
   { key:'rounds',       label:'Rounds',         opts:Array.from({length:50},(_,i)=>i+1),                                         fmt:v=>String(v) },
   { key:'terrain',      label:'Terrain',        opts:['Random','Plains','Plateaus','Mountains','Canyon','Fortress','Caves','Mixed'], fmt:v=>v },
   { key:'walls',        label:'Walls',          opts:['None','Rubber','Wrap','Concrete','Absorb','Random'],                        fmt:v=>v },
-  { key:'shop',         label:'Shop',           opts:['On','Off'],                                                                 fmt:v=>v },
-  { key:'cash',         label:'Starting Cash',  opts:[5000,10000,15000,20000,30000,50000],                                        fmt:v=>'$'+v.toLocaleString() },
-  { key:'cashPerRound', label:'Cash Per Round', opts:Array.from({length:21},(_,i)=>i*1000),                                       fmt:v=>v===0?'Off':'$'+v.toLocaleString() },
-  { key:'interest',     label:'Interest Rate',  opts:[0,5,10,15,20,25,30],                                                        fmt:v=>v+'%' },
+  { key:'shop',         label:'Shop',           opts:['On','Off'],                                                                 fmt:v=>v,                          group:'economy' },
+  { key:'cash',         label:'Starting Cash',  opts:[5000,10000,15000,20000,30000,50000],                                        fmt:v=>'$'+v.toLocaleString(),     group:'economy' },
+  { key:'cashPerRound', label:'Cash Per Round', opts:Array.from({length:21},(_,i)=>i*1000),                                       fmt:v=>v===0?'Off':'$'+v.toLocaleString(), group:'economy' },
+  { key:'interest',     label:'Interest Rate',  opts:[0,5,10,15,20,25,30],                                                        fmt:v=>v+'%',                      group:'economy' },
   { key:'timeOfDay',    label:'Time of Day',    opts:['local','dawn','sunrise','noon','sunset','night','random'],                   fmt:v=>v[0].toUpperCase()+v.slice(1),                                                                                       group:'weather' },
   { key:'cloudCover',   label:'Cloud Cover',    opts:['local','20','50','80','100','random'],                                      fmt:v=>v==='local'?'Local':v==='random'?'Random':v+'%',                                                                     group:'weather' },
   { key:'rain',         label:'Rain',           opts:['none','local','light','moderate','storm','random'],                         fmt:v=>({none:'None',local:'Local',light:'Light Rain',moderate:'Moderate',storm:'Storm',random:'Random'}[v]??v),            group:'weather' },
@@ -5591,21 +5591,25 @@ function renderSettingsPanel() {
   const shopOff = SETTING_DEFS.find(d => d.key === 'shop').opts[menuSettingsIdx.shop ?? 0] === 'Off';
   const cashKeys = new Set(['cash', 'cashPerRound', 'interest']);
   let groupContainer = null;
+  let currentGroup = null;
   SETTING_DEFS.forEach((def, si) => {
     if (def.hidden) return;
     if (shopOff && cashKeys.has(def.key)) return;
-    // Open group container when we first hit a grouped setting
-    if (def.group && !groupContainer) {
-      groupContainer = document.createElement('div');
-      groupContainer.className = 'settings-group';
-      const hdr = document.createElement('div');
-      hdr.className = 'settings-group-header';
-      hdr.innerHTML = '<span class="settings-group-label">WEATHER</span><button class="settings-group-btn">All Local</button>';
-      hdr.querySelector('.settings-group-btn').addEventListener('click', setAllLocalWeather);
-      groupContainer.appendChild(hdr);
-    } else if (!def.group && groupContainer) {
-      body.appendChild(groupContainer);
-      groupContainer = null;
+    const defGroup = def.group || null;
+    // Handle group transitions
+    if (defGroup !== currentGroup) {
+      if (groupContainer) { body.appendChild(groupContainer); groupContainer = null; }
+      currentGroup = defGroup;
+      if (currentGroup) {
+        groupContainer = document.createElement('div');
+        groupContainer.className = 'settings-group';
+        const hdr = document.createElement('div');
+        hdr.className = 'settings-group-header';
+        const hasLocalBtn = currentGroup === 'weather';
+        hdr.innerHTML = `<span class="settings-group-label">${currentGroup.toUpperCase()}</span>${hasLocalBtn ? '<button class="settings-group-btn">All Local</button>' : ''}`;
+        if (hasLocalBtn) hdr.querySelector('.settings-group-btn').addEventListener('click', setAllLocalWeather);
+        groupContainer.appendChild(hdr);
+      }
     }
     const val = def.opts[menuSettingsIdx[def.key]];
     const row = document.createElement('div');

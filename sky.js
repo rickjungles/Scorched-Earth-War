@@ -495,9 +495,9 @@ class Sky {
         }
     }
 
-    draw(ctx, timestamp = performance.now()) {
-        const w = ctx.canvas.width;
-        const h = ctx.canvas.height;
+    draw(ctx, timestamp = performance.now(), virtW, virtH) {
+        const w = virtW ?? ctx.canvas.width;
+        const h = virtH ?? ctx.canvas.height;
         this._ensureGenerated(w, h);
 
         const hour = this.getCurrentHour();

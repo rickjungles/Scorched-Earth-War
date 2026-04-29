@@ -1235,7 +1235,7 @@ const scoreboardEl = document.getElementById('scoreboard');
 const VWIDTH  = 1920;
 const VHEIGHT = 1080;
 
-const GAME_VERSION = '1.10.1'; // bump whenever index.html is updated
+const GAME_VERSION = '1.10.2'; // bump whenever index.html is updated
 
 // ── constants ──────────────────────────────────────────────────────────────
 let GRAVITY      = 260;   // px/s² — overridden at game start by gravity setting
@@ -1388,18 +1388,18 @@ const MENU_DEFENSES = [
   'Parachute','Battery','Fuel Tank','Auto Defense',
 ];
 const SETTING_DEFS = [
-  { key:'rounds',   label:'Rounds',        opts:Array.from({length:50},(_,i)=>i+1),    fmt:v=>String(v) },
-  { key:'shop',     label:'Shop',          opts:['On','Off'],                           fmt:v=>v },
-  { key:'cash',         label:'Starting Cash',  opts:[5000,10000,15000,20000,30000,50000],       fmt:v=>'$'+v.toLocaleString() },
-  { key:'cashPerRound', label:'Cash Per Round',  opts:Array.from({length:21},(_,i)=>i*1000),     fmt:v=>v===0?'Off':'$'+v.toLocaleString() },
-  { key:'interest',     label:'Interest Rate',   opts:[0,5,10,15,20,25,30],                      fmt:v=>v+'%' },
-  { key:'terrain',  label:'Terrain',       opts:['Random','Plains','Plateaus','Mountains','Canyon','Fortress','Caves','Mixed'], fmt:v=>v },
-  { key:'walls',    label:'Walls',         opts:['None','Rubber','Wrap','Concrete','Absorb','Random'], fmt:v=>v },
-  { key:'gravity',  label:'Gravity',       opts:['Low','Normal','High'],               fmt:v=>v },
-  { key:'timeOfDay',  label:'Time of Day',  opts:['local','dawn','sunrise','noon','sunset','night','random'], fmt:v=>v[0].toUpperCase()+v.slice(1) },
-  { key:'cloudCover', label:'Cloud Cover',  opts:['local','20','50','80','100','random'],                     fmt:v=>v==='local'?'Local':v==='random'?'Random':v+'%' },
-  { key:'rain',       label:'Rain',         opts:['none','local','light','moderate','storm','random'],        fmt:v=>({none:'None',local:'Local',light:'Light Rain',moderate:'Moderate',storm:'Storm',random:'Random'}[v]??v) },
-  { key:'wind',     label:'Wind',          opts:['None','Light','Gusty','Tornado','Random'],    fmt:v=>v },
+  { key:'rounds',       label:'Rounds',         opts:Array.from({length:50},(_,i)=>i+1),                                         fmt:v=>String(v) },
+  { key:'terrain',      label:'Terrain',        opts:['Random','Plains','Plateaus','Mountains','Canyon','Fortress','Caves','Mixed'], fmt:v=>v },
+  { key:'walls',        label:'Walls',          opts:['None','Rubber','Wrap','Concrete','Absorb','Random'],                        fmt:v=>v },
+  { key:'shop',         label:'Shop',           opts:['On','Off'],                                                                 fmt:v=>v },
+  { key:'cash',         label:'Starting Cash',  opts:[5000,10000,15000,20000,30000,50000],                                        fmt:v=>'$'+v.toLocaleString() },
+  { key:'cashPerRound', label:'Cash Per Round', opts:Array.from({length:21},(_,i)=>i*1000),                                       fmt:v=>v===0?'Off':'$'+v.toLocaleString() },
+  { key:'interest',     label:'Interest Rate',  opts:[0,5,10,15,20,25,30],                                                        fmt:v=>v+'%' },
+  { key:'timeOfDay',    label:'Time of Day',    opts:['local','dawn','sunrise','noon','sunset','night','random'],                   fmt:v=>v[0].toUpperCase()+v.slice(1) },
+  { key:'cloudCover',   label:'Cloud Cover',    opts:['local','20','50','80','100','random'],                                      fmt:v=>v==='local'?'Local':v==='random'?'Random':v+'%' },
+  { key:'rain',         label:'Rain',           opts:['none','local','light','moderate','storm','random'],                         fmt:v=>({none:'None',local:'Local',light:'Light Rain',moderate:'Moderate',storm:'Storm',random:'Random'}[v]??v) },
+  { key:'wind',         label:'Wind',           opts:['None','Light','Gusty','Tornado','Random'],                                  fmt:v=>v },
+  { key:'gravity',      label:'Gravity',        opts:['Low','Normal','High'],                                                      fmt:v=>v, hidden:true },
 ];
 const PLAYER_TYPES = ['off','human','cpu-easy','cpu-medium','cpu-hard'];
 const PLAYER_TYPE_LABELS = {
@@ -3250,9 +3250,12 @@ function showScoreboard(isFinal) {
   const prevRankMap = {};
   prevRankings.forEach((si, r) => { prevRankMap[si] = r; });
 
+  const shopOff = gameSettings && gameSettings.shop === 'Off';
+
   // Table headers
-  document.getElementById('sb-thead-row').innerHTML =
-    '<th>PLAYER</th><th>RND K</th><th>RND DMG</th><th>RND CASH</th><th>TTL KILLS</th><th>SCORE</th>';
+  document.getElementById('sb-thead-row').innerHTML = shopOff
+    ? '<th>PLAYER</th><th>RND K</th><th>RND DMG</th><th>TTL KILLS</th><th>SCORE</th>'
+    : '<th>PLAYER</th><th>RND K</th><th>RND DMG</th><th>RND CASH</th><th>TTL KILLS</th><th>SCORE</th>';
 
   // Table body
   const tbody = document.getElementById('scoreboard-body');
@@ -3281,16 +3284,16 @@ function showScoreboard(isFinal) {
       </div></td>
       <td>${rd.kills}</td>
       <td>${rd.damage.toLocaleString()}</td>
-      <td>$${rd.cash.toLocaleString()}</td>
+      ${shopOff ? '' : `<td>$${rd.cash.toLocaleString()}</td>`}
       <td>${s.kills}</td>
       <td>${s.score.toLocaleString()}</td>`;
     tbody.appendChild(tr);
   });
 
-  // Cash summary
+  // Cash summary — hidden when shop is off
   const cashRows = document.getElementById('sb-cash-rows');
   cashRows.innerHTML = '';
-  document.getElementById('sb-cash-section').style.display = '';
+  document.getElementById('sb-cash-section').style.display = shopOff ? 'none' : '';
   const rate           = (gameSettings.interest || 0) / 100;
   const showBonusCol   = (gameSettings.cashPerRound || 0) > 0;
   // Show/hide the BONUS CASH column header
@@ -3360,8 +3363,10 @@ function showFinalResults() {
     `<span style="color:${winner.color}">&#9658; ${htmlEsc(winner.name)} &mdash; OVERALL WINNER</span>`;
 
   const rankColors = ['#ffd700', '#c0c0c0', '#cd7f32'];
-  document.getElementById('sb-thead-row').innerHTML =
-    '<th>PLAYER</th><th>KILLS</th><th>DAMAGE</th><th>CASH EARNED</th><th>RND WINS</th><th>SCORE</th>';
+  const shopOff = gameSettings && gameSettings.shop === 'Off';
+  document.getElementById('sb-thead-row').innerHTML = shopOff
+    ? '<th>PLAYER</th><th>KILLS</th><th>DAMAGE</th><th>RND WINS</th><th>SCORE</th>'
+    : '<th>PLAYER</th><th>KILLS</th><th>DAMAGE</th><th>CASH EARNED</th><th>RND WINS</th><th>SCORE</th>';
 
   const tbody = document.getElementById('scoreboard-body');
   tbody.innerHTML = '';
@@ -3377,7 +3382,7 @@ function showFinalResults() {
       </div></td>
       <td>${s.kills}</td>
       <td>${s.damageDealt.toLocaleString()}</td>
-      <td>$${s.cashEarned.toLocaleString()}</td>
+      ${shopOff ? '' : `<td>$${s.cashEarned.toLocaleString()}</td>`}
       <td>${s.roundWins}</td>
       <td>${s.score.toLocaleString()}</td>`;
     tbody.appendChild(tr);
@@ -5544,7 +5549,11 @@ function cyclePlayerColor(i) {
 function renderSettingsPanel() {
   const body = document.getElementById('setup-settings-body');
   body.innerHTML = '';
+  const shopOff = SETTING_DEFS.find(d => d.key === 'shop').opts[menuSettingsIdx.shop ?? 0] === 'Off';
+  const cashKeys = new Set(['cash', 'cashPerRound', 'interest']);
   SETTING_DEFS.forEach((def, si) => {
+    if (def.hidden) return;
+    if (shopOff && cashKeys.has(def.key)) return;
     const val = def.opts[menuSettingsIdx[def.key]];
     const row = document.createElement('div');
     row.className = 'setting-row';

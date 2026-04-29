@@ -1261,7 +1261,7 @@ const scoreboardEl = document.getElementById('scoreboard');
 const VWIDTH  = 1920;
 const VHEIGHT = 1080;
 
-const GAME_VERSION = '1.10.5'; // bump whenever index.html is updated
+const GAME_VERSION = '1.10.6'; // bump whenever index.html is updated
 
 // ── constants ──────────────────────────────────────────────────────────────
 let GRAVITY      = 260;   // px/s² — overridden at game start by gravity setting
@@ -5646,6 +5646,8 @@ function renderSettingsPanel() {
     (groupContainer || body).appendChild(row);
   });
   if (groupContainer) body.appendChild(groupContainer);
+  document.getElementById('panel-weapons').style.display  = shopOff ? 'none' : '';
+  document.getElementById('panel-defenses').style.display = shopOff ? 'none' : '';
 }
 
 function setAllLocalWeather() {

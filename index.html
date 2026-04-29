@@ -1235,7 +1235,7 @@ const scoreboardEl = document.getElementById('scoreboard');
 const VWIDTH  = 1920;
 const VHEIGHT = 1080;
 
-const GAME_VERSION = '1.9.6'; // bump whenever index.html is updated
+const GAME_VERSION = '1.9.7'; // bump whenever index.html is updated
 
 // ── constants ──────────────────────────────────────────────────────────────
 let GRAVITY      = 260;   // px/s² — overridden at game start by gravity setting
@@ -1398,6 +1398,7 @@ const SETTING_DEFS = [
   { key:'gravity',  label:'Gravity',       opts:['Low','Normal','High'],               fmt:v=>v },
   { key:'timeOfDay',  label:'Time of Day',  opts:['local','dawn','sunrise','noon','sunset','night','random'], fmt:v=>v[0].toUpperCase()+v.slice(1) },
   { key:'cloudCover', label:'Cloud Cover',  opts:['local','20','50','80','100','random'],                     fmt:v=>v==='local'?'Local':v==='random'?'Random':v+'%' },
+  { key:'rain',       label:'Rain',         opts:['none','local','light','moderate','storm','random'],        fmt:v=>({none:'None',local:'Local',light:'Light Rain',moderate:'Moderate',storm:'Storm',random:'Random'}[v]??v) },
 ];
 const PLAYER_TYPES = ['off','human','cpu-easy','cpu-medium','cpu-hard'];
 const PLAYER_TYPE_LABELS = {
@@ -1932,7 +1933,7 @@ let gameSettings     = {};
 let menuPlayers     = Array.from({length:5}, (_, i) => ({
   name:`Player ${i+1}`, colorIdx:i, typeIdx: i < 2 ? 1 : 0,
 }));
-let menuSettingsIdx = { rounds:4, cash:1, cashPerRound:1, interest:2, terrain:0, walls:5, wind:2, gravity:1, timeOfDay:6, cloudCover:3 };
+let menuSettingsIdx = { rounds:4, cash:1, cashPerRound:1, interest:2, terrain:0, walls:5, wind:2, gravity:1, timeOfDay:6, cloudCover:3, rain:5 };
 (function() {
   try {
     const saved = JSON.parse(localStorage.getItem('se_sky') || 'null');
@@ -1941,6 +1942,8 @@ let menuSettingsIdx = { rounds:4, cash:1, cashPerRound:1, interest:2, terrain:0,
         menuSettingsIdx.timeOfDay = saved.timeOfDay;
       if (typeof saved.cloudCover === 'number' && saved.cloudCover >= 0 && saved.cloudCover < 6)
         menuSettingsIdx.cloudCover = saved.cloudCover;
+      if (typeof saved.rain === 'number' && saved.rain >= 0 && saved.rain < 6)
+        menuSettingsIdx.rain = saved.rain;
     }
   } catch (_) {}
 })();
@@ -3452,7 +3455,7 @@ function startNextRound() {
     wind = pendingNetworkWind;
     pendingNetworkWind = null;
   }
-  applyRoundSky(gameSettings.timeOfDay, gameSettings.cloudCover);
+  applyRoundSky(gameSettings.timeOfDay, gameSettings.cloudCover, gameSettings.rain);
   if (sky) sky.setWindSpeed(wind * 20);
   // Host sends authoritative terrain, positions, wind, and wall type so guests stay in sync
   if (networkModeOn && networkIsHost && networkWs && networkWs.readyState === WebSocket.OPEN) {
@@ -5559,11 +5562,11 @@ function renderSettingsPanel() {
   });
 }
 
-function applyRoundSky(timeChoice, cloudChoice) {
+function applyRoundSky(timeChoice, cloudChoice, rainChoice) {
   if (!sky) return;
 
-  // Only fetch live weather when the player actually wants local data
-  sky.useWeather = (timeChoice === 'local' || cloudChoice === 'local');
+  // Only fetch live weather when the player actually wants local data for any setting
+  sky.useWeather = (timeChoice === 'local' || cloudChoice === 'local' || rainChoice === 'local');
 
   if (timeChoice === 'local') {
     sky.timeOverride = null;
@@ -5580,6 +5583,26 @@ function applyRoundSky(timeChoice, cloudChoice) {
   if (cloudChoice === 'local')       sky.cloudOverride = null;
   else if (cloudChoice === 'random') sky.cloudOverride = Math.floor(Math.random() * 101);
   else                               sky.cloudOverride = parseInt(cloudChoice, 10);
+
+  // Rain: menu 'storm' maps to sky API 'thunder'
+  if (rainChoice === 'local') {
+    sky.precipOverride = null;
+  } else if (rainChoice === 'none') {
+    sky.precipOverride = 'none';
+  } else if (rainChoice === 'light') {
+    sky.precipOverride = 'light';
+  } else if (rainChoice === 'moderate') {
+    sky.precipOverride = 'moderate';
+  } else if (rainChoice === 'storm') {
+    sky.precipOverride = 'thunder';
+  } else if (rainChoice === 'random') {
+    // 60% none, 40% split evenly among light / moderate / storm
+    const r = Math.random();
+    if      (r < 0.600) sky.precipOverride = 'none';
+    else if (r < 0.733) sky.precipOverride = 'light';
+    else if (r < 0.867) sky.precipOverride = 'moderate';
+    else                sky.precipOverride = 'thunder';
+  }
 }
 
 function stepSetting(si, dir) {
@@ -5589,8 +5612,8 @@ function stepSetting(si, dir) {
   const vals = document.querySelectorAll('.setting-value');
   if (vals[si]) vals[si].focus();
   if (networkModeOn && networkIsHost) broadcastSettings();
-  if (def.key === 'timeOfDay' || def.key === 'cloudCover') {
-    try { localStorage.setItem('se_sky', JSON.stringify({ timeOfDay: menuSettingsIdx.timeOfDay, cloudCover: menuSettingsIdx.cloudCover })); } catch (_) {}
+  if (def.key === 'timeOfDay' || def.key === 'cloudCover' || def.key === 'rain') {
+    try { localStorage.setItem('se_sky', JSON.stringify({ timeOfDay: menuSettingsIdx.timeOfDay, cloudCover: menuSettingsIdx.cloudCover, rain: menuSettingsIdx.rain })); } catch (_) {}
   }
 }
 
@@ -7026,8 +7049,14 @@ function initGame() {
   tanks.forEach(t => { t.money = gameSettings.cash ?? 5000; });
   currentPlayer = roundFirstPlayer % tanks.length;
   newWind();
-  if (!sky) sky = new Sky({ lat: 44.55, lon: -88.05, useWeather: false });
-  applyRoundSky(gameSettings.timeOfDay, gameSettings.cloudCover);
+  if (!sky) {
+    sky = new Sky({ lat: 44.55, lon: -88.05, useWeather: false });
+    sky.groundYFn = (x) => {
+      const wx = Math.round(x + camera.x);
+      return (terrain && wx >= 0 && wx < terrain.length) ? terrain[wx] : VHEIGHT;
+    };
+  }
+  applyRoundSky(gameSettings.timeOfDay, gameSettings.cloudCover, gameSettings.rain);
   sky.setWindSpeed(wind * 20);
   updateUI();
   updateWeaponIndicator();

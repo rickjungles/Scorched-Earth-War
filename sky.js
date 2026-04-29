@@ -17,6 +17,7 @@ class Sky {
         // Debug overrides - set to a number to force these values
         this.timeOverride = null;        // hours 0-24 (e.g., 18.5 for 6:30 PM)
         this.cloudOverride = null;       // 0-100
+        this.precipOverride = null;      // null=use weather code; or 'none'/'drizzle'/'light'/'moderate'/'heavy'/'thunder'
 
         // Sun times (decimal hours). Defaults are reasonable for mid-latitudes.
         this.sunrise = 6.5;
@@ -29,13 +30,26 @@ class Sky {
         this.lastWeatherFetch = 0;
         this.weatherFetchInterval = 30 * 60 * 1000; // 30 min
 
+        // Wind state (set externally via setWindSpeed; affects rain angle and cloud drift)
+        this._windMph = 0;
+        this._windDirection = 1;
+
+        // Ground line for splash effects. Game should set this per column;
+        // for demo/fallback we use a single Y value (canvas bottom by default).
+        this.groundY = null;
+        this.groundYFn = null;  // optional fn(x) → y for terrain-aware splashes
+
         // Visual state
         this.stars = [];
         this.clouds = [];
+        this.raindrops = [];
+        this.splashes = [];
+        this.nextLightningAt = 0;
+        this.lightningPhase = 0;     // 0 = no flash, 1 = peak, fades to 0
+        this.lightningBolt = null;
         this.lastWidth = 0;
         this.lastHeight = 0;
-        this._windDirection = 1; // 1 = rightward (default), -1 = leftward
-        this._windFactor = 0;   // stored so _makeCloud applies magnitude even before setWindSpeed iterates
+        this._lastTimestamp = 0;
 
         if (this.useWeather) this.fetchWeather();
     }
@@ -90,6 +104,58 @@ class Sky {
 
     getCurrentCloudCover() {
         return this.cloudOverride !== null ? this.cloudOverride : this.cloudCover;
+    }
+
+    // ---------- Precipitation ----------
+
+    // Maps WMO weather code -> precipitation type
+    // Codes: https://open-meteo.com/en/docs#weathervariables
+    getCurrentPrecipitation() {
+        if (this.precipOverride !== null) return this.precipOverride;
+        const c = this.weatherCode;
+        if (c >= 95) return 'thunder';                          // 95-99: thunderstorms
+        if (c === 65 || c === 67 || c === 82) return 'heavy';   // heavy rain / showers
+        if (c === 63 || c === 81) return 'moderate';
+        if (c === 61 || c === 80) return 'light';
+        if (c >= 51 && c <= 57) return 'drizzle';
+        // 71-77 are snow codes - treated as 'none' for now (snow is Phase 3)
+        return 'none';
+    }
+
+    // Returns config for current precipitation type:
+    //   { count, speed, length, alpha, splashChance, desat }
+    // count    = target number of active raindrops
+    // speed    = pixels/sec downward base velocity
+    // length   = streak length in px
+    // alpha    = streak opacity 0-1
+    // splashChance = probability per raindrop landing of spawning a splash
+    // desat    = how much to flatten/grey the sky palette (0-1)
+    _precipConfig() {
+        const type = this.getCurrentPrecipitation();
+        const w = this.lastWidth || 900;
+        const h = this.lastHeight || 500;
+        const area = (w * h) / (900 * 500);  // scale density with canvas size
+        switch (type) {
+            case 'drizzle':
+                return { type, count: Math.floor(80 * area),  speed: 280, length: 4,  alpha: 0.35, splashChance: 0.05, desat: 0.25 };
+            case 'light':
+                return { type, count: Math.floor(160 * area), speed: 480, length: 7,  alpha: 0.5,  splashChance: 0.15, desat: 0.4 };
+            case 'moderate':
+                return { type, count: Math.floor(280 * area), speed: 620, length: 10, alpha: 0.6,  splashChance: 0.25, desat: 0.55 };
+            case 'heavy':
+                return { type, count: Math.floor(450 * area), speed: 780, length: 14, alpha: 0.7,  splashChance: 0.4,  desat: 0.7 };
+            case 'thunder':
+                return { type, count: Math.floor(420 * area), speed: 760, length: 13, alpha: 0.7,  splashChance: 0.4,  desat: 0.75 };
+            default:
+                return { type: 'none', count: 0, speed: 0, length: 0, alpha: 0, splashChance: 0, desat: 0 };
+        }
+    }
+
+    // Returns the ground Y value for a given screen X
+    _getGroundY(x) {
+        if (this.groundYFn) return this.groundYFn(x);
+        if (this.groundY !== null) return this.groundY;
+        return this.lastHeight - 4;  // fallback: bottom of canvas
     }
 
     // Returns palette {top, mid, bot} interpolated across time.
@@ -203,15 +269,6 @@ class Sky {
         }
     }
 
-    setWindSpeed(mph) {
-        this._windFactor = mph / 60;
-        for (const c of this.clouds) {
-            if (c.baseSpeed === undefined) c.baseSpeed = Math.abs(c.speed);
-            c.speed = (c.baseSpeed + Math.abs(this._windFactor) * 0.4) * Math.sign(this._windFactor || 1);
-        }
-        this._windDirection = this._windFactor < 0 ? -1 : 1;
-    }
-
     _makeCloud(randomX) {
         const w = this.lastWidth;
         const h = this.lastHeight;
@@ -249,12 +306,8 @@ class Sky {
 
         const bitmap = this._renderCloudBitmap(bmpW, bmpH, cloudW, cloudH, pad, displaceScale, type);
 
-        const baseSpeed = 0.04 + Math.random() * 0.1;
-        const wf = this._windFactor;
-        const speed = (baseSpeed + Math.abs(wf) * 0.4) * Math.sign(wf || this._windDirection || 1);
-
         return {
-            x: randomX ? Math.random() * w : (this._windDirection === -1 ? w : -bmpW),
+            x: randomX ? Math.random() * w : -bmpW,
             // y is bitmap top-left. Subtract pad so the visible cloud silhouette
             // (which is centered in the bitmap with `pad` of empty space around it)
             // appears in the upper third of the sky.
@@ -265,7 +318,7 @@ class Sky {
             pad,
             type,
             opacity,
-            speed, baseSpeed,
+            speed: 0.04 + Math.random() * 0.1,
             bitmap,
         };
     }
@@ -406,20 +459,40 @@ class Sky {
         // Periodic weather refresh
         if (this.useWeather) this.fetchWeather();
 
+        // Compute frame delta for time-based motion (rain etc.)
+        const dt = this._lastTimestamp ? Math.min(0.1, (timestamp - this._lastTimestamp) / 1000) : 0.016;
+        this._lastTimestamp = timestamp;
+
         // Adjust cloud population if cover changed (e.g., override slider moved)
         const targetCount = Math.floor((this.getCurrentCloudCover() / 100) * 28);
         while (this.clouds.length < targetCount) this.clouds.push(this._makeCloud(true));
         while (this.clouds.length > targetCount) this.clouds.pop();
+
+        // Update precipitation
+        this._updatePrecipitation(dt);
+
+        // Update lightning (only during thunderstorms)
+        const precip = this.getCurrentPrecipitation();
+        if (precip === 'thunder') {
+            this._updateLightning(timestamp, dt);
+        } else {
+            this.lightningPhase = 0;
+            this.lightningBolt = null;
+        }
     }
 
-    draw(ctx, timestamp = performance.now(), virtW, virtH) {
-        const w = virtW ?? ctx.canvas.width;
-        const h = virtH ?? ctx.canvas.height;
+    draw(ctx, timestamp = performance.now()) {
+        const w = ctx.canvas.width;
+        const h = ctx.canvas.height;
         this._ensureGenerated(w, h);
 
         const hour = this.getCurrentHour();
-        const palette = this._getPalette(hour);
         const nightAmt = this._nightAmount(hour);
+        const precipCfg = this._precipConfig();
+
+        // Get palette and desaturate it for rain
+        let palette = this._getPalette(hour);
+        if (precipCfg.desat > 0) palette = this._desaturatePalette(palette, precipCfg.desat);
 
         // 1. Sky gradient
         const grad = ctx.createLinearGradient(0, 0, 0, h);
@@ -429,15 +502,16 @@ class Sky {
         ctx.fillStyle = grad;
         ctx.fillRect(0, 0, w, h);
 
-        // 2. Stars (with twinkle), faded by night amount
+        // 2. Stars (faded by night amount AND by rain — heavy rain hides stars)
         if (nightAmt > 0.01) {
-            this._drawStars(ctx, timestamp, nightAmt);
+            const starAlpha = nightAmt * (1 - precipCfg.desat * 0.7);
+            if (starAlpha > 0.05) this._drawStars(ctx, timestamp, starAlpha);
         }
 
-        // 3. Sun or moon — returns { x, y, isSun } or null
-        const celestial = this._drawCelestial(ctx, hour, w, h);
+        // 3. Sun or moon (dimmed by rain)
+        const celestial = this._drawCelestial(ctx, hour, w, h, 1 - precipCfg.desat * 0.5);
 
-        // 4. Clouds (pass sun pos so clouds in front of sun render denser)
+        // 4. Clouds
         let occlusion = 0;
         if (this.getCurrentCloudCover() > 5) {
             const sunPos = (celestial && celestial.isSun) ? celestial : null;
@@ -445,14 +519,41 @@ class Sky {
             if (sunPos) occlusion = this._computeSunOcclusion(sunPos.x, sunPos.y);
         }
 
-        // 5. Sun occlusion dimming - whole-sky wash when clouds pass in front
+        // 5. Sun occlusion dimming
         if (occlusion > 0.01) {
             ctx.fillStyle = `rgba(15, 20, 35, ${occlusion * 0.55})`;
             ctx.fillRect(0, 0, w, h);
         }
 
-        // 6. Subtle horizon haze near sunrise/sunset
+        // 6. Horizon haze near sunrise/sunset
         this._drawHorizonGlow(ctx, hour, w, h);
+
+        // 7. Rain streaks (in front of clouds, behind splashes/lightning)
+        if (precipCfg.count > 0) this._drawRain(ctx, precipCfg);
+
+        // 8. Splashes (small marks where rain hits the ground)
+        if (this.splashes.length > 0) this._drawSplashes(ctx);
+
+        // 9. Lightning flash (full-canvas wash + bolt)
+        if (this.lightningPhase > 0.001) this._drawLightning(ctx, w, h);
+    }
+
+    // Reduce saturation of the sky palette by the given amount (0-1).
+    // 0 = no change, 1 = fully grey.
+    _desaturatePalette(palette, amt) {
+        const flatten = (rgb) => {
+            const grey = (rgb[0] + rgb[1] + rgb[2]) / 3;
+            // Lean grey-green/blue typical of overcast rain
+            const targetR = grey * 0.85;
+            const targetG = grey * 0.92;
+            const targetB = grey * 0.95;
+            return [
+                Math.round(rgb[0] + (targetR - rgb[0]) * amt),
+                Math.round(rgb[1] + (targetG - rgb[1]) * amt),
+                Math.round(rgb[2] + (targetB - rgb[2]) * amt),
+            ];
+        };
+        return { top: flatten(palette.top), mid: flatten(palette.mid), bot: flatten(palette.bot) };
     }
 
     _drawStars(ctx, t, alpha) {
@@ -479,7 +580,7 @@ class Sky {
         }
     }
 
-    _drawCelestial(ctx, hour, w, h) {
+    _drawCelestial(ctx, hour, w, h, dim = 1) {
         const sr = this.sunrise;
         const ss = this.sunset;
         const isDay = hour >= sr - 0.3 && hour <= ss + 0.3;
@@ -500,6 +601,7 @@ class Sky {
         const y = h * 0.55 - Math.sin(t * Math.PI) * h * 0.45;
 
         ctx.save();
+        ctx.globalAlpha = dim;
         if (isDay) {
             this._drawSun(ctx, x, y, hour, sr, ss);
         } else {
@@ -692,6 +794,252 @@ class Sky {
             ctx.restore();
         }
     }
+
+    // ---------- Rain ----------
+
+    _updatePrecipitation(dt) {
+        const cfg = this._precipConfig();
+        const w = this.lastWidth;
+        const h = this.lastHeight;
+        if (!w || !h) return;
+
+        // Spawn raindrops up to target count
+        while (this.raindrops.length < cfg.count) {
+            this.raindrops.push(this._makeRaindrop(true));
+        }
+        // Trim if config dropped (e.g. precip override changed)
+        while (this.raindrops.length > cfg.count) {
+            this.raindrops.pop();
+        }
+
+        // Wind-driven horizontal velocity. Rain in heavy wind tilts noticeably.
+        // Wind is mph 0-100; we want a strong tilt at game-extreme winds (~100)
+        // and barely any at calm. -ve wind = leftward.
+        const signedWind = (this._windDirection || 1) * Math.abs(this._windMph || 0);
+        const windPx = signedWind * 4;  // 100 mph wind = 400 px/s horizontal
+
+        // Update raindrops
+        for (let i = this.raindrops.length - 1; i >= 0; i--) {
+            const r = this.raindrops[i];
+            r.x += windPx * dt;
+            r.y += cfg.speed * dt;
+
+            // Reached the ground line for this column?
+            const groundY = this._getGroundY(r.x);
+            if (r.y >= groundY) {
+                if (Math.random() < cfg.splashChance) {
+                    this.splashes.push({
+                        x: r.x,
+                        y: groundY,
+                        life: 0,
+                        maxLife: 0.35 + Math.random() * 0.25,
+                    });
+                }
+                // Recycle: respawn at top
+                Object.assign(r, this._makeRaindrop(false));
+                continue;
+            }
+
+            // Off-screen horizontally? recycle
+            if (r.x < -20 || r.x > w + 20) {
+                Object.assign(r, this._makeRaindrop(false));
+            }
+        }
+
+        // Update splashes
+        for (let i = this.splashes.length - 1; i >= 0; i--) {
+            const s = this.splashes[i];
+            s.life += dt;
+            if (s.life >= s.maxLife) this.splashes.splice(i, 1);
+        }
+    }
+
+    _makeRaindrop(randomY) {
+        const w = this.lastWidth;
+        const h = this.lastHeight;
+        return {
+            // Spawn slightly outside left/right edges to account for wind drift
+            x: -50 + Math.random() * (w + 100),
+            y: randomY ? Math.random() * h : -20 - Math.random() * 60,
+            // Per-drop speed variance (looks better than uniform)
+            speedJitter: 0.85 + Math.random() * 0.3,
+        };
+    }
+
+    _drawRain(ctx, cfg) {
+        // Wind-driven streak angle. Streak length scales with both type and wind.
+        const signedWind = (this._windDirection || 1) * Math.abs(this._windMph || 0);
+        const windPx = signedWind * 4;
+        const angle = Math.atan2(cfg.speed, -windPx) - Math.PI / 2; // 0 = down, +ve = leans right
+        const len = cfg.length * (1 + Math.abs(this._windMph || 0) / 200);  // longer in high wind
+        const dx = Math.cos(angle - Math.PI / 2) * len;
+        const dy = Math.sin(angle - Math.PI / 2) * len;
+
+        ctx.save();
+        ctx.strokeStyle = `rgba(180, 200, 230, ${cfg.alpha})`;
+        ctx.lineWidth = 1;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        for (const r of this.raindrops) {
+            ctx.moveTo(r.x, r.y);
+            ctx.lineTo(r.x - dx, r.y - dy);
+        }
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    _drawSplashes(ctx) {
+        ctx.save();
+        for (const s of this.splashes) {
+            const t = s.life / s.maxLife;       // 0 -> 1 over splash lifetime
+            const alpha = (1 - t) * 0.5;
+            const radius = 2 + t * 4;            // ring expands
+
+            ctx.strokeStyle = `rgba(190, 210, 235, ${alpha})`;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            // half-ring (top half only - splashes go up, not down through ground)
+            ctx.arc(s.x, s.y, radius, Math.PI, 2 * Math.PI);
+            ctx.stroke();
+
+            // Tiny upward droplet specks
+            if (t < 0.5) {
+                ctx.fillStyle = `rgba(190, 210, 235, ${alpha * 1.5})`;
+                ctx.fillRect(s.x - 2, s.y - 1 - t * 4, 1, 1);
+                ctx.fillRect(s.x + 1, s.y - 1 - t * 5, 1, 1);
+            }
+        }
+        ctx.restore();
+    }
+
+    // ---------- Lightning ----------
+
+    _updateLightning(timestamp, dt) {
+        // Initialize next strike time on first call
+        if (this.nextLightningAt === 0) {
+            this.nextLightningAt = timestamp + 3000 + Math.random() * 8000;
+        }
+
+        // Decay current flash
+        if (this.lightningPhase > 0) {
+            this.lightningPhase -= dt * 4;  // ~250ms full fade
+            if (this.lightningPhase <= 0) {
+                this.lightningPhase = 0;
+                this.lightningBolt = null;
+            }
+        }
+
+        // Time for a new strike?
+        if (timestamp >= this.nextLightningAt) {
+            this.lightningPhase = 1;
+            this.lightningBolt = this._generateBolt();
+            this.nextLightningAt = timestamp + 5000 + Math.random() * 25000;
+        }
+    }
+
+    // Generate a jagged lightning bolt as a polyline from sky to ground
+    _generateBolt() {
+        const w = this.lastWidth;
+        const h = this.lastHeight;
+        const startX = w * (0.2 + Math.random() * 0.6);
+        const startY = h * 0.05;
+        const endX = startX + (Math.random() - 0.5) * w * 0.3;
+        const endY = h * (0.55 + Math.random() * 0.25);
+
+        // Build segmented path with random offsets
+        const segments = 8 + Math.floor(Math.random() * 6);
+        const points = [];
+        for (let i = 0; i <= segments; i++) {
+            const t = i / segments;
+            const x = startX + (endX - startX) * t + (Math.random() - 0.5) * 30;
+            const y = startY + (endY - startY) * t;
+            points.push({ x, y });
+        }
+
+        // Random branches
+        const branches = [];
+        const branchCount = 1 + Math.floor(Math.random() * 3);
+        for (let i = 0; i < branchCount; i++) {
+            const startIdx = 2 + Math.floor(Math.random() * (points.length - 4));
+            const start = points[startIdx];
+            const branchPoints = [start];
+            const segs = 3 + Math.floor(Math.random() * 4);
+            const dirX = (Math.random() - 0.5) * 60;
+            const dirY = 30 + Math.random() * 60;
+            for (let j = 1; j <= segs; j++) {
+                const t = j / segs;
+                branchPoints.push({
+                    x: start.x + dirX * t + (Math.random() - 0.5) * 20,
+                    y: start.y + dirY * t,
+                });
+            }
+            branches.push(branchPoints);
+        }
+
+        return { points, branches };
+    }
+
+    _drawLightning(ctx, w, h) {
+        // 1. Full-canvas flash
+        ctx.fillStyle = `rgba(255, 255, 240, ${this.lightningPhase * 0.55})`;
+        ctx.fillRect(0, 0, w, h);
+
+        // 2. Bolt itself
+        if (this.lightningBolt) {
+            ctx.save();
+            // Outer glow
+            ctx.strokeStyle = `rgba(180, 200, 255, ${this.lightningPhase * 0.7})`;
+            ctx.lineWidth = 6;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.beginPath();
+            const pts = this.lightningBolt.points;
+            ctx.moveTo(pts[0].x, pts[0].y);
+            for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+            ctx.stroke();
+            // Branches glow
+            for (const branch of this.lightningBolt.branches) {
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(branch[0].x, branch[0].y);
+                for (let i = 1; i < branch.length; i++) ctx.lineTo(branch[i].x, branch[i].y);
+                ctx.stroke();
+            }
+
+            // Inner core (bright white)
+            ctx.strokeStyle = `rgba(255, 255, 255, ${this.lightningPhase})`;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(pts[0].x, pts[0].y);
+            for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+            ctx.stroke();
+            for (const branch of this.lightningBolt.branches) {
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(branch[0].x, branch[0].y);
+                for (let i = 1; i < branch.length; i++) ctx.lineTo(branch[i].x, branch[i].y);
+                ctx.stroke();
+            }
+            ctx.restore();
+        }
+    }
+
+    // ---------- Wind (called externally per round) ----------
+
+    setWindSpeed(mph) {
+        this._windMph = Math.abs(mph || 0);
+        this._windDirection = (mph || 0) < 0 ? -1 : 1;
+
+        // Update each cloud's speed.
+        // Maps |mph| 0-100 to a sensible drift; preserves per-cloud variance.
+        const windFactor = this._windMph / 60;
+        for (const c of this.clouds) {
+            if (c.baseSpeed === undefined) c.baseSpeed = c.speed;
+            const magnitude = c.baseSpeed + windFactor * 0.4;
+            c.speed = magnitude * this._windDirection;
+        }
+    }
+
 
     _drawHorizonGlow(ctx, hour, w, h) {
         const sr = this.sunrise;

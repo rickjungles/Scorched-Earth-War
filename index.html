@@ -1235,7 +1235,7 @@ const scoreboardEl = document.getElementById('scoreboard');
 const VWIDTH  = 1920;
 const VHEIGHT = 1080;
 
-const GAME_VERSION = '1.10.0'; // bump whenever index.html is updated
+const GAME_VERSION = '1.10.1'; // bump whenever index.html is updated
 
 // ── constants ──────────────────────────────────────────────────────────────
 let GRAVITY      = 260;   // px/s² — overridden at game start by gravity setting
@@ -1938,14 +1938,13 @@ let menuPlayers     = Array.from({length:5}, (_, i) => ({
 let menuSettingsIdx = { rounds:4, shop:0, cash:1, cashPerRound:1, interest:2, terrain:0, walls:5, wind:4, gravity:1, timeOfDay:6, cloudCover:3, rain:5 };
 (function() {
   try {
-    const saved = JSON.parse(localStorage.getItem('se_sky') || 'null');
+    const saved = JSON.parse(localStorage.getItem('se_sky2') || 'null');
     if (saved) {
       if (typeof saved.timeOfDay === 'number' && saved.timeOfDay >= 0 && saved.timeOfDay < 7)
         menuSettingsIdx.timeOfDay = saved.timeOfDay;
       if (typeof saved.cloudCover === 'number' && saved.cloudCover >= 0 && saved.cloudCover < 6)
         menuSettingsIdx.cloudCover = saved.cloudCover;
-      if (typeof saved.rain === 'number' && saved.rain >= 0 && saved.rain < 6)
-        menuSettingsIdx.rain = saved.rain;
+      // rain is intentionally not persisted — always defaults to Random
     }
   } catch (_) {}
 })();
@@ -4831,13 +4830,11 @@ function gameLoop(ts) {
   frameSx = screenShake > 0 ? Math.round((Math.random() * 2 - 1) * screenShake) : 0;
   frameSy = screenShake > 0 ? Math.round((Math.random() * 2 - 1) * screenShake) : 0;
 
-  // Sky module — translated by the same shake as terrain so horizon seam never shows
+  // Sky module — drawn at full virtual size, no shake translation needed since sky
+  // fills all the way to VHEIGHT; terrain shakes on top of it with no visible gap.
   if (sky) {
-    ctx.save();
-    ctx.translate(frameSx, frameSy);
     sky.update(ts);
     sky.draw(ctx, ts, VWIDTH, VHEIGHT);
-    ctx.restore();
   }
 
   // ── intro sequence ─────────────────────────────────────────────────────
@@ -5622,8 +5619,8 @@ function stepSetting(si, dir) {
   const vals = document.querySelectorAll('.setting-value');
   if (vals[si]) vals[si].focus();
   if (networkModeOn && networkIsHost) broadcastSettings();
-  if (def.key === 'timeOfDay' || def.key === 'cloudCover' || def.key === 'rain') {
-    try { localStorage.setItem('se_sky', JSON.stringify({ timeOfDay: menuSettingsIdx.timeOfDay, cloudCover: menuSettingsIdx.cloudCover, rain: menuSettingsIdx.rain })); } catch (_) {}
+  if (def.key === 'timeOfDay' || def.key === 'cloudCover') {
+    try { localStorage.setItem('se_sky2', JSON.stringify({ timeOfDay: menuSettingsIdx.timeOfDay, cloudCover: menuSettingsIdx.cloudCover })); } catch (_) {}
   }
 }
 

@@ -867,13 +867,18 @@ class Sky {
     }
 
     _drawRain(ctx, cfg) {
-        // Wind-driven streak angle. Streak length scales with both type and wind.
+        // Streak should point in the direction the drop is moving.
+        // Velocity vector: (windPx, cfg.speed). Tail extends opposite that.
         const signedWind = (this._windDirection || 1) * Math.abs(this._windMph || 0);
         const windPx = signedWind * 4;
-        const angle = Math.atan2(cfg.speed, -windPx) - Math.PI / 2; // 0 = down, +ve = leans right
-        const len = cfg.length * (1 + Math.abs(this._windMph || 0) / 200);  // longer in high wind
-        const dx = Math.cos(angle - Math.PI / 2) * len;
-        const dy = Math.sin(angle - Math.PI / 2) * len;
+
+        // Length scales with type and wind. Normalize the velocity, then multiply.
+        const baseLen = cfg.length * (1 + Math.abs(this._windMph || 0) / 200);
+        const vMag = Math.sqrt(windPx * windPx + cfg.speed * cfg.speed) || 1;
+        const ux = windPx / vMag;
+        const uy = cfg.speed / vMag;
+        const tailDx = -ux * baseLen;  // tail goes opposite the velocity
+        const tailDy = -uy * baseLen;
 
         ctx.save();
         ctx.strokeStyle = `rgba(180, 200, 230, ${cfg.alpha})`;
@@ -882,7 +887,7 @@ class Sky {
         ctx.beginPath();
         for (const r of this.raindrops) {
             ctx.moveTo(r.x, r.y);
-            ctx.lineTo(r.x - dx, r.y - dy);
+            ctx.lineTo(r.x + tailDx, r.y + tailDy);
         }
         ctx.stroke();
         ctx.restore();

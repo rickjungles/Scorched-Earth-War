@@ -373,16 +373,26 @@ canvas { position: absolute; image-rendering: pixelated; }
 #quit-confirm-box button:hover { background: #0ff; color: #000; }
 #quit-btn-yes { border-color: #f55 !important; color: #f55 !important; }
 #quit-btn-yes:hover { background: #f55 !important; color: #000 !important; }
-/* ── about + settings side-by-side row ───────────────────────────────────── */
+/* ── settings (left) + weapons/defenses (right) row ─────────────────────── */
 #about-settings-row {
   display: flex;
   gap: 12px;
-  align-items: stretch;
+  align-items: flex-start;
   margin-bottom: 12px;
 }
-#panel-about {
-  flex: 2 0 40%;
+#about-settings-row #panel-settings {
+  flex: 1 1 auto;
   margin-bottom: 0;
+}
+#loadout-col {
+  flex: 0 0 260px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+#loadout-col .dos-panel { margin-bottom: 0; }
+#panel-about {
+  margin-top: 4px;
 }
 #panel-about .about-ver {
   color: #0ff;
@@ -393,10 +403,6 @@ canvas { position: absolute; image-rendering: pixelated; }
   color: rgba(255,255,255,0.75);
   font-size: 12px;
   line-height: 1.65;
-}
-#about-settings-row #panel-settings {
-  flex: 3 0 0;
-  margin-bottom: 0;
 }
 /* ── DOS-era setup screen ─────────────────────────────────────────────────── */
 #setup {
@@ -409,7 +415,7 @@ canvas { position: absolute; image-rendering: pixelated; }
   font-family: 'Courier New', monospace;
 }
 #setup-inner {
-  max-width: 860px;
+  max-width: 980px;
   margin: 20px auto;
   padding: 16px 20px 28px;
   color: #fff;
@@ -1178,6 +1184,24 @@ canvas { position: absolute; image-rendering: pixelated; }
         <div class="dos-panel-title">Game Settings</div>
         <div class="dos-panel-body" id="setup-settings-body"></div>
       </div>
+      <div id="loadout-col">
+        <div class="dos-panel" id="panel-weapons">
+          <div class="dos-panel-title">Weapons Loadout</div>
+          <div class="dos-panel-body">
+            <div class="chip-grid" id="setup-weapons-chips"></div>
+          </div>
+        </div>
+        <div class="dos-panel" id="panel-defenses">
+          <div class="dos-panel-title">Defenses</div>
+          <div class="dos-panel-body">
+            <div class="chip-grid" id="setup-defenses-chips"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="setup-footer">
+      <div id="setup-start-row"><button id="setup-start">&#9654; START GAME</button></div>
       <div class="dos-panel" id="panel-about">
         <div class="dos-panel-title">About</div>
         <div class="dos-panel-body">
@@ -1191,24 +1215,6 @@ canvas { position: absolute; image-rendering: pixelated; }
           </div>
         </div>
       </div>
-    </div>
-
-    <div class="dos-panel" id="panel-weapons">
-      <div class="dos-panel-title">Weapons Loadout</div>
-      <div class="dos-panel-body">
-        <div class="chip-grid" id="setup-weapons-chips"></div>
-      </div>
-    </div>
-
-    <div class="dos-panel" id="panel-defenses">
-      <div class="dos-panel-title">Defenses</div>
-      <div class="dos-panel-body">
-        <div class="chip-grid" id="setup-defenses-chips"></div>
-      </div>
-    </div>
-
-    <div id="setup-footer">
-      <div id="setup-start-row"><button id="setup-start">&#9654; START GAME</button></div>
     </div>
   </div>
 </div>
@@ -1261,7 +1267,7 @@ const scoreboardEl = document.getElementById('scoreboard');
 const VWIDTH  = 1920;
 const VHEIGHT = 1080;
 
-const GAME_VERSION = '1.10.8'; // bump whenever index.html is updated
+const GAME_VERSION = '1.10.9'; // bump whenever index.html is updated
 
 // ── constants ──────────────────────────────────────────────────────────────
 let GRAVITY      = 260;   // px/s² — overridden at game start by gravity setting

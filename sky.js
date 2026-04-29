@@ -26,6 +26,8 @@ class Sky {
         // Weather state
         this.cloudCover = 0;
         this.weatherCode = 0;
+        this.windSpeedKph = 0;      // current wind speed from Open-Meteo (km/h)
+        this.windDirectionDeg = 270; // meteorological "from" direction; 270=from west → blows east
         this.weatherReady = false;
         this.lastWeatherFetch = 0;
         this.weatherFetchInterval = 30 * 60 * 1000; // 30 min
@@ -65,7 +67,7 @@ class Sky {
             const url =
                 `https://api.open-meteo.com/v1/forecast` +
                 `?latitude=${this.lat}&longitude=${this.lon}` +
-                `&current=cloud_cover,weather_code` +
+                `&current=cloud_cover,weather_code,wind_speed_10m,wind_direction_10m` +
                 `&daily=sunrise,sunset` +
                 `&timezone=auto`;
             const res = await fetch(url);
@@ -74,6 +76,8 @@ class Sky {
 
             this.cloudCover = data.current?.cloud_cover ?? 0;
             this.weatherCode = data.current?.weather_code ?? 0;
+            this.windSpeedKph = data.current?.wind_speed_10m ?? 0;
+            this.windDirectionDeg = data.current?.wind_direction_10m ?? 270;
 
             if (this.useRealSunTimes && data.daily?.sunrise?.[0]) {
                 this.sunrise = this._isoToDecimalHour(data.daily.sunrise[0]);
@@ -92,6 +96,16 @@ class Sky {
         const t = iso.split('T')[1];
         const [h, m] = t.split(':').map(Number);
         return h + m / 60;
+    }
+
+    // Returns fetched wind speed in mph (0 if not yet fetched)
+    getLocalWindMph() { return this.windSpeedKph * 0.621371; }
+
+    // Returns +1 (blowing east/right) or -1 (blowing west/left) from the fetched wind direction.
+    // windDirectionDeg is "from" direction: 270° = from west → blows eastward (+1).
+    getLocalWindSign() {
+        const d = this.windDirectionDeg ?? 270;
+        return Math.sign(-Math.sin(d * Math.PI / 180)) || 1;
     }
 
     // ---------- Time of day ----------

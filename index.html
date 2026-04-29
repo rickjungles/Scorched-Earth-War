@@ -913,6 +913,32 @@ canvas { position: absolute; image-rendering: pixelated; }
 }
 .setting-row:last-child { border-bottom: none; }
 .setting-label { color: #FFFF55; font-size: 13px; letter-spacing: 1px; width: 144px; flex-shrink: 0; }
+.settings-group {
+  border: 1px solid rgba(0,170,170,0.35);
+  border-radius: 2px;
+  margin: 5px 0 3px;
+  padding: 0 6px 2px;
+}
+.settings-group-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0 3px;
+  border-bottom: 1px solid rgba(0,170,170,0.2);
+  margin-bottom: 2px;
+}
+.settings-group-label { font-size: 10px; color: #00AAAA; letter-spacing: 0.12em; }
+.settings-group-btn {
+  font-family: inherit;
+  font-size: 10px;
+  background: rgba(0,170,170,0.12);
+  color: #00AAAA;
+  border: 1px solid rgba(0,170,170,0.5);
+  padding: 1px 8px;
+  cursor: pointer;
+  letter-spacing: 0.08em;
+}
+.settings-group-btn:hover { background: #00AAAA; color: #000040; }
 .setting-arrow {
   color: #00AAAA; cursor: pointer; padding: 1px 6px; font-size: 13px;
   user-select: none; border: 1px solid transparent;
@@ -1235,7 +1261,7 @@ const scoreboardEl = document.getElementById('scoreboard');
 const VWIDTH  = 1920;
 const VHEIGHT = 1080;
 
-const GAME_VERSION = '1.10.2'; // bump whenever index.html is updated
+const GAME_VERSION = '1.10.3'; // bump whenever index.html is updated
 
 // ── constants ──────────────────────────────────────────────────────────────
 let GRAVITY      = 260;   // px/s² — overridden at game start by gravity setting
@@ -1395,10 +1421,10 @@ const SETTING_DEFS = [
   { key:'cash',         label:'Starting Cash',  opts:[5000,10000,15000,20000,30000,50000],                                        fmt:v=>'$'+v.toLocaleString() },
   { key:'cashPerRound', label:'Cash Per Round', opts:Array.from({length:21},(_,i)=>i*1000),                                       fmt:v=>v===0?'Off':'$'+v.toLocaleString() },
   { key:'interest',     label:'Interest Rate',  opts:[0,5,10,15,20,25,30],                                                        fmt:v=>v+'%' },
-  { key:'timeOfDay',    label:'Time of Day',    opts:['local','dawn','sunrise','noon','sunset','night','random'],                   fmt:v=>v[0].toUpperCase()+v.slice(1) },
-  { key:'cloudCover',   label:'Cloud Cover',    opts:['local','20','50','80','100','random'],                                      fmt:v=>v==='local'?'Local':v==='random'?'Random':v+'%' },
-  { key:'rain',         label:'Rain',           opts:['none','local','light','moderate','storm','random'],                         fmt:v=>({none:'None',local:'Local',light:'Light Rain',moderate:'Moderate',storm:'Storm',random:'Random'}[v]??v) },
-  { key:'wind',         label:'Wind',           opts:['None','Light','Gusty','Tornado','Random'],                                  fmt:v=>v },
+  { key:'timeOfDay',    label:'Time of Day',    opts:['local','dawn','sunrise','noon','sunset','night','random'],                   fmt:v=>v[0].toUpperCase()+v.slice(1),                                                                                       group:'weather' },
+  { key:'cloudCover',   label:'Cloud Cover',    opts:['local','20','50','80','100','random'],                                      fmt:v=>v==='local'?'Local':v==='random'?'Random':v+'%',                                                                     group:'weather' },
+  { key:'rain',         label:'Rain',           opts:['none','local','light','moderate','storm','random'],                         fmt:v=>({none:'None',local:'Local',light:'Light Rain',moderate:'Moderate',storm:'Storm',random:'Random'}[v]??v),            group:'weather' },
+  { key:'wind',         label:'Wind',           opts:['None','Light','Gusty','Tornado','Random','local'],                         fmt:v=>v==='local'?'Local':v,                                                                                               group:'weather' },
   { key:'gravity',      label:'Gravity',        opts:['Low','Normal','High'],                                                      fmt:v=>v, hidden:true },
 ];
 const PLAYER_TYPES = ['off','human','cpu-easy','cpu-medium','cpu-hard'];
@@ -2203,12 +2229,25 @@ function windMaxForSetting() {
   if (s === 'Light')   return 5;
   if (s === 'Gusty')   return 15;
   if (s === 'Tornado') return 30;
-  if (s === 'Random')  return windEffectiveMax;
+  if (s === 'Random' || s === 'local') return windEffectiveMax;
   return 5; // default
 }
 
 function newWind() {
   let s = gameSettings && gameSettings.wind;
+  if (s === 'local') {
+    // Map real wind speed → category; use actual direction for sign
+    const speedMph = sky ? sky.getLocalWindMph() : 0;
+    const sign     = sky ? sky.getLocalWindSign() : 1;
+    let max;
+    if      (speedMph < 10) max = 0;
+    else if (speedMph < 25) max = 5;
+    else if (speedMph < 50) max = 15;
+    else                    max = 30;
+    windEffectiveMax = max;
+    wind = max === 0 ? 0 : sign * Math.round(Math.random() * max);
+    return;
+  }
   if (s === 'Random') {
     const opts = ['None', 'Light', 'Gusty', 'Tornado'];
     s = opts[Math.floor(Math.random() * opts.length)];
@@ -5551,9 +5590,23 @@ function renderSettingsPanel() {
   body.innerHTML = '';
   const shopOff = SETTING_DEFS.find(d => d.key === 'shop').opts[menuSettingsIdx.shop ?? 0] === 'Off';
   const cashKeys = new Set(['cash', 'cashPerRound', 'interest']);
+  let groupContainer = null;
   SETTING_DEFS.forEach((def, si) => {
     if (def.hidden) return;
     if (shopOff && cashKeys.has(def.key)) return;
+    // Open group container when we first hit a grouped setting
+    if (def.group && !groupContainer) {
+      groupContainer = document.createElement('div');
+      groupContainer.className = 'settings-group';
+      const hdr = document.createElement('div');
+      hdr.className = 'settings-group-header';
+      hdr.innerHTML = '<span class="settings-group-label">WEATHER</span><button class="settings-group-btn">All Local</button>';
+      hdr.querySelector('.settings-group-btn').addEventListener('click', setAllLocalWeather);
+      groupContainer.appendChild(hdr);
+    } else if (!def.group && groupContainer) {
+      body.appendChild(groupContainer);
+      groupContainer = null;
+    }
     const val = def.opts[menuSettingsIdx[def.key]];
     const row = document.createElement('div');
     row.className = 'setting-row';
@@ -5574,15 +5627,26 @@ function renderSettingsPanel() {
       if (e.key === 'ArrowLeft' || e.key === 'ArrowDown')
         { e.preventDefault(); stepSetting(si, -1); }
     });
-    body.appendChild(row);
+    (groupContainer || body).appendChild(row);
   });
+  if (groupContainer) body.appendChild(groupContainer);
+}
+
+function setAllLocalWeather() {
+  ['timeOfDay', 'cloudCover', 'rain', 'wind'].forEach(key => {
+    const def = SETTING_DEFS.find(d => d.key === key);
+    const idx = def.opts.indexOf('local');
+    if (idx >= 0) menuSettingsIdx[key] = idx;
+  });
+  renderSettingsPanel();
+  if (networkModeOn && networkIsHost) broadcastSettings();
 }
 
 function applyRoundSky(timeChoice, cloudChoice, rainChoice) {
   if (!sky) return;
 
   // Only fetch live weather when the player actually wants local data for any setting
-  sky.useWeather = (timeChoice === 'local' || cloudChoice === 'local' || rainChoice === 'local');
+  sky.useWeather = (timeChoice === 'local' || cloudChoice === 'local' || rainChoice === 'local' || (gameSettings && gameSettings.wind === 'local'));
 
   if (timeChoice === 'local') {
     sky.timeOverride = null;

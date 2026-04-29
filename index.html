@@ -1235,7 +1235,7 @@ const scoreboardEl = document.getElementById('scoreboard');
 const VWIDTH  = 1920;
 const VHEIGHT = 1080;
 
-const GAME_VERSION = '1.9.7'; // bump whenever index.html is updated
+const GAME_VERSION = '1.9.8'; // bump whenever index.html is updated
 
 // ── constants ──────────────────────────────────────────────────────────────
 let GRAVITY      = 260;   // px/s² — overridden at game start by gravity setting
@@ -1394,11 +1394,11 @@ const SETTING_DEFS = [
   { key:'interest',     label:'Interest Rate',   opts:[0,5,10,15,20,25,30],                      fmt:v=>v+'%' },
   { key:'terrain',  label:'Terrain',       opts:['Random','Plains','Plateaus','Mountains','Canyon','Fortress','Caves','Mixed'], fmt:v=>v },
   { key:'walls',    label:'Walls',         opts:['None','Rubber','Wrap','Concrete','Absorb','Random'], fmt:v=>v },
-  { key:'wind',     label:'Wind',          opts:['None','Light','Gusty','Tornado'],    fmt:v=>v },
   { key:'gravity',  label:'Gravity',       opts:['Low','Normal','High'],               fmt:v=>v },
   { key:'timeOfDay',  label:'Time of Day',  opts:['local','dawn','sunrise','noon','sunset','night','random'], fmt:v=>v[0].toUpperCase()+v.slice(1) },
   { key:'cloudCover', label:'Cloud Cover',  opts:['local','20','50','80','100','random'],                     fmt:v=>v==='local'?'Local':v==='random'?'Random':v+'%' },
   { key:'rain',       label:'Rain',         opts:['none','local','light','moderate','storm','random'],        fmt:v=>({none:'None',local:'Local',light:'Light Rain',moderate:'Moderate',storm:'Storm',random:'Random'}[v]??v) },
+  { key:'wind',     label:'Wind',          opts:['None','Light','Gusty','Tornado'],    fmt:v=>v },
 ];
 const PLAYER_TYPES = ['off','human','cpu-easy','cpu-medium','cpu-hard'];
 const PLAYER_TYPE_LABELS = {

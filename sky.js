@@ -803,20 +803,26 @@ class Sky {
         const h = this.lastHeight;
         if (!w || !h) return;
 
-        // Spawn raindrops up to target count
-        while (this.raindrops.length < cfg.count) {
-            this.raindrops.push(this._makeRaindrop(true));
-        }
-        // Trim if config dropped (e.g. precip override changed)
-        while (this.raindrops.length > cfg.count) {
-            this.raindrops.pop();
-        }
-
-        // Wind-driven horizontal velocity. Rain in heavy wind tilts noticeably.
-        // Wind is mph 0-100; we want a strong tilt at game-extreme winds (~100)
-        // and barely any at calm. -ve wind = leftward.
+        // Wind-driven horizontal velocity. -ve = leftward.
         const signedWind = (this._windDirection || 1) * Math.abs(this._windMph || 0);
         const windPx = signedWind * 4;  // 100 mph wind = 400 px/s horizontal
+
+        // Extend spawn zone upwind so drops cover the full canvas bottom edge.
+        // A drop spawned at y=0 drifts (windPx * fallTime) px before hitting ground.
+        // We extend the spawn band on the upwind side by that amount (capped at w)
+        // so every bottom-edge x position is reachable by at least one raindrop.
+        const fallTime = cfg.speed > 0 ? h / cfg.speed : 0;
+        const overshoot = cfg.speed > 0 ? Math.min(Math.abs(windPx) * fallTime, w) : 0;
+
+        // Scale count to maintain the same visible density across the wider zone
+        const scaledCount = cfg.count > 0 ? Math.ceil(cfg.count * (w + overshoot) / w) : 0;
+
+        while (this.raindrops.length < scaledCount) {
+            this.raindrops.push(this._makeRaindrop(true, windPx, overshoot));
+        }
+        while (this.raindrops.length > scaledCount) {
+            this.raindrops.pop();
+        }
 
         // Update raindrops
         for (let i = this.raindrops.length - 1; i >= 0; i--) {
@@ -835,14 +841,14 @@ class Sky {
                         maxLife: 0.35 + Math.random() * 0.25,
                     });
                 }
-                // Recycle: respawn at top
-                Object.assign(r, this._makeRaindrop(false));
+                Object.assign(r, this._makeRaindrop(false, windPx, overshoot));
                 continue;
             }
 
-            // Off-screen horizontally? recycle
-            if (r.x < -20 || r.x > w + 20) {
-                Object.assign(r, this._makeRaindrop(false));
+            // Gone past the extended zone? recycle. Upwind drops that haven't
+            // entered the screen yet are NOT culled — they'll drift in naturally.
+            if (r.x < -(overshoot + 20) || r.x > w + overshoot + 20) {
+                Object.assign(r, this._makeRaindrop(false, windPx, overshoot));
             }
         }
 
@@ -854,14 +860,15 @@ class Sky {
         }
     }
 
-    _makeRaindrop(randomY) {
+    _makeRaindrop(randomY, windPx = 0, overshoot = 20) {
         const w = this.lastWidth;
         const h = this.lastHeight;
+        // Place the extra spawn margin on the UPWIND side so drops drift into view
+        const leftExtra  = windPx > 0 ? overshoot : 0;  // rightward wind: spawn further left
+        const rightExtra = windPx < 0 ? overshoot : 0;  // leftward wind:  spawn further right
         return {
-            // Spawn slightly outside left/right edges to account for wind drift
-            x: -50 + Math.random() * (w + 100),
+            x: -leftExtra + Math.random() * (w + leftExtra + rightExtra),
             y: randomY ? Math.random() * h : -20 - Math.random() * 60,
-            // Per-drop speed variance (looks better than uniform)
             speedJitter: 0.85 + Math.random() * 0.3,
         };
     }

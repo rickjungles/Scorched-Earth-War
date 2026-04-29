@@ -1261,7 +1261,7 @@ const scoreboardEl = document.getElementById('scoreboard');
 const VWIDTH  = 1920;
 const VHEIGHT = 1080;
 
-const GAME_VERSION = '1.10.6'; // bump whenever index.html is updated
+const GAME_VERSION = '1.10.7'; // bump whenever index.html is updated
 
 // ── constants ──────────────────────────────────────────────────────────────
 let GRAVITY      = 260;   // px/s² — overridden at game start by gravity setting
@@ -1959,7 +1959,7 @@ let gameSettings     = {};
 
 // ── DOS menu state ──────────────────────────────────────────────────────────
 let menuPlayers     = Array.from({length:5}, (_, i) => ({
-  name:`Player ${i+1}`, colorIdx:i, typeIdx: i < 2 ? 1 : 0,
+  name:`Player ${i+1}`, colorIdx:i, typeIdx: i === 0 ? 1 : i === 1 ? 3 : 0,
 }));
 let menuSettingsIdx = { rounds:4, shop:0, cash:1, cashPerRound:1, interest:2, terrain:0, walls:5, wind:4, gravity:1, timeOfDay:6, cloudCover:3, rain:5 };
 (function() {
@@ -5422,6 +5422,15 @@ document.addEventListener('keydown', e => {
     if (chatOpen) { closeChat(); return; }
     if (quitConfirmEl.classList.contains('visible')) {
       quitConfirmEl.classList.remove('visible'); return;
+    }
+    if (shopOpen) {
+      shopEl.style.display = 'none';
+      shopOpen = false;
+      if (animId) { cancelAnimationFrame(animId); animId = null; }
+      gameOver = true;
+      if (networkModeOn) { disconnectNetwork(); setNetworkMode(false); }
+      showSetup();
+      return;
     }
     if (setupEl.style.display === 'none' && !shopOpen) {
       showQuitConfirm();

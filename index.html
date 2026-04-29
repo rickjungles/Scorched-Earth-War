@@ -1235,7 +1235,7 @@ const scoreboardEl = document.getElementById('scoreboard');
 const VWIDTH  = 1920;
 const VHEIGHT = 1080;
 
-const GAME_VERSION = '1.9.9'; // bump whenever index.html is updated
+const GAME_VERSION = '1.10.0'; // bump whenever index.html is updated
 
 // ── constants ──────────────────────────────────────────────────────────────
 let GRAVITY      = 260;   // px/s² — overridden at game start by gravity setting
@@ -1389,6 +1389,7 @@ const MENU_DEFENSES = [
 ];
 const SETTING_DEFS = [
   { key:'rounds',   label:'Rounds',        opts:Array.from({length:50},(_,i)=>i+1),    fmt:v=>String(v) },
+  { key:'shop',     label:'Shop',          opts:['On','Off'],                           fmt:v=>v },
   { key:'cash',         label:'Starting Cash',  opts:[5000,10000,15000,20000,30000,50000],       fmt:v=>'$'+v.toLocaleString() },
   { key:'cashPerRound', label:'Cash Per Round',  opts:Array.from({length:21},(_,i)=>i*1000),     fmt:v=>v===0?'Off':'$'+v.toLocaleString() },
   { key:'interest',     label:'Interest Rate',   opts:[0,5,10,15,20,25,30],                      fmt:v=>v+'%' },
@@ -1934,7 +1935,7 @@ let gameSettings     = {};
 let menuPlayers     = Array.from({length:5}, (_, i) => ({
   name:`Player ${i+1}`, colorIdx:i, typeIdx: i < 2 ? 1 : 0,
 }));
-let menuSettingsIdx = { rounds:4, cash:1, cashPerRound:1, interest:2, terrain:0, walls:5, wind:4, gravity:1, timeOfDay:6, cloudCover:3, rain:5 };
+let menuSettingsIdx = { rounds:4, shop:0, cash:1, cashPerRound:1, interest:2, terrain:0, walls:5, wind:4, gravity:1, timeOfDay:6, cloudCover:3, rain:5 };
 (function() {
   try {
     const saved = JSON.parse(localStorage.getItem('se_sky') || 'null');
@@ -2676,7 +2677,7 @@ function updateTankPhysics(dt) {
             const fallEffDmg = prevHpFall - t.health;
             if (fallEffDmg > 0 && t.lastAttacker >= 0) {
               tanks[t.lastAttacker].damageDealt += fallEffDmg;
-              tanks[t.lastAttacker].money += fallEffDmg * MONEY_PER_DAMAGE;
+              if (gameSettings.shop !== 'Off') tanks[t.lastAttacker].money += fallEffDmg * MONEY_PER_DAMAGE;
             }
             if (prevHpFall > 0 && t.health <= 0 && t.killedBy < 0) {
               t.killedBy = t.lastAttacker; // credit whoever last shot this tank (or -1 if nobody)
@@ -2739,7 +2740,7 @@ function onImpact(proj, px, py) {
               const prevHealth = t.health;
               t.health = Math.max(0, t.health - dmg);
               const effectiveDmg = prevHealth - t.health; // cap at actual HP lost, no overkill credit
-              tanks[proj.owner].money += effectiveDmg * MONEY_PER_DAMAGE;
+              if (gameSettings.shop !== 'Off') tanks[proj.owner].money += effectiveDmg * MONEY_PER_DAMAGE;
               tanks[proj.owner].damageDealt += effectiveDmg;
               t.lastAttacker = proj.owner;
               if (prevHealth > 0 && t.health <= 0) { t.killedBy = proj.owner; triggerKillEffect(t); }
@@ -2837,7 +2838,7 @@ function updateNapalm(dt) {
             const prevHp = t.health;
             t.health = Math.max(0, t.health - 8);
             const napEffDmg = prevHp - t.health; // cap at actual HP lost
-            tanks[p.owner].money += napEffDmg * MONEY_PER_DAMAGE;
+            if (gameSettings.shop !== 'Off') tanks[p.owner].money += napEffDmg * MONEY_PER_DAMAGE;
             tanks[p.owner].damageDealt += napEffDmg;
             t.lastAttacker = p.owner;
             if (prevHp > 0 && t.health <= 0 && t.killedBy < 0) { t.killedBy = p.owner; triggerKillEffect(t); }
@@ -3197,7 +3198,7 @@ function endRound() {
   }));
 
   // Apply per-round cash allowance to all players
-  if (perRoundBonus > 0) {
+  if (perRoundBonus > 0 && gameSettings.shop !== 'Off') {
     tanks.forEach(t => { t.money += perRoundBonus; });
   }
 
@@ -3446,7 +3447,7 @@ function startNextRound() {
     const rate     = (gameSettings.interest || 0) / 100;
     const bankBal  = savedPostShop[i] ?? t.money;  // what they had after shopping last round
     let bonus = 0;
-    if (rate > 0) {
+    if (rate > 0 && gameSettings.shop !== 'Off') {
       const batteryBonus = 0.20 * (t.defInventory['Battery'] || 0);
       bonus = Math.floor(bankBal * (rate + batteryBonus));
       t.money += bonus;
@@ -3595,7 +3596,7 @@ function updateUI() {
   const inv  = t.inventory[t.selectedWeapon];
   const ammo = inv === Infinity ? '∞' : String(inv);
   const tag  = t.isAI ? ' [CPU]' : '';
-  ui.textContent = `R${currentRound}/${totalRounds}  |  ${t.name}${tag}  |  ${t.angle}°  |  Pwr ${t.power}  |  ${t.selectedWeapon} (${ammo})  |  $${t.money}`;
+  ui.textContent = `R${currentRound}/${totalRounds}  |  ${t.name}${tag}  |  ${t.angle}°  |  Pwr ${t.power}  |  ${t.selectedWeapon} (${ammo})${gameSettings.shop !== 'Off' ? '  |  $' + t.money : ''}`;
   ui.style.borderColor = t.color;
 }
 
@@ -3603,7 +3604,7 @@ function updateWeaponIndicator() {
   if (gameOver) return;
   const t = tanks[currentPlayer];
   const tag = t.isAI ? ' [CPU]' : '';
-  let html = `<div class="wi-header" style="color:${t.color}">${t.name}${tag} &nbsp;$${t.money}</div>`;
+  let html = `<div class="wi-header" style="color:${t.color}">${t.name}${tag}${gameSettings.shop !== 'Off' ? ' &nbsp;$' + t.money : ''}</div>`;
 
   // Weapons
   const weaponRows = Object.entries(t.inventory)
@@ -4300,6 +4301,7 @@ function cpuAutoBuy(playerIndex) {
 
 // ── shop phase (runs at game/round start, cycles all players) ──────────────
 function runShopPhase(onComplete) {
+  if (gameSettings.shop === 'Off') { onComplete(); return; }
   if (networkModeOn) {
     runNetworkShopPhase(onComplete);
     return;
@@ -4346,8 +4348,8 @@ function runNetworkShopPhase(onComplete) {
   const myIdx  = networkMyPlayerIdx;
   const myTank = myIdx >= 0 ? tanks[myIdx] : null;
 
-  if (!myTank || myTank.health <= 0) {
-    // Dead — skip shop and immediately mark done
+  if (gameSettings.shop === 'Off' || !myTank || myTank.health <= 0) {
+    // Shop disabled or dead — skip shop and immediately mark done
     _netShopLocalDone();
     return;
   }
@@ -7054,7 +7056,7 @@ function initGame() {
   placeTanks();
   // Round 1 only: initialize each player's money to Starting Cash from settings.
   // This is the ONE place starting cash is ever assigned — never in startNextRound.
-  tanks.forEach(t => { t.money = gameSettings.cash ?? 5000; });
+  tanks.forEach(t => { t.money = gameSettings.shop !== 'Off' ? (gameSettings.cash ?? 5000) : 0; });
   currentPlayer = roundFirstPlayer % tanks.length;
   newWind();
   if (!sky) {

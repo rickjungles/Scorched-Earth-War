@@ -1261,7 +1261,7 @@ const scoreboardEl = document.getElementById('scoreboard');
 const VWIDTH  = 1920;
 const VHEIGHT = 1080;
 
-const GAME_VERSION = '1.10.7'; // bump whenever index.html is updated
+const GAME_VERSION = '1.10.8'; // bump whenever index.html is updated
 
 // ── constants ──────────────────────────────────────────────────────────────
 let GRAVITY      = 260;   // px/s² — overridden at game start by gravity setting
@@ -5237,6 +5237,15 @@ document.getElementById('about-ver').textContent = 'Version ' + GAME_VERSION;
 const quitConfirmEl = document.getElementById('quit-confirm');
 document.getElementById('quit-btn-yes').addEventListener('click', () => {
   quitConfirmEl.classList.remove('visible');
+  if (shopOpen) {
+    // Clone the button to discard any stale openShopForPlayer handler still attached.
+    // Without this the old callback fires on the next game's Done click, triggering
+    // a second intro sequence that drops tanks into an already-running game.
+    const doneBtn = document.getElementById('shop-done');
+    doneBtn.replaceWith(doneBtn.cloneNode(true));
+    shopEl.style.display = 'none';
+    shopOpen = false;
+  }
   if (animId) { cancelAnimationFrame(animId); animId = null; }
   gameOver = true;
   if (networkModeOn) { disconnectNetwork(); setNetworkMode(false); }
@@ -5423,15 +5432,7 @@ document.addEventListener('keydown', e => {
     if (quitConfirmEl.classList.contains('visible')) {
       quitConfirmEl.classList.remove('visible'); return;
     }
-    if (shopOpen) {
-      shopEl.style.display = 'none';
-      shopOpen = false;
-      if (animId) { cancelAnimationFrame(animId); animId = null; }
-      gameOver = true;
-      if (networkModeOn) { disconnectNetwork(); setNetworkMode(false); }
-      showSetup();
-      return;
-    }
+    if (shopOpen) { showQuitConfirm(); return; }
     if (setupEl.style.display === 'none' && !shopOpen) {
       showQuitConfirm();
     }

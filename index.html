@@ -1261,7 +1261,7 @@ const scoreboardEl = document.getElementById('scoreboard');
 const VWIDTH  = 1920;
 const VHEIGHT = 1080;
 
-const GAME_VERSION = '1.10.4'; // bump whenever index.html is updated
+const GAME_VERSION = '1.10.5'; // bump whenever index.html is updated
 
 // ── constants ──────────────────────────────────────────────────────────────
 let GRAVITY      = 260;   // px/s² — overridden at game start by gravity setting
@@ -1417,7 +1417,7 @@ const SETTING_DEFS = [
   { key:'rounds',       label:'Rounds',         opts:Array.from({length:50},(_,i)=>i+1),                                         fmt:v=>String(v) },
   { key:'terrain',      label:'Terrain',        opts:['Random','Plains','Plateaus','Mountains','Canyon','Fortress','Caves','Mixed'], fmt:v=>v },
   { key:'walls',        label:'Walls',          opts:['None','Rubber','Wrap','Concrete','Absorb','Random'],                        fmt:v=>v },
-  { key:'shop',         label:'Shop',           opts:['On','Off'],                                                                 fmt:v=>v,                          group:'economy' },
+  { key:'shop',         label:'Shop',           opts:['On','Off'],                                                                 fmt:v=>v,                          group:'economy', inHeader:true },
   { key:'cash',         label:'Starting Cash',  opts:[5000,10000,15000,20000,30000,50000],                                        fmt:v=>'$'+v.toLocaleString(),     group:'economy' },
   { key:'cashPerRound', label:'Cash Per Round', opts:Array.from({length:21},(_,i)=>i*1000),                                       fmt:v=>v===0?'Off':'$'+v.toLocaleString(), group:'economy' },
   { key:'interest',     label:'Interest Rate',  opts:[0,5,10,15,20,25,30],                                                        fmt:v=>v+'%',                      group:'economy' },
@@ -5612,6 +5612,18 @@ function renderSettingsPanel() {
       }
     }
     const val = def.opts[menuSettingsIdx[def.key]];
+    // inHeader settings render as a toggle inside the group header, not as a row
+    if (def.inHeader && groupContainer) {
+      const hdr = groupContainer.querySelector('.settings-group-header');
+      const ctrl = document.createElement('span');
+      ctrl.style.cssText = 'display:flex;align-items:center;gap:2px';
+      ctrl.innerHTML = `<span class="setting-arrow" data-si="${si}" data-dir="-1">&#9668;</span><span style="color:#fff;font-size:12px;min-width:24px;text-align:center">${htmlEsc(def.fmt(val))}</span><span class="setting-arrow" data-si="${si}" data-dir="1">&#9658;</span>`;
+      ctrl.querySelectorAll('.setting-arrow').forEach(el =>
+        el.addEventListener('click', () => stepSetting(si, +el.dataset.dir))
+      );
+      hdr.appendChild(ctrl);
+      return;
+    }
     const row = document.createElement('div');
     row.className = 'setting-row';
     row.innerHTML = `

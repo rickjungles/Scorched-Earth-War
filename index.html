@@ -1276,7 +1276,7 @@ const scoreboardEl = document.getElementById('scoreboard');
 const VWIDTH  = 1920;
 const VHEIGHT = 1080;
 
-const GAME_VERSION = '1.10.17'; // bump whenever index.html is updated
+const GAME_VERSION = '1.10.18'; // bump whenever index.html is updated
 
 // ── constants ──────────────────────────────────────────────────────────────
 let GRAVITY      = 260;   // px/s² — overridden at game start by gravity setting
@@ -2603,7 +2603,7 @@ function drawWindIndicator() {
     return;
   }
 
-  const max  = windMaxForSetting() || Math.abs(wind) || 5;
+  const max  = Math.max(windMaxForSetting(), Math.abs(wind)) || 5;
   const len  = (Math.abs(wind) / max) * maxLen;
   const dir  = wind > 0 ? 1 : -1;
   const gg   = Math.round(Math.max(50, 230 - Math.abs(wind) * 18));
@@ -3535,9 +3535,9 @@ function startNextRound() {
       wind,
       windEffectiveMax,
       walls:            gameSettings.walls,
-      skyTime:          sky ? sky.getCurrentHour() : undefined,
-      skyCloud:         sky ? sky.cloudOverride : undefined,
-      skyPrecip:        sky ? sky.precipOverride : undefined,
+      skyTime:          sky ? sky.getCurrentHour()          : undefined,
+      skyCloud:         sky ? sky.getCurrentCloudCover()    : undefined,
+      skyPrecip:        sky ? sky.getCurrentPrecipitation() : undefined,
     }));
   }
   updateUI();

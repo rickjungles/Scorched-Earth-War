@@ -1276,7 +1276,7 @@ const scoreboardEl = document.getElementById('scoreboard');
 const VWIDTH  = 1920;
 const VHEIGHT = 1080;
 
-const GAME_VERSION = '1.10.16'; // bump whenever index.html is updated
+const GAME_VERSION = '1.10.17'; // bump whenever index.html is updated
 
 // ── constants ──────────────────────────────────────────────────────────────
 let GRAVITY      = 260;   // px/s² — overridden at game start by gravity setting
@@ -2573,7 +2573,7 @@ function drawWindIndicator() {
 
   // Wall-mode indicator (left of wind box)
   if (gameSettings && gameSettings.walls) {
-    const wbw = 110, wbh = 38;
+    const wbw = 130, wbh = 38;
     const wbx = bx - wbw - 6;
     const wby = by;
     ctx.fillStyle = 'rgba(0,0,0,0.58)';
@@ -2603,7 +2603,7 @@ function drawWindIndicator() {
     return;
   }
 
-  const max  = windMaxForSetting();
+  const max  = windMaxForSetting() || Math.abs(wind) || 5;
   const len  = (Math.abs(wind) / max) * maxLen;
   const dir  = wind > 0 ? 1 : -1;
   const gg   = Math.round(Math.max(50, 230 - Math.abs(wind) * 18));
@@ -3521,6 +3521,7 @@ function startNextRound() {
   // Guests override with host's authoritative wind
   if (pendingNetworkWind !== null) {
     wind = pendingNetworkWind;
+    if (pendingNetworkWindMax !== null) { windEffectiveMax = pendingNetworkWindMax; pendingNetworkWindMax = null; }
     pendingNetworkWind = null;
   }
   applyRoundSky(gameSettings.timeOfDay, gameSettings.cloudCover, gameSettings.rain);
@@ -3528,14 +3529,15 @@ function startNextRound() {
   // Host sends authoritative terrain, positions, wind, and wall type so guests stay in sync
   if (networkModeOn && networkIsHost && networkWs && networkWs.readyState === WebSocket.OPEN) {
     networkWs.send(JSON.stringify({
-      type:      'round_start_data',
-      terrain:   Array.from(terrain),
-      positions: tanks.map(t => t.x),
+      type:             'round_start_data',
+      terrain:          terrain.map(v => Math.round(v)),
+      positions:        tanks.map(t => t.x),
       wind,
-      walls:     gameSettings.walls,
-      skyTime:   sky ? sky.getCurrentHour() : undefined,
-      skyCloud:  sky ? sky.cloudOverride : undefined,
-      skyPrecip: sky ? sky.precipOverride : undefined,
+      windEffectiveMax,
+      walls:            gameSettings.walls,
+      skyTime:          sky ? sky.getCurrentHour() : undefined,
+      skyCloud:         sky ? sky.cloudOverride : undefined,
+      skyPrecip:        sky ? sky.precipOverride : undefined,
     }));
   }
   updateUI();
@@ -3624,8 +3626,7 @@ function nextTurn() {
       selectedWeapons: tanks.map(t => t.selectedWeapon),
       currentPlayer,
       wind,
-      terrain:         Array.from(terrain),
-      terrainHash:     terrainHash(),
+      terrain:         terrain.map(v => Math.round(v)),
     }));
   }
 
@@ -5834,6 +5835,7 @@ let _versionWarnShown     = false; // show version mismatch warning at most once
 let pendingNetworkTerrain = null;  // terrain array from host, used in generateTerrain()
 let pendingTankPositions  = null;  // tank x positions from host, applied in placeTanks()
 let pendingNetworkWind    = null;  // wind value from host, overrides newWind() result
+let pendingNetworkWindMax = null;  // windEffectiveMax from host, synced alongside wind
 let networkShopDone       = new Set(); // playerIds who have sent shop_done this round
 let networkShopCallback   = null;  // fires when all players finish shopping (host sends round_begin)
 let networkShopTotal      = 0;     // living players expected to shop this round
@@ -6639,12 +6641,6 @@ function applyStateSync(msg) {
     terrain    = msg.terrain;
     worldWidth = terrain.length;
   }
-  if (msg.terrainHash !== undefined) {
-    const local = terrainHash();
-    if (local !== msg.terrainHash) {
-      console.warn('[net] terrain hash mismatch: local', local, 'host', msg.terrainHash);
-    }
-  }
   // Host signalled round over — apply authoritative stats then trigger end sequence
   if (msg.gameOver) {
     if (msg.killedBy) {
@@ -6846,8 +6842,15 @@ function handleWsMessage(msg) {
           hideSetup();
           initGame(); // uses pendingNetworkTerrain/pendingTankPositions if set
 
-          // Override wind with host's value after initGame()
-          if (msg.wind !== undefined) wind = msg.wind;
+          // Override wind/sky with host's authoritative values after initGame()
+          if (msg.wind             !== undefined) wind             = msg.wind;
+          if (msg.windEffectiveMax !== undefined) windEffectiveMax = msg.windEffectiveMax;
+          if (sky) {
+            if (msg.skyTime   !== undefined) sky.timeOverride   = msg.skyTime;
+            if (msg.skyCloud  !== undefined) sky.cloudOverride  = msg.skyCloud;
+            if (msg.skyPrecip !== undefined) sky.precipOverride = msg.skyPrecip;
+            sky.useWeather = false;
+          }
         } else {
           // Settings not yet received — show "starting" status
           networkJoinSettings = s || networkJoinSettings;
@@ -6902,6 +6905,7 @@ function handleWsMessage(msg) {
         pendingNetworkTerrain = msg.terrain;
         pendingTankPositions  = msg.positions;
         pendingNetworkWind    = msg.wind;
+        pendingNetworkWindMax = msg.windEffectiveMax ?? null;
         if (msg.walls) gameSettings.walls = msg.walls; // sync random wall type
         startNextRound();
         // Override sky with host's authoritative resolved values (fixes random weather sync)
@@ -7096,10 +7100,14 @@ function initSetupListeners() {
           enabledDefenses: config.enabledDefenses,
         },
         players:   startPlayers,
-        terrain:   Array.from(terrain),
-        positions: tanks.map(t => t.x),
+        terrain:          terrain.map(v => Math.round(v)),
+        positions:        tanks.map(t => t.x),
         worldWidth,
         wind,
+        windEffectiveMax,
+        skyTime:          sky ? sky.getCurrentHour() : undefined,
+        skyCloud:         sky ? sky.cloudOverride : undefined,
+        skyPrecip:        sky ? sky.precipOverride : undefined,
       }));
     }
   });

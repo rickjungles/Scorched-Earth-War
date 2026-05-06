@@ -283,13 +283,17 @@ wss.on('connection', (ws, req) => {
         room.locked = true;
         console.log(`[room] ${roomCode} — game started (${room.players.size} players), room locked`);
         broadcastAll(room, {
-          type:       'start_game',
-          settings:   msg.settings,
-          players:    msg.players || playerList(room),
-          terrain:    msg.terrain,
-          positions:  msg.positions,
-          worldWidth: msg.worldWidth,
-          wind:       msg.wind,
+          type:            'start_game',
+          settings:        msg.settings,
+          players:         msg.players || playerList(room),
+          terrain:         msg.terrain,
+          positions:       msg.positions,
+          worldWidth:      msg.worldWidth,
+          wind:            msg.wind,
+          windEffectiveMax: msg.windEffectiveMax,
+          skyTime:         msg.skyTime,
+          skyCloud:        msg.skyCloud,
+          skyPrecip:       msg.skyPrecip,
         });
         break;
       }
@@ -323,6 +327,9 @@ wss.on('connection', (ws, req) => {
           type:            'state_sync',
           healths:         msg.healths,
           shieldHPs:       msg.shieldHPs,
+          autoDefCharges:  msg.autoDefCharges  || null,
+          deflCharges:     msg.deflCharges     || null,
+          magDefCharges:   msg.magDefCharges   || null,
           moneys:          msg.moneys,
           inventories:     msg.inventories     || null,
           selectedWeapons: msg.selectedWeapons || null,
@@ -332,7 +339,7 @@ wss.on('connection', (ws, req) => {
           cashPostShop:    msg.cashPostShop    || null,
           currentPlayer:   msg.currentPlayer,
           wind:            msg.wind,
-          terrainHash:     msg.terrainHash,
+          terrain:         msg.terrain         || null,
           gameOver:        msg.gameOver        || false,
         }, ws);
         break;
@@ -354,11 +361,15 @@ wss.on('connection', (ws, req) => {
       case 'round_start_data': {
         if (!isHost) return;
         broadcast(room, {
-          type:      'round_start_data',
-          terrain:   msg.terrain,
-          positions: msg.positions,
-          wind:      msg.wind,
-          walls:     msg.walls,
+          type:            'round_start_data',
+          terrain:         msg.terrain,
+          positions:       msg.positions,
+          wind:            msg.wind,
+          windEffectiveMax: msg.windEffectiveMax,
+          walls:           msg.walls,
+          skyTime:         msg.skyTime,
+          skyCloud:        msg.skyCloud,
+          skyPrecip:       msg.skyPrecip,
         }, ws);
         break;
       }

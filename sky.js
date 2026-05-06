@@ -320,8 +320,10 @@ class Sky {
 
         const bitmap = this._renderCloudBitmap(bmpW, bmpH, cloudW, cloudH, pad, displaceScale, type);
 
+        const baseSpeed = 0.04 + Math.random() * 0.1;
+        const dir = this._windDirection || 1;
         return {
-            x: randomX ? Math.random() * w : -bmpW,
+            x: randomX ? Math.random() * w : (dir > 0 ? -bmpW : w),
             // y is bitmap top-left. Subtract pad so the visible cloud silhouette
             // (which is centered in the bitmap with `pad` of empty space around it)
             // appears in the upper third of the sky.
@@ -332,7 +334,8 @@ class Sky {
             pad,
             type,
             opacity,
-            speed: 0.04 + Math.random() * 0.1,
+            baseSpeed,
+            speed: baseSpeed * dir,
             bitmap,
         };
     }

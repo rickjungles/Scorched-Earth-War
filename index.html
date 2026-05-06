@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<link rel="icon" href="missile_favicon.ico" type="image/x-icon">
 <title>Scorched Earth</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -381,11 +382,11 @@ canvas { position: absolute; image-rendering: pixelated; }
   margin-bottom: 12px;
 }
 #about-settings-row #panel-settings {
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   margin-bottom: 0;
 }
 #loadout-col {
-  flex: 0 0 260px;
+  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -415,7 +416,7 @@ canvas { position: absolute; image-rendering: pixelated; }
   font-family: 'Courier New', monospace;
 }
 #setup-inner {
-  max-width: 980px;
+  max-width: 860px;
   margin: 20px auto;
   padding: 16px 20px 28px;
   color: #fff;
@@ -1211,7 +1212,15 @@ canvas { position: absolute; image-rendering: pixelated; }
             Up to 5 players (human or CPU) take turns firing weapons at each other
             across a destructible landscape. Buy weapons between rounds, manage your
             cash, and be the last tank standing.<br><br>
-            Inspired by the original Scorched Earth by Wendell Hicken.
+            Inspired by the original Scorched Earth by Wendell Hicken.<br><br>
+            ## License<br>
+This project is licensed under the Creative Commons Attribution-NonCommercial 4.0 International License (CC BY-NC 4.0).  
+You are free to use, modify, and share this project for non-commercial purposes with proper attribution.<br><br>
+
+## Disclaimer<br>
+This project is an independent recreation inspired by the classic game "Scorched Earth".  
+It is not affiliated with, endorsed by, or associated with the original creators or rights holders.<br>
+All code in this repository was written from scratch. Any resemblance to the original game is based solely on gameplay concepts and inspiration.
           </div>
         </div>
       </div>
@@ -1267,7 +1276,7 @@ const scoreboardEl = document.getElementById('scoreboard');
 const VWIDTH  = 1920;
 const VHEIGHT = 1080;
 
-const GAME_VERSION = '1.10.9'; // bump whenever index.html is updated
+const GAME_VERSION = '1.10.14'; // bump whenever index.html is updated
 
 // ── constants ──────────────────────────────────────────────────────────────
 let GRAVITY      = 260;   // px/s² — overridden at game start by gravity setting
@@ -3523,6 +3532,9 @@ function startNextRound() {
       positions: tanks.map(t => t.x),
       wind,
       walls:     gameSettings.walls,
+      skyTime:   sky ? sky.timeOverride  : undefined,
+      skyCloud:  sky ? sky.cloudOverride : undefined,
+      skyPrecip: sky ? sky.precipOverride : undefined,
     }));
   }
   updateUI();
@@ -5836,12 +5848,12 @@ let pendingStateSyncs       = [];    // state_sync msgs queued while projectiles
 let chatOpen = false;               // T-key chat input is visible
 
 // Host server address (persists across re-renders)
-let networkHostAddr = 'localhost';
-let networkHostPort = '3000';
+let networkHostAddr = 'scorched.rickjungles.us';
+let networkHostPort = '443';
 
 // Join-form state (persists across re-renders and retries)
-let networkJoinAddr     = 'localhost';
-let networkJoinPort     = '3000';
+let networkJoinAddr     = 'scorched.rickjungles.us';
+let networkJoinPort     = '443';
 let networkJoinCode     = '';
 let networkJoinName     = '';
 let networkJoinColorIdx = 1;           // default to red (host defaults to blue)
@@ -5914,8 +5926,8 @@ function renderNetworkPanel() {
     div.querySelector('#btn-host').addEventListener('click', () => {
       const addrEl = div.querySelector('#net-host-addr');
       const portEl = div.querySelector('#net-host-port');
-      networkHostAddr = (addrEl ? addrEl.value.trim() : networkHostAddr) || 'localhost';
-      networkHostPort = (portEl ? portEl.value.trim() : networkHostPort) || '3000';
+      networkHostAddr = (addrEl ? addrEl.value.trim() : networkHostAddr) || 'scorched.rickjungles.us';
+      networkHostPort = (portEl ? portEl.value.trim() : networkHostPort) || '443';
       hostGame();
     });
     div.querySelector('#btn-join').addEventListener('click', showJoinForm);
@@ -6034,29 +6046,8 @@ function renderNetworkPanel() {
       // ── Connection info ────────────────────────────────────────────────────
       const ci = document.createElement('div');
       ci.id = 'net-conn-info';
-      const info = _cachedServerInfo;
-      let localLines = '';
-      if (!info) {
-        localLines = '<div>Local: <em>detecting…</em></div>';
-      } else {
-        const ips   = info.localIPs && info.localIPs.length ? info.localIPs : [];
-        const host  = info.hostname || null;
-        if (ips.length) {
-          ips.forEach(ip => {
-            localLines += `<div><span class="net-copy-row" data-copy="${ip}:3000">Local IP: <span class="net-ip">${ip}:3000</span> <span class="net-ip-note">(same network — click to copy)</span></span></div>`;
-          });
-        }
-        if (host) {
-          localLines += `<div><span class="net-copy-row" data-copy="${host}:3000">Computer: <span class="net-ip">${host}:3000</span> <span class="net-ip-note">(same network — click to copy)</span></span></div>`;
-        }
-        if (!localLines) localLines = '<div>Local: <em>unavailable</em></div>';
-      }
-      const pubLine = networkPublicIp === null
-        ? 'Public: <em>fetching…</em>'
-        : networkPublicIp === false
-          ? 'Public: <span class="net-unavail">unavailable</span>'
-          : `Public: <span class="net-copy-row" data-copy="${networkPublicIp}:3000">Public: <span class="net-ip">${networkPublicIp}:3000</span> <span class="net-ip-note">(outside your network — click to copy)</span></span>`;
-      ci.innerHTML = localLines + `<div>${pubLine}</div><div id="net-copy-toast"></div>`;
+      const _serverEntry = `${networkHostAddr}:${networkHostPort}`;
+      ci.innerHTML = `<div><span class="net-copy-row" data-copy="${htmlEsc(_serverEntry)}">Server: <span class="net-ip">${htmlEsc(_serverEntry)}</span> <span class="net-ip-note">(click to copy with room code)</span></span></div><div id="net-copy-toast"></div>`;
       el.appendChild(ci);
 
       // Wire up click-to-copy on each address row
@@ -6303,8 +6294,8 @@ function doJoin() {
   const codeEl = document.getElementById('net-join-code');
   const nameEl = document.getElementById('net-join-name');
 
-  const addr = (addrEl ? addrEl.value.trim() : networkJoinAddr) || 'localhost';
-  const port = (portEl ? portEl.value.trim() : networkJoinPort) || '3000';
+  const addr = (addrEl ? addrEl.value.trim() : networkJoinAddr) || 'scorched.rickjungles.us';
+  const port = (portEl ? portEl.value.trim() : networkJoinPort) || '443';
   const code = (codeEl ? codeEl.value.trim() : networkJoinCode).toUpperCase();
   const name = (nameEl ? nameEl.value.trim() : networkJoinName) || menuPlayers[0].name || 'Player';
 
@@ -6905,6 +6896,13 @@ function handleWsMessage(msg) {
         pendingNetworkWind    = msg.wind;
         if (msg.walls) gameSettings.walls = msg.walls; // sync random wall type
         startNextRound();
+        // Override sky with host's authoritative resolved values (fixes random weather sync)
+        if (sky) {
+          if (msg.skyTime   !== undefined) sky.timeOverride   = msg.skyTime;
+          if (msg.skyCloud  !== undefined) sky.cloudOverride  = msg.skyCloud;
+          if (msg.skyPrecip !== undefined) sky.precipOverride = msg.skyPrecip;
+          sky.useWeather = false;
+        }
       }
       break;
 

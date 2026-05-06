@@ -577,6 +577,19 @@ canvas { position: absolute; image-rendering: pixelated; }
   font-weight: bold;
   letter-spacing: 6px;
   margin-left: 6px;
+  cursor: pointer;
+  border-radius: 3px;
+  padding: 0 4px;
+  transition: background 0.15s;
+}
+#net-room-code-display span:hover { background: rgba(255,255,85,0.15); }
+#net-room-code-toast {
+  display: block;
+  font-size: 10px;
+  color: #44DD44;
+  letter-spacing: 1px;
+  padding: 1px 0 0 4px;
+  min-height: 13px;
 }
 #net-player-count {
   color: #00AAAA;
@@ -1276,7 +1289,7 @@ const scoreboardEl = document.getElementById('scoreboard');
 const VWIDTH  = 1920;
 const VHEIGHT = 1080;
 
-const GAME_VERSION = '1.10.19'; // bump whenever index.html is updated
+const GAME_VERSION = '1.10.20'; // bump whenever index.html is updated
 
 // ── constants ──────────────────────────────────────────────────────────────
 let GRAVITY      = 260;   // px/s² — overridden at game start by gravity setting
@@ -2728,6 +2741,7 @@ function updateTankPhysics(dt) {
             const prevHpFall = t.health;
             t.health = Math.max(0, t.health - fallDmg);
             const fallEffDmg = prevHpFall - t.health;
+            if (fallEffDmg > 0) console.log(`[dmg] ${t.name} fall: ${fallEffDmg}hp (${prevHpFall} → ${t.health})`);
             if (fallEffDmg > 0 && t.lastAttacker >= 0) {
               tanks[t.lastAttacker].damageDealt += fallEffDmg;
               if (gameSettings.shop !== 'Off') tanks[t.lastAttacker].money += fallEffDmg * MONEY_PER_DAMAGE;
@@ -2798,6 +2812,7 @@ function onImpact(proj, px, py) {
               tanks[proj.owner].damageDealt += effectiveDmg;
               t.lastAttacker = proj.owner;
               if (prevHealth > 0 && t.health <= 0) { t.killedBy = proj.owner; triggerKillEffect(t); }
+              if (effectiveDmg > 0) console.log(`[dmg] ${tanks[proj.owner].name} → ${t.name}: ${effectiveDmg}hp (${prevHealth} → ${t.health})`);
             }
           }
           anyTankDamaged = true;
@@ -2896,6 +2911,7 @@ function updateNapalm(dt) {
             tanks[p.owner].damageDealt += napEffDmg;
             t.lastAttacker = p.owner;
             if (prevHp > 0 && t.health <= 0 && t.killedBy < 0) { t.killedBy = p.owner; triggerKillEffect(t); }
+            if (napEffDmg > 0) console.log(`[dmg] ${tanks[p.owner].name} napalm → ${t.name}: ${napEffDmg}hp (${prevHp} → ${t.health})`);
             if (!gameOver) checkWin();
           }
         }
@@ -5968,7 +5984,10 @@ function renderNetworkPanel() {
     div.innerHTML = `
       <div class="net-form-grid">
         <label class="net-form-label" for="net-join-addr">Host Address</label>
-        <input class="net-form-input" id="net-join-addr" type="text" value="${htmlEsc(networkJoinAddr)}" placeholder="localhost" maxlength="64" autocomplete="off" ${dis}>
+        <div style="display:flex;gap:6px;align-items:center;min-width:0">
+          <input class="net-form-input" id="net-join-addr" type="text" value="${htmlEsc(networkJoinAddr)}" placeholder="localhost" maxlength="64" autocomplete="off" style="flex:1;min-width:22ch" ${dis}>
+          <button id="btn-paste-clipboard" ${dis} title="Paste address and room code from clipboard">&#128203; PASTE</button>
+        </div>
         <label class="net-form-label" for="net-join-port">Port</label>
         <input class="net-form-input net-form-input-short" id="net-join-port" type="text" value="${htmlEsc(networkJoinPort)}" placeholder="3000" maxlength="5" autocomplete="off" ${dis}>
         <label class="net-form-label" for="net-join-code">Room Code</label>
@@ -5983,7 +6002,6 @@ function renderNetworkPanel() {
       </div>
       <div class="net-form-actions">
         ${isFailed ? '<button id="btn-join-retry">RETRY</button>' : ''}
-        <button id="btn-paste-clipboard" ${dis} title="Paste address and room code from clipboard">&#128203; PASTE FROM CLIPBOARD</button>
       </div>
       <div id="net-form-status" class="${isFailed ? 'error' : isConnecting ? 'info' : ''}">${
         isFailed     ? networkJoinError :
@@ -6048,8 +6066,18 @@ function renderNetworkPanel() {
       // ── Host lobby ─────────────────────────────────────────────────────────
       const rc = document.createElement('div');
       rc.id = 'net-room-code-display';
-      rc.innerHTML = `ROOM CODE: <span>${networkRoomCode}</span>`;
+      rc.innerHTML = `ROOM CODE: <span id="net-rc-code" title="Click to copy room code">${networkRoomCode}</span><span id="net-room-code-toast"></span>`;
       el.appendChild(rc);
+      rc.querySelector('#net-rc-code').addEventListener('click', () => {
+        navigator.clipboard.writeText(networkRoomCode).then(() => {
+          const toast = rc.querySelector('#net-room-code-toast');
+          if (toast) {
+            toast.textContent = 'Copied!';
+            clearTimeout(toast._t);
+            toast._t = setTimeout(() => { if (toast) toast.textContent = ''; }, 2000);
+          }
+        }).catch(() => {});
+      });
 
       // ── Connection info ────────────────────────────────────────────────────
       const ci = document.createElement('div');
@@ -6589,7 +6617,9 @@ function applyStateSync(msg) {
     msg.healths.forEach((h, i) => {
       if (!tanks[i]) return;
       const wasAlive = tanks[i].health > 0;
+      const prevH = tanks[i].health;
       tanks[i].health = h;
+      if (prevH !== h) console.log(`[dmg] sync ${tanks[i].name}: ${prevH} → ${h}`);
       if (wasAlive && h <= 0 && !killEffects.some(e => e.tank === tanks[i])) {
         // Host confirms kill that our local simulation missed — play death effect
         triggerKillEffect(tanks[i]);

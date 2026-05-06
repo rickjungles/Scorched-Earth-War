@@ -1276,7 +1276,7 @@ const scoreboardEl = document.getElementById('scoreboard');
 const VWIDTH  = 1920;
 const VHEIGHT = 1080;
 
-const GAME_VERSION = '1.10.15'; // bump whenever index.html is updated
+const GAME_VERSION = '1.10.16'; // bump whenever index.html is updated
 
 // ── constants ──────────────────────────────────────────────────────────────
 let GRAVITY      = 260;   // px/s² — overridden at game start by gravity setting
@@ -2737,6 +2737,7 @@ function updateTankPhysics(dt) {
               triggerKillEffect(t);
             }
             if (!gameOver) checkWin();
+            if (networkModeOn && networkIsHost) netHealthSync();
           }
         }
         t.falling = false;
@@ -3532,7 +3533,7 @@ function startNextRound() {
       positions: tanks.map(t => t.x),
       wind,
       walls:     gameSettings.walls,
-      skyTime:   sky ? sky.timeOverride  : undefined,
+      skyTime:   sky ? sky.getCurrentHour() : undefined,
       skyCloud:  sky ? sky.cloudOverride : undefined,
       skyPrecip: sky ? sky.precipOverride : undefined,
     }));
@@ -3623,6 +3624,7 @@ function nextTurn() {
       selectedWeapons: tanks.map(t => t.selectedWeapon),
       currentPlayer,
       wind,
+      terrain:         Array.from(terrain),
       terrainHash:     terrainHash(),
     }));
   }
@@ -6632,6 +6634,10 @@ function applyStateSync(msg) {
   // Keep damageDealt in sync every turn so mid-round displays are accurate
   if (msg.damageDealt && !msg.gameOver) {
     msg.damageDealt.forEach((dd, i) => { if (tanks[i]) tanks[i].damageDealt = dd; });
+  }
+  if (msg.terrain) {
+    terrain    = msg.terrain;
+    worldWidth = terrain.length;
   }
   if (msg.terrainHash !== undefined) {
     const local = terrainHash();

@@ -1289,7 +1289,7 @@ const scoreboardEl = document.getElementById('scoreboard');
 const VWIDTH  = 1920;
 const VHEIGHT = 1080;
 
-const GAME_VERSION = '1.10.20'; // bump whenever index.html is updated
+const GAME_VERSION = '1.10.21'; // bump whenever index.html is updated
 
 // ── constants ──────────────────────────────────────────────────────────────
 let GRAVITY      = 260;   // px/s² — overridden at game start by gravity setting
@@ -3557,7 +3557,7 @@ function startNextRound() {
     }));
     console.log('[net sky] HOST send round_start_data — time:', sky ? sky.getCurrentHour().toFixed(2) : 'n/a',
       'cloud:', sky ? sky.getCurrentCloudCover().toFixed(3) : 'n/a',
-      'precip:', sky ? sky.getCurrentPrecipitation().toFixed(3) : 'n/a',
+      'precip:', sky ? sky.getCurrentPrecipitation() : 'n/a',
       'wind:', wind.toFixed(1));
   }
   updateUI();
@@ -6888,7 +6888,7 @@ function handleWsMessage(msg) {
           console.log('[net sky] GUEST recv start_game — time:', msg.skyTime, 'cloud:', msg.skyCloud, 'precip:', msg.skyPrecip, 'wind:', msg.wind,
             '| sky now time:', sky ? sky.getCurrentHour().toFixed(2) : 'n/a',
             'cloud:', sky ? sky.getCurrentCloudCover().toFixed(3) : 'n/a',
-            'precip:', sky ? sky.getCurrentPrecipitation().toFixed(3) : 'n/a',
+            'precip:', sky ? sky.getCurrentPrecipitation() : 'n/a',
             'wind:', wind.toFixed(1));
         } else {
           // Settings not yet received — show "starting" status
@@ -6957,7 +6957,7 @@ function handleWsMessage(msg) {
         console.log('[net sky] GUEST recv round_start_data — time:', msg.skyTime, 'cloud:', msg.skyCloud, 'precip:', msg.skyPrecip, 'wind:', msg.wind,
           '| sky now time:', sky ? sky.getCurrentHour().toFixed(2) : 'n/a',
           'cloud:', sky ? sky.getCurrentCloudCover().toFixed(3) : 'n/a',
-          'precip:', sky ? sky.getCurrentPrecipitation().toFixed(3) : 'n/a',
+          'precip:', sky ? sky.getCurrentPrecipitation() : 'n/a',
           'wind:', wind.toFixed(1));
       }
       break;
@@ -7155,7 +7155,7 @@ function initSetupListeners() {
       }));
       console.log('[net sky] HOST send start_game — time:', sky ? sky.getCurrentHour().toFixed(2) : 'n/a',
         'cloud:', sky ? sky.getCurrentCloudCover().toFixed(3) : 'n/a',
-        'precip:', sky ? sky.getCurrentPrecipitation().toFixed(3) : 'n/a',
+        'precip:', sky ? sky.getCurrentPrecipitation() : 'n/a',
         'wind:', wind.toFixed(1));
     }
   });
